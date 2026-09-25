@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'EB Garamond', Georgia, serif;
+    --color-navy: #13233F;
+    --color-gold: #B8964A;
+    --color-ivory: #F2EDE3;
+    --color-muted: #626974;
+}
+
+@layer base {
+    html { scroll-behavior: smooth; scroll-padding-top: 7rem; }
+    body { @apply bg-ivory font-sans text-navy antialiased; }
+    h1, h2, h3 { @apply font-display font-normal; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 2px solid #80662e; outline-offset: 5px; }
+    .bg-navy :focus-visible { outline-color: #d4ba80; }
+    dialog { margin: auto; }
+    dialog::backdrop { background: rgb(9 18 33 / 85%); backdrop-filter: blur(5px); }
+    .parish-accordion[open] > summary .accordion-chevron { transform: rotate(180deg); }
+    .parish-accordion summary::-webkit-details-marker { display: none; }
+}
+@layer components {
+    .section-wrap { @apply mx-auto w-full max-w-7xl px-6 sm:px-10 lg:px-16; }
+    .section-label { @apply flex items-center gap-3 text-xs font-medium tracking-[0.22em] uppercase; }
+    .section-label::before { content: ''; width: 28px; height: 1px; background: #B8964A; }
+    .text-link { @apply inline-flex min-h-11 items-center gap-5 border-b border-gold pb-1 text-sm font-medium transition-colors hover:text-gold; }
+    .hero-shade { background: linear-gradient(90deg, rgb(19 35 63 / 95%) 0%, rgb(19 35 63 / 78%) 38%, rgb(19 35 63 / 20%) 100%); }
+    .hero-enter { animation: welcome-in 900ms ease-out both; }
+    .gallery-photo { @apply h-full w-full object-cover transition-transform duration-700 group-hover:scale-105; }
+}
+@keyframes welcome-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+#mobile-navigation:not([hidden]) { animation: welcome-in 220ms ease-out both; }
+@media (max-width: 639px) {
+    .hero-shade { background: rgb(19 35 63 / 80%); }
+}
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}
