@@ -21,7 +21,7 @@
             <h2 class="text-4xl sm:text-5xl lg:text-6xl">Need to Visit the Parish Office?</h2>
             <p class="mx-auto mt-6 max-w-2xl text-base leading-8 text-ivory/65">Whether you are inquiring about a sacrament, seeking parish assistance, requesting information, or simply need to speak with someone at the parish office, we're here to help.</p>
             <div class="mt-9 flex flex-col justify-center gap-4 sm:flex-row">
-                <a href="{{ route('contact') }}" class="inline-flex min-h-12 items-center justify-center gap-5 bg-gold px-7 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63]">Set an Appointment <x-parish.icon name="arrow" class="size-4" /></a>
+                <a href="{{ route('appointments.index') }}" class="inline-flex min-h-12 items-center justify-center gap-5 bg-gold px-7 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63]">Set an Appointment <x-parish.icon name="arrow" class="size-4" /></a>
                 <x-parish.button :href="route('contact')" :secondary="true">Contact Us</x-parish.button>
             </div>
         </div>
@@ -97,8 +97,8 @@
                 <p class="mx-auto mt-6 max-w-2xl text-base leading-8 text-ivory/65">Whether you are inquiring about a sacrament, seeking parish assistance, requesting information, or simply need to speak with someone at the parish office, we're here to help.</p>
                 <div class="mx-auto mt-9 max-w-2xl border border-gold/45 p-7 text-left sm:p-9">
                     <h3 class="text-3xl text-ivory">Arrange a Parish Visit</h3>
-                    <p class="mt-4 text-base leading-8 text-ivory/75">Please visit the parish office during regular office hours to arrange an appointment or ask about sacrament inquiries, document requirements, and parish assistance.</p>
-                    <p class="mt-4 text-sm leading-7 text-ivory/70">Online appointment booking is not yet available. No appointment is reserved through this page.</p>
+                    <p class="mt-4 text-base leading-8 text-ivory/75">Submit an online request for Baptism, Wedding, or Funeral services. You can also use your reference number to review an existing request.</p>
+                    <x-parish.button :href="route('appointments.index')" class="mt-7 w-full sm:w-auto">Set an Appointment</x-parish.button>
                 </div>
             </div>
         </div>

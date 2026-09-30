@@ -33,6 +33,12 @@
     .hero-shade { background: linear-gradient(90deg, rgb(19 35 63 / 95%) 0%, rgb(19 35 63 / 78%) 38%, rgb(19 35 63 / 20%) 100%); }
     .hero-enter { animation: welcome-in 900ms ease-out both; }
     .gallery-photo { @apply h-full w-full object-cover transition-transform duration-700 group-hover:scale-105; }
+    .parish-select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2313233F' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1rem;
+    }
 }
 @keyframes welcome-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 #mobile-navigation:not([hidden]) { animation: welcome-in 220ms ease-out both; }
@@ -42,4 +48,7 @@
 @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+@media (forced-colors: active) {
+    .parish-select { background-image: none; }
 }

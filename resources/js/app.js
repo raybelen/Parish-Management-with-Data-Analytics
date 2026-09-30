@@ -102,3 +102,175 @@ galleryDialog?.addEventListener('keydown', (event) => {
         showPhoto(currentPhoto + (event.key === 'ArrowLeft' ? -1 : 1));
     }
 });
+
+const serviceSelect = document.querySelector('[data-service-select]');
+const serviceSections = [...document.querySelectorAll('[data-service-fields]')];
+function updateServiceFields() {
+    const selectedService = serviceSelect?.value ?? '';
+
+    serviceSections.forEach((section) => {
+        const isActive = section.dataset.serviceFields === selectedService;
+        section.hidden = !isActive;
+
+        section.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.disabled = !isActive;
+            field.required = isActive && field.dataset.required === 'true';
+        });
+    });
+}
+serviceSelect?.addEventListener('change', updateServiceFields);
+if (serviceSelect) updateServiceFields();
+
+const preferredContactMethod = document.querySelector('[data-contact-method]');
+const contactEmail = document.querySelector('[data-contact-email]');
+function updateContactEmailRequirement() {
+    if (contactEmail) contactEmail.required = preferredContactMethod?.value === 'email';
+}
+preferredContactMethod?.addEventListener('change', updateContactEmailRequirement);
+if (preferredContactMethod) updateContactEmailRequirement();
+
+document.querySelector('[data-validation-summary]')?.focus();
+
+function toTitleCase(value) {
+    return value
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLocaleLowerCase('en-PH')
+        .replace(/(^|[\s'’-])\p{L}/gu, (letter) => letter.toLocaleUpperCase('en-PH'));
+}
+
+document.querySelectorAll('[data-title-case]').forEach((field) => {
+    field.addEventListener('blur', () => {
+        field.value = toTitleCase(field.value);
+    });
+});
+
+function formatPhoneNumber(value) {
+    const trimmedValue = value.trim();
+
+    if (!/^\+?[0-9()\-\s.]+$/.test(trimmedValue)) {
+        return trimmedValue;
+    }
+
+    const digits = trimmedValue.replace(/\D/g, '');
+
+    if (trimmedValue.startsWith('+') && digits.startsWith('63') && digits.length === 12) {
+        return `+63 ${digits.slice(2, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
+    }
+
+    if (digits.startsWith('0') && digits.length === 11) {
+        return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+    }
+
+    return `${trimmedValue.startsWith('+') ? '+' : ''}${digits}`;
+}
+
+document.querySelectorAll('[data-phone-input]').forEach((field) => {
+    field.addEventListener('blur', () => {
+        field.value = formatPhoneNumber(field.value);
+    });
+});
+
+document.querySelectorAll('[data-email-input]').forEach((field) => {
+    field.addEventListener('blur', () => {
+        field.value = field.value.trim().toLocaleLowerCase('en-PH');
+    });
+});
+
+const preferredDate = document.querySelector('[data-preferred-date]');
+const preferredTime = document.querySelector('[data-preferred-time]');
+const scheduleSummary = document.querySelector('[data-schedule-summary]');
+const suggestedTimeButtons = [...document.querySelectorAll('[data-time-value]')];
+
+function updateScheduleSelection() {
+    suggestedTimeButtons.forEach((button) => {
+        const isSelected = preferredTime?.value === button.dataset.timeValue;
+
+        button.setAttribute('aria-pressed', String(isSelected));
+        button.classList.toggle('border-gold', isSelected);
+        button.classList.toggle('bg-gold/20', isSelected);
+    });
+
+    if (!scheduleSummary) return;
+
+    if (!preferredDate?.value && !preferredTime?.value) {
+        scheduleSummary.textContent = 'Choose a preferred date and time.';
+
+        return;
+    }
+
+    const formattedDate = preferredDate?.value
+        ? new Intl.DateTimeFormat('en-PH', { dateStyle: 'full' }).format(new Date(`${preferredDate.value}T12:00:00`))
+        : 'a date to be selected';
+    const formattedTime = preferredTime?.value
+        ? new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(`2000-01-01T${preferredTime.value}:00`))
+        : 'a time to be selected';
+
+    scheduleSummary.textContent = `Preferred schedule: ${formattedDate} at ${formattedTime}. Final availability is subject to parish confirmation.`;
+}
+
+suggestedTimeButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        preferredTime.value = button.dataset.timeValue;
+        preferredTime.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+});
+
+preferredDate?.addEventListener('change', updateScheduleSelection);
+preferredTime?.addEventListener('change', updateScheduleSelection);
+updateScheduleSelection();
+
+const appointmentForm = document.querySelector('[data-appointment-form]');
+const requiredAlert = document.querySelector('[data-required-alert]');
+const requiredAlertList = document.querySelector('[data-required-alert-list]');
+let requiredAlertFrame;
+let hasAttemptedAppointmentSubmission = false;
+
+function missingRequiredFields() {
+    return [...(appointmentForm?.querySelectorAll('[required]:not(:disabled)') ?? [])].filter((field) => {
+        if (field.type === 'file') return field.files.length === 0;
+
+        return field.value.trim() === '';
+    });
+}
+
+function requiredFieldLabel(field) {
+    return field.labels?.[0]?.querySelector('span')?.textContent?.trim() || field.name;
+}
+
+function updateRequiredAlert({ focus = false } = {}) {
+    if (!requiredAlert || !requiredAlertList) return;
+
+    const missingFields = missingRequiredFields();
+    requiredAlertList.replaceChildren(...missingFields.map((field) => {
+        const item = document.createElement('li');
+        item.textContent = requiredFieldLabel(field);
+        field.setAttribute('aria-invalid', 'true');
+
+        return item;
+    }));
+
+    appointmentForm?.querySelectorAll('[aria-invalid="true"]').forEach((field) => {
+        if (!missingFields.includes(field)) field.removeAttribute('aria-invalid');
+    });
+
+    requiredAlert.hidden = missingFields.length === 0;
+
+    if (focus && missingFields.length > 0) {
+        requiredAlert.focus({ preventScroll: true });
+        requiredAlert.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
+    }
+}
+
+appointmentForm?.addEventListener('invalid', () => {
+    hasAttemptedAppointmentSubmission = true;
+    cancelAnimationFrame(requiredAlertFrame);
+    requiredAlertFrame = requestAnimationFrame(() => updateRequiredAlert({ focus: true }));
+}, true);
+
+appointmentForm?.addEventListener('input', () => {
+    if (hasAttemptedAppointmentSubmission) updateRequiredAlert();
+});
+appointmentForm?.addEventListener('change', () => {
+    if (hasAttemptedAppointmentSubmission) updateRequiredAlert();
+});

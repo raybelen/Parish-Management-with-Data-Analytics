@@ -8,7 +8,6 @@ class ParishPageController extends Controller
 {
     public function __invoke(string $page = 'home'): View
     {
-        $navigation = ['Home' => 'home', 'About' => 'about', 'Services' => 'services', 'Announcements' => 'announcements', 'Ministries & Organizations' => 'ministries', 'Gallery' => 'gallery', 'Contact' => 'contact'];
         $churchImage = 'https://images.unsplash.com/photo-1548625149-d37da68f9a7f?auto=format&fit=crop&w=2200&q=85';
         $interiorImage = 'https://images.unsplash.com/photo-1519491050282-cf00c82424b4?auto=format&fit=crop&w=1200&q=85';
         $architectureImage = 'https://images.unsplash.com/photo-1438032005730-c779502df39b?auto=format&fit=crop&w=1000&q=85';
@@ -63,7 +62,7 @@ class ParishPageController extends Controller
         };
 
         return view('client-side.'.$page, compact(
-            'navigation', 'churchImage', 'interiorImage', 'architectureImage',
+            'churchImage', 'interiorImage', 'architectureImage',
             'ministries', 'announcements', 'photos', 'pageTitle',
         ));
     }
