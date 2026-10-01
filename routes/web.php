@@ -1,5 +1,9 @@
 <?php
 
+use App\Http\Controllers\AdminPasswordController;
+use App\Http\Controllers\AdminRoleController;
+use App\Http\Controllers\AdminSecurityController;
+use App\Http\Controllers\AdminTwoFactorSessionController;
 use App\Http\Controllers\AppointmentCancellationController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AppointmentLookupController;
@@ -7,7 +11,42 @@ use App\Http\Controllers\AppointmentReferenceRecoveryController;
 use App\Http\Controllers\AppointmentScheduleController;
 use App\Http\Controllers\ParishCalendarController;
 use App\Http\Controllers\ParishPageController;
+use App\Http\Middleware\EnsureTwoFactorChallenge;
+use App\Http\Middleware\PrepareAdminLogin;
 use Illuminate\Support\Facades\Route;
+use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
+
+Route::middleware('guest:web')->group(function (): void {
+    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware(['throttle:admin-login', PrepareAdminLogin::class])->block()->name('login.store');
+    Route::middleware(EnsureTwoFactorChallenge::class)->group(function (): void {
+        Route::get('/two-factor-challenge', [AdminTwoFactorSessionController::class, 'create'])->name('two-factor.login');
+        Route::post('/two-factor-challenge', [AdminTwoFactorSessionController::class, 'store'])
+            ->middleware('throttle:admin-mfa')->block()->name('two-factor.login.store');
+    });
+});
+Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->block()->name('logout');
+
+Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.session'])->group(function (): void {
+    Route::middleware('admin.mfa:enrollment')->group(function (): void {
+        Route::get('/security', [AdminSecurityController::class, 'show'])->name('security');
+        Route::post('/security/two-factor', [AdminSecurityController::class, 'store'])
+            ->middleware('throttle:admin-sensitive')->block()->name('security.enable');
+        Route::post('/security/two-factor/confirm', [AdminSecurityController::class, 'confirm'])
+            ->middleware('throttle:admin-mfa')->block()->name('security.confirm');
+    });
+    Route::middleware('admin.mfa')->group(function (): void {
+        Route::view('/', 'admin.dashboard')->name('dashboard');
+        Route::post('/security/recovery-codes', [AdminSecurityController::class, 'recoveryCodes'])
+            ->middleware('throttle:admin-sensitive')->block()->name('security.recovery-codes');
+        Route::put('/security/password', [AdminPasswordController::class, 'update'])
+            ->middleware('throttle:admin-sensitive')->block()->name('password.update');
+        Route::get('/roles', [AdminRoleController::class, 'index'])->name('roles.index');
+        Route::patch('/roles/{user}', [AdminRoleController::class, 'update'])
+            ->middleware('throttle:admin-sensitive')->block()->name('roles.update');
+    });
+});
 
 Route::get('/', ParishPageController::class)->name('home');
 Route::get('/about', ParishPageController::class)->defaults('page', 'about')->name('about');
