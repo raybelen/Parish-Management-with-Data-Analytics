@@ -8,6 +8,21 @@ use Tests\TestCase;
 
 class ProductionSecurityTest extends TestCase
 {
+    public function test_wildcard_trusted_proxy_configuration_is_preserved(): void
+    {
+        $originalEnv = $_ENV;
+        $originalServer = $_SERVER;
+        try {
+            $_ENV['TRUSTED_PROXIES'] = $_SERVER['TRUSTED_PROXIES'] = '*';
+            $security = require config_path('security.php');
+        } finally {
+            $_ENV = $originalEnv;
+            $_SERVER = $originalServer;
+        }
+
+        $this->assertSame('*', $security['trusted_proxies']);
+    }
+
     public function test_production_auth_pages_send_secure_cookies_and_security_headers(): void
     {
         $this->withoutVite();
