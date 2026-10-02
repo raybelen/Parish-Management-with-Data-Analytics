@@ -70,7 +70,8 @@ class AppointmentControllerTest extends TestCase
     public function test_valid_service_request_creates_pending_appointment_and_stores_documents(string $serviceType): void
     {
         $this->travelTo('2026-09-27 09:00:00');
-        Storage::fake('local');
+        config()->set('appointments.document_disk', 'supabase');
+        Storage::fake('supabase');
 
         $response = $this->post(route('appointments.store'), $this->validPayload($serviceType));
 
@@ -86,7 +87,7 @@ class AppointmentControllerTest extends TestCase
         ]);
 
         $documentPaths = collect($appointment->documents)->flatten(1)->pluck('path')->all();
-        Storage::disk('local')->assertExists($documentPaths);
+        Storage::disk('supabase')->assertExists($documentPaths);
 
         $location = $response->headers->get('Location');
         $this->assertNotNull($location);
