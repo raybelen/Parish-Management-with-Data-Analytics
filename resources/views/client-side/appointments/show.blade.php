@@ -3,6 +3,7 @@
 @section('content')
     @php
         $detailLabels = match ($appointment->service_type) {
+            default => ['recipient_full_name' => 'Recipient full name'],
             'baptism' => [
                 'child_full_name' => "Child's full name",
                 'child_date_of_birth' => 'Date of birth',
@@ -78,7 +79,7 @@
                 <div class="max-w-3xl">
                     <p class="section-label text-gold">Request Received</p>
                     <h1 class="mt-5 text-4xl leading-tight text-ivory sm:text-6xl">Your appointment request is on file.</h1>
-                    <p class="mt-5 max-w-2xl text-base leading-8 text-ivory/70">Please keep your reference number. Parish staff will review the request and contact you through your preferred method.</p>
+                    <p class="mt-5 max-w-2xl text-base leading-8 text-ivory/70">Please keep your reference number. Online uploads are optional; submit required physical documents to the church office for verification.</p>
                 </div>
                 <div class="border border-gold/45 bg-ivory/5 p-6 lg:min-w-72">
                     <p class="text-xs font-medium tracking-[0.16em] uppercase text-ivory/60">Reference number</p>
@@ -109,7 +110,8 @@
                     @elseif ($appointment->status === 'confirmed')
                         <p class="mt-5 text-sm leading-7 text-muted">This appointment has been confirmed by the parish office. Contact the office directly if you need further assistance.</p>
                     @else
-                        <p class="mt-5 text-sm leading-7 text-muted">This is a request, not yet a confirmed schedule. The parish office may contact you for additional documents or an alternate time.</p>
+                        @if($appointment->status === 'pending')<p class="mt-5 text-sm leading-7 text-muted">This is a request, not yet a confirmed schedule. The parish office may contact you for physical documents or an alternate time.</p>@endif
+                        @if($appointment->starts_at && in_array($appointment->status, ['confirmed', 'completed']))<p class="mt-5 text-sm leading-7"><strong>Confirmed schedule:</strong><br>{{ $appointment->starts_at->format('F j, Y · g:i A') }}<br>{{ $appointment->confirmed_church }}</p>@endif
                     @endif
                     <a href="{{ route('appointments.lookup.create') }}" class="text-link mt-7">Find this request again <x-parish.icon name="arrow" class="size-4" /></a>
                 </aside>

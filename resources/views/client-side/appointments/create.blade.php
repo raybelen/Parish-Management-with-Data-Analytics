@@ -101,7 +101,9 @@
                             <select id="service_type" name="service_type" required class="{{ $selectClass }}" data-service-select>
                                 <option value="">Select Baptism, Wedding, or Funeral</option>
                                 @foreach ($services as $serviceKey => $service)
+                                    @if($service['active'] ?? true)
                                     <option value="{{ $serviceKey }}" @selected($selectedService === $serviceKey)>{{ $service['label'] }}</option>
+                                    @endif
                                 @endforeach
                             </select>
                         </x-parish.form-field>
@@ -327,6 +329,15 @@
                     </div>
                 </section>
 
+                @foreach($services as $serviceKey => $service)
+                    @if(!in_array($serviceKey, ['baptism', 'wedding', 'funeral']) && ($service['active'] ?? true))
+                        <section data-service-fields="{{ $serviceKey }}" @if($selectedService !== $serviceKey) hidden @endif class="border border-navy/15 bg-ivory p-6 sm:p-9">
+                            <h2 class="mb-5 text-2xl">{{ $service['label'] }} details</h2>
+                            <label class="grid gap-2 text-sm"><span>Recipient full name *</span><input name="service[recipient_full_name]" value="{{ old('service.recipient_full_name') }}" data-required="true" @required($selectedService === $serviceKey) @disabled($selectedService !== $serviceKey) class="{{ $inputClass }}"></label>
+                            @include('client-side.appointments.partials.documents', ['documents' => $service['documents'], 'serviceType' => $serviceKey, 'active' => $selectedService === $serviceKey])
+                        </section>
+                    @endif
+                @endforeach
                 <div class="flex flex-col-reverse gap-4 border border-navy/15 bg-navy p-6 text-ivory sm:flex-row sm:items-center sm:justify-between sm:p-8">
                     <p class="max-w-xl text-sm leading-7 text-ivory/65">Submitting this form creates a request with a unique reference number. Parish staff will review it before the appointment is confirmed.</p>
                     <button type="submit" class="inline-flex min-h-12 shrink-0 items-center justify-center gap-4 bg-gold px-7 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63]">

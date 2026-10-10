@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\OfficeSettings;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -14,7 +15,7 @@ class StoreAppointmentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return ! $this->routeIs('admin.*') || ($this->user()?->can('appointments.manage') ?? false);
     }
 
     /**
@@ -30,7 +31,12 @@ class StoreAppointmentRequest extends FormRequest
             fn (string $key): string => mb_substr($key, mb_strlen('service.')),
             array_keys($serviceRules),
         );
-        $documentDefinitions = config("appointments.services.{$serviceType}.documents", []);
+        $services = OfficeSettings::services();
+        $allowedServices = array_keys(array_filter($services, fn ($service) => $service['active']));
+        if ($this->routeIs('admin.appointments.details')) {
+            $allowedServices = [$this->route('appointment')->service_type];
+        }
+        $documentDefinitions = $services[$serviceType]['documents'] ?? [];
         $documentKeys = array_keys($documentDefinitions);
 
         $rules = [
@@ -44,11 +50,13 @@ class StoreAppointmentRequest extends FormRequest
             ],
             'client_address' => ['required', 'string', 'max:1000'],
             'preferred_contact_method' => ['required', Rule::in(['phone', 'sms', 'email'])],
-            'service_type' => ['required', Rule::in(array_keys(config('appointments.services', [])))],
-            'preferred_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'service_type' => ['required', Rule::in($allowedServices)],
+            'preferred_date' => ['required', 'date_format:Y-m-d', ...($this->routeIs('admin.appointments.details') ? [] : ['after_or_equal:today'])],
             'preferred_time' => ['required', 'date_format:H:i'],
             'preferred_church' => ['required', Rule::in(config('parish.churches', []))],
             'additional_notes' => ['nullable', 'string', 'max:2000'],
+            'version' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'integer'],
+            'change_reason' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'string', 'max:1000'],
             'service' => $serviceRules === []
                 ? ['required', 'array']
                 : ['required', 'array:'.implode(',', $serviceKeys)],
@@ -56,15 +64,14 @@ class StoreAppointmentRequest extends FormRequest
         ];
 
         if ($documentKeys !== []) {
-            $hasRequiredDocuments = collect($documentDefinitions)->contains('required', true);
             $rules['documents'] = [
-                $hasRequiredDocuments ? 'required' : 'nullable',
+                'nullable',
                 'array:'.implode(',', $documentKeys),
             ];
 
             foreach ($documentDefinitions as $documentKey => $definition) {
                 $rules["documents.{$documentKey}"] = [
-                    $definition['required'] ? 'required' : 'nullable',
+                    'nullable',
                     'array',
                     'max:5',
                 ];
@@ -131,7 +138,7 @@ class StoreAppointmentRequest extends FormRequest
                 'service.special_requests' => ['nullable', 'string', 'max:2000'],
                 'service.priest_notes' => ['nullable', 'string', 'max:2000'],
             ],
-            default => [],
+            default => ['service.recipient_full_name' => ['required', 'string', 'max:255']],
         };
     }
 

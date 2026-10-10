@@ -9,23 +9,40 @@
     --color-navy: #13233F;
     --color-gold: #B8964A;
     --color-ivory: #F2EDE3;
-    --color-muted: #626974;
+    --color-muted: #5c6573;
 }
 
 @layer base {
     html { scroll-behavior: smooth; scroll-padding-top: 7rem; }
     body { @apply bg-ivory font-sans text-navy antialiased; }
-    h1, h2, h3 { @apply font-display font-normal; }
+    h1, h2, h3 { @apply font-display font-normal tracking-[-0.015em]; }
     button, a { -webkit-tap-highlight-color: transparent; }
     button { cursor: pointer; }
-    :focus-visible { outline: 2px solid #80662e; outline-offset: 5px; }
+    :focus-visible { outline: 2px solid #80662e; outline-offset: 3px; }
     .bg-navy :focus-visible { outline-color: #d4ba80; }
+    input[type='checkbox'], input[type='radio'] { @apply size-4 accent-navy; }
+    ::selection { background: #e5d7b8; color: #13233F; }
     dialog { margin: auto; }
     dialog::backdrop { background: rgb(9 18 33 / 85%); backdrop-filter: blur(5px); }
     .parish-accordion[open] > summary .accordion-chevron { transform: rotate(180deg); }
     .parish-accordion summary::-webkit-details-marker { display: none; }
 }
 @layer components {
+    .admin-input { @apply w-full min-h-11 rounded-xl border border-navy/20 bg-white px-3.5 py-2.5 text-sm text-navy shadow-xs transition placeholder:text-muted/70 hover:border-navy/35 focus:border-gold focus:ring-3 focus:ring-gold/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-muted; }
+    .admin-button { @apply inline-flex min-h-11 items-center justify-center rounded-xl bg-navy px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-navy/90 hover:shadow-md active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60; }
+    .admin-secondary { @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-navy/15 bg-white px-4 py-2.5 text-sm font-semibold text-navy shadow-xs transition hover:border-navy/25 hover:bg-ivory/70 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60; }
+    .admin-card { @apply rounded-2xl border border-navy/10 bg-white p-5 shadow-[0_1px_2px_rgb(19_35_63/0.04)] sm:p-6; }
+    a.admin-card { @apply transition hover:-translate-y-0.5 hover:border-gold/35 hover:shadow-[0_10px_28px_rgb(19_35_63/0.08)]; }
+    .admin-alert { @apply grid gap-1 rounded-xl border p-4 leading-6 shadow-xs; }
+    .admin-table { @apply min-w-full text-left text-sm; }
+    .admin-table th { @apply whitespace-nowrap border-b border-navy/10 bg-slate-50 px-4 py-3.5 text-[0.68rem] font-semibold tracking-[0.1em] text-muted uppercase; }
+    .admin-table td { @apply border-b border-navy/8 px-4 py-4 align-top leading-6; }
+    .admin-table tbody tr { @apply transition-colors hover:bg-slate-50/80; }
+    .admin-table tbody tr:last-child td { @apply border-b-0; }
+    .admin-card > h2:first-child { @apply leading-tight; }
+    .admin-card summary { @apply rounded-md leading-6 marker:text-gold hover:text-gold; }
+    .admin-mobile-menu[open] .menu-chevron { transform: rotate(180deg); }
+    .admin-mobile-menu > summary::-webkit-details-marker { display: none; }
     .section-wrap { @apply mx-auto w-full max-w-7xl px-6 sm:px-10 lg:px-16; }
     .section-label { @apply flex items-center gap-3 text-xs font-medium tracking-[0.22em] uppercase; }
     .section-label::before { content: ''; width: 28px; height: 1px; background: #B8964A; }

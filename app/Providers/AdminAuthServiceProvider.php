@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Support\OfficeAccess;
 use App\Support\SecurityAudit;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
@@ -95,6 +96,9 @@ class AdminAuthServiceProvider extends ServiceProvider
 
         Gate::define('access-admin', fn (User $user): bool => $user->isAdmin());
         Gate::define('manage-admin-roles', fn (User $user): bool => $user->role === User::ROLE_SUPER_ADMIN);
+        foreach (array_unique(array_merge(...array_values(config('office.permissions')))) as $ability) {
+            Gate::define($ability, fn (User $user): bool => OfficeAccess::allows($user, $ability));
+        }
 
         RateLimiter::for('admin-login', function (Request $request): array {
             $email = $request->input('email');

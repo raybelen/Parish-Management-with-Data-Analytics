@@ -32,6 +32,15 @@ return [
 
     'connections' => [
 
+        'demo' => [
+            'driver' => 'sqlite',
+            'database' => storage_path('app/analytics-demo.sqlite'),
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+            'busy_timeout' => 5000,
+            'transaction_mode' => 'IMMEDIATE',
+        ],
+
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),

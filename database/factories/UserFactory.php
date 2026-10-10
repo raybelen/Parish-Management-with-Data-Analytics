@@ -53,6 +53,16 @@ class UserFactory extends Factory
         return $this->state(fn () => ['role' => User::ROLE_SUPER_ADMIN]);
     }
 
+    public function staff(): static
+    {
+        return $this->state(fn () => ['role' => User::ROLE_STAFF]);
+    }
+
+    public function priest(): static
+    {
+        return $this->state(fn () => ['role' => User::ROLE_PRIEST]);
+    }
+
     public function withTwoFactor(): static
     {
         return $this->state(fn () => [

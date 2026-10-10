@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\WebsiteContent;
 use Illuminate\Contracts\View\View;
 
 class ParishPageController extends Controller
 {
     public function __invoke(string $page = 'home'): View
     {
+        $websiteContent = WebsiteContent::values();
         $churchImage = 'https://images.unsplash.com/photo-1548625149-d37da68f9a7f?auto=format&fit=crop&w=2200&q=85';
         $interiorImage = 'https://images.unsplash.com/photo-1519491050282-cf00c82424b4?auto=format&fit=crop&w=1200&q=85';
         $architectureImage = 'https://images.unsplash.com/photo-1438032005730-c779502df39b?auto=format&fit=crop&w=1000&q=85';
@@ -20,35 +22,35 @@ class ParishPageController extends Controller
         ];
         $announcements = [
             [
-                'date' => 'November 22, 2026',
-                'title' => 'Solemnity of Christ the King',
-                'copy' => 'Let us celebrate Christ as King of the Universe and renew our commitment to follow Him in faith, love, and service.',
+                'date' => $websiteContent['announcement_one_date'],
+                'title' => $websiteContent['announcement_one_title'],
+                'copy' => $websiteContent['announcement_one_copy'],
                 'schedule' => [
-                    ['heading' => null, 'items' => ['5:00 PM — Solemn Mass']],
+                    ['heading' => null, 'items' => [$websiteContent['announcement_one_schedule']]],
                 ],
             ],
             [
-                'date' => 'December 16–24, 2026',
-                'title' => 'Simbang Gabi',
-                'copy' => 'Prepare your hearts for the celebration of the birth of Jesus through the traditional nine-day novena Masses of Simbang Gabi.',
+                'date' => $websiteContent['announcement_two_date'],
+                'title' => $websiteContent['announcement_two_title'],
+                'copy' => $websiteContent['announcement_two_copy'],
                 'schedule' => [
-                    ['heading' => null, 'items' => ['Every evening: 6:00 PM']],
+                    ['heading' => null, 'items' => [$websiteContent['announcement_two_schedule']]],
                 ],
             ],
             [
-                'date' => 'December 24–25, 2026',
-                'title' => 'Christmas Eve & Christmas Day',
-                'copy' => 'Celebrate the birth of our Savior, Jesus Christ, with our parish community.',
+                'date' => $websiteContent['announcement_three_date'],
+                'title' => $websiteContent['announcement_three_title'],
+                'copy' => $websiteContent['announcement_three_copy'],
                 'schedule' => [
-                    ['heading' => 'Christmas Eve — December 24', 'items' => ["6:00 PM — Children's Christmas Mass", '9:00 PM — Christmas Eve Mass']],
-                    ['heading' => 'Christmas Day — December 25', 'items' => ['8:00 AM']],
+                    ['heading' => $websiteContent['announcement_three_first_heading'], 'items' => [$websiteContent['announcement_three_first_item'], $websiteContent['announcement_three_second_item']]],
+                    ['heading' => $websiteContent['announcement_three_second_heading'], 'items' => [$websiteContent['announcement_three_third_item']]],
                 ],
             ],
         ];
         $photos = [
-            ['src' => $churchImage, 'alt' => 'Sunlight illuminating the architecture of a church', 'title' => 'A sacred place', 'class' => 'sm:col-span-7 sm:row-span-2'],
-            ['src' => $interiorImage, 'alt' => 'A church interior offering a quiet space for reflection', 'title' => 'In stillness and prayer', 'class' => 'sm:col-span-5'],
-            ['src' => $architectureImage, 'alt' => 'Church architecture framed by natural light', 'title' => 'Beauty that lifts the spirit', 'class' => 'sm:col-span-5'],
+            ['src' => $churchImage, 'alt' => 'Sunlight illuminating the architecture of a church', 'title' => $websiteContent['gallery_photo_one_title'], 'class' => 'sm:col-span-7 sm:row-span-2'],
+            ['src' => $interiorImage, 'alt' => 'A church interior offering a quiet space for reflection', 'title' => $websiteContent['gallery_photo_two_title'], 'class' => 'sm:col-span-5'],
+            ['src' => $architectureImage, 'alt' => 'Church architecture framed by natural light', 'title' => $websiteContent['gallery_photo_three_title'], 'class' => 'sm:col-span-5'],
         ];
 
         $pageTitle = match ($page) {
@@ -63,7 +65,7 @@ class ParishPageController extends Controller
 
         return view('client-side.'.$page, compact(
             'churchImage', 'interiorImage', 'architectureImage',
-            'ministries', 'announcements', 'photos', 'pageTitle',
+            'ministries', 'announcements', 'photos', 'pageTitle', 'websiteContent',
         ));
     }
 }

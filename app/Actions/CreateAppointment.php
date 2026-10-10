@@ -3,6 +3,10 @@
 namespace App\Actions;
 
 use App\Models\Appointment;
+use App\Models\ServiceType;
+use App\Support\AppointmentParticipants;
+use App\Support\OfficeAudit;
+use App\Support\OfficeSettings;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +43,9 @@ class CreateAppointment
                     'client_contact_key' => preg_replace('/\D+/', '', $validated['client_contact_number']) ?? '',
                     'service_details' => $validated['service'],
                     'documents' => [],
+                    'source' => OfficeSettings::source(),
+                    'requirements' => ServiceType::query()->where('slug', $validated['service_type'])->value('requirements') ?? config('appointments.services.'.$validated['service_type'].'.documents', []),
+                    'fee_cents' => ServiceType::query()->where('slug', $validated['service_type'])->value('fee_cents') ?? 0,
                 ]);
 
                 $documents = [];
@@ -57,16 +64,21 @@ class CreateAppointment
 
                         $storedPaths[] = $path;
                         $documents[$documentType][] = [
-                            'label' => config("appointments.services.{$appointment->service_type}.documents.{$documentType}.label", Str::headline($documentType)),
+                            'label' => $appointment->requirements[$documentType]['label'] ?? Str::headline($documentType),
                             'original_name' => $file->getClientOriginalName(),
                             'path' => $path,
                             'mime_type' => $file->getMimeType(),
                             'size' => $file->getSize(),
+                            'uploaded_at' => now()->toIso8601String(),
+                            'uploaded_by' => auth()->id(),
                         ];
                     }
                 }
 
                 $appointment->update(['documents' => $documents]);
+                AppointmentParticipants::sync($appointment);
+                OfficeAudit::record('appointment.created', $appointment, [], ['reference_number' => $appointment->reference_number, 'service_type' => $appointment->service_type]);
+                OfficeAudit::notify($appointment, 'new', 'New appointment request: '.$appointment->reference_number);
 
                 return $appointment->refresh();
             });

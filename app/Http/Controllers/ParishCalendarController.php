@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Support\OfficeSettings;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use Illuminate\Contracts\View\View;
@@ -35,9 +36,13 @@ class ParishCalendarController extends Controller
     private function scheduledEvents(CarbonImmutable $startsAt, CarbonImmutable $endsAt): array
     {
         $appointments = Appointment::query()
-            ->select(['service_type', 'preferred_date', 'preferred_time'])
+            ->select(['service_type', 'preferred_date', 'preferred_time', 'starts_at'])
+            ->where('source', OfficeSettings::source())
             ->where('status', 'confirmed')
-            ->whereBetween('preferred_date', [$startsAt->toDateString(), $endsAt->toDateString()])
+            ->where(function ($query) use ($startsAt, $endsAt): void {
+                $query->whereBetween('starts_at', [$startsAt, $endsAt])
+                    ->orWhere(fn ($legacy) => $legacy->whereNull('starts_at')->whereBetween('preferred_date', [$startsAt->toDateString(), $endsAt->toDateString()]));
+            })
             ->orderBy('preferred_date')
             ->orderBy('preferred_time')
             ->get();
@@ -45,14 +50,16 @@ class ParishCalendarController extends Controller
         $events = [];
 
         foreach ($appointments as $appointment) {
-            $events[$appointment->preferred_date->toDateString()][] = [
+            $eventDate = $appointment->starts_at ?? $appointment->preferred_date;
+            $eventTime = $appointment->starts_at?->format('H:i') ?? $appointment->preferred_time;
+            $events[$eventDate->toDateString()][] = [
                 'kind' => 'scheduled',
                 'name' => config(
                     "appointments.services.{$appointment->service_type}.label",
                     Str::headline($appointment->service_type),
                 ),
-                'time' => $this->formatTime($appointment->preferred_time),
-                'time_value' => mb_substr($appointment->preferred_time, 0, 5),
+                'time' => $this->formatTime($eventTime),
+                'time_value' => mb_substr($eventTime, 0, 5),
             ];
         }
 

@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'website_content_cache_store' => env('WEBSITE_CONTENT_CACHE_STORE', 'file'),
+
     'navigation' => [
         'Home' => 'home',
         'About' => 'about',

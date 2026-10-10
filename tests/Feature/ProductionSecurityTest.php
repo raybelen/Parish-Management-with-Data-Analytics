@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class ProductionSecurityTest extends TestCase
 {
+    use LazilyRefreshDatabase;
+
     public function test_wildcard_trusted_proxy_configuration_is_preserved(): void
     {
         $originalEnv = $_ENV;

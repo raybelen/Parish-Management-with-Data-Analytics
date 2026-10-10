@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class SecurityAudit
 {
@@ -16,5 +17,8 @@ class SecurityAudit
             'previous_role' => $previousRole,
             'ip' => app()->runningInConsole() ? null : request()->ip(),
         ]);
+        if (Schema::hasTable('audit_logs')) {
+            OfficeAudit::record($event, $subject, ['role' => $previousRole], ['role' => $subject?->role]);
+        }
     }
 }

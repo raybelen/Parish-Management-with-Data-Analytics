@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use DOMDocument;
 use DOMXPath;
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Tests\TestCase;
 
 class ClientPagesTest extends TestCase
 {
+    use LazilyRefreshDatabase;
+
     public function test_client_pages_render_their_content_and_current_navigation(): void
     {
         $this->withoutVite();

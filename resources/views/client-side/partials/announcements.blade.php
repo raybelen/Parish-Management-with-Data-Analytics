@@ -1,8 +1,8 @@
         <section id="announcements" @class(['py-20 sm:py-28', 'section-wrap' => request()->routeIs('home')])>
             <div @class(['section-wrap' => ! request()->routeIs('home')])>
             <div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-                <x-parish.section-heading label="Parish Life" title="What's Happening in Our Parish" />
-                <p class="max-w-xs text-sm leading-7 text-muted">The latest parish news, celebrations, and opportunities to take part.</p>
+                <x-parish.section-heading :label="$websiteContent['announcements_label']" :title="$websiteContent['announcements_title']" />
+                <p class="max-w-xs text-sm leading-7 text-muted">{{ $websiteContent['announcements_copy'] }}</p>
             </div>
             <div @class(['mt-10 grid gap-5', 'md:grid-cols-3' => request()->routeIs('home'), 'lg:grid-cols-2' => ! request()->routeIs('home')])>
                 @foreach ($announcements as $announcement)

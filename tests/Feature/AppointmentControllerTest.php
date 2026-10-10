@@ -97,7 +97,7 @@ class AppointmentControllerTest extends TestCase
             ->assertSee(config("appointments.services.{$serviceType}.label").' request');
     }
 
-    public function test_request_rejects_missing_service_details_and_required_documents_without_creating_record(): void
+    public function test_request_rejects_missing_service_details_without_creating_record(): void
     {
         $this->travelTo('2026-09-27 09:00:00');
         Storage::fake('local');
@@ -110,7 +110,6 @@ class AppointmentControllerTest extends TestCase
         $response->assertSessionHasErrors([
             'service.child_full_name',
             'service.child_date_of_birth',
-            'documents.birth_certificate',
         ]);
         $this->assertDatabaseEmpty('appointments');
         Storage::disk('local')->assertDirectoryEmpty('/');

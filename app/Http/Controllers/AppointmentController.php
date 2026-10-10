@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Actions\CreateAppointment;
 use App\Http\Requests\StoreAppointmentRequest;
 use App\Models\Appointment;
+use App\Support\OfficeSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class AppointmentController extends Controller
 {
@@ -22,7 +24,7 @@ class AppointmentController extends Controller
     {
         return view('client-side.appointments.create', [
             'pageTitle' => 'Request an Appointment',
-            'services' => config('appointments.services'),
+            'services' => OfficeSettings::services(),
             'churches' => config('parish.churches'),
         ]);
     }
@@ -45,7 +47,7 @@ class AppointmentController extends Controller
         return view('client-side.appointments.show', [
             'pageTitle' => 'Appointment Confirmation',
             'appointment' => $appointment,
-            'service' => config('appointments.services.'.$appointment->service_type),
+            'service' => OfficeSettings::services()[$appointment->service_type] ?? ['label' => Str::headline($appointment->service_type)],
             'canManageRequest' => $canManageRequest,
             'scheduleUpdateUrl' => $canManageRequest ? URL::temporarySignedRoute(
                 'appointments.schedule.update',

@@ -23,6 +23,10 @@ class User extends Authenticatable
 
     public const ROLE_SUPER_ADMIN = 'super_admin';
 
+    public const ROLE_STAFF = 'staff';
+
+    public const ROLE_PRIEST = 'priest';
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
@@ -42,7 +46,7 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_SUPER_ADMIN], true);
+        return in_array($this->role, [self::ROLE_ADMIN, self::ROLE_SUPER_ADMIN, self::ROLE_STAFF, self::ROLE_PRIEST], true);
     }
 
     public function adminSessionFingerprint(): string

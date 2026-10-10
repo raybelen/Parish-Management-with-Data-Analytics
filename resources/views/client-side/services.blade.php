@@ -5,24 +5,24 @@
         $majorServices = [
             [
                 'number' => '01',
-                'title' => 'Baptism',
-                'description' => 'Welcome a child or adult into the Catholic faith and the life of the Church through the Sacrament of Baptism.',
+                'title' => $websiteContent['service_baptism_title'],
+                'description' => $websiteContent['service_baptism_description'],
                 'image' => 'images/service-baptism.png',
                 'image_alt' => 'A Catholic baptism at the baptismal font',
                 'modal_id' => 'baptism-requirements',
             ],
             [
                 'number' => '02',
-                'title' => 'Wedding',
-                'description' => 'Prepare to celebrate the Sacrament of Holy Matrimony with the guidance and support of our parish community.',
+                'title' => $websiteContent['service_wedding_title'],
+                'description' => $websiteContent['service_wedding_description'],
                 'image' => 'images/service-wedding.png',
                 'image_alt' => 'A couple holding hands during a Catholic wedding ceremony',
                 'modal_id' => 'wedding-requirements',
             ],
             [
                 'number' => '03',
-                'title' => 'Funeral',
-                'description' => 'Receive prayerful pastoral support as the parish accompanies your family in remembering and commending a loved one to God.',
+                'title' => $websiteContent['service_funeral_title'],
+                'description' => $websiteContent['service_funeral_description'],
                 'image' => 'images/service-funeral.png',
                 'image_alt' => 'A Catholic funeral liturgy inside a parish church',
                 'modal_id' => 'funeral-requirements',
@@ -31,28 +31,28 @@
 
         $otherServices = [
             [
-                'title' => 'First Holy Communion',
-                'description' => 'Preparation for children who will receive Jesus in the Holy Eucharist for the first time.',
+                'title' => $websiteContent['service_communion_title'],
+                'description' => $websiteContent['service_communion_description'],
             ],
             [
-                'title' => 'Confirmation',
-                'description' => 'Faith formation for those preparing to receive the gifts of the Holy Spirit through Confirmation.',
+                'title' => $websiteContent['service_confirmation_title'],
+                'description' => $websiteContent['service_confirmation_description'],
             ],
             [
-                'title' => 'House, Vehicle & Religious Item Blessings',
-                'description' => 'Request a blessing for your home, vehicle, or religious items as an expression of faith and gratitude.',
+                'title' => $websiteContent['service_blessings_title'],
+                'description' => $websiteContent['service_blessings_description'],
             ],
             [
-                'title' => 'Anointing of the Sick',
-                'description' => 'Pastoral care and the Sacrament of Anointing for parishioners facing serious illness, frailty, or surgery.',
+                'title' => $websiteContent['service_anointing_title'],
+                'description' => $websiteContent['service_anointing_description'],
             ],
             [
-                'title' => 'Confession',
-                'description' => 'Encounter God’s mercy and reconciliation through the Sacrament of Penance.',
+                'title' => $websiteContent['service_confession_title'],
+                'description' => $websiteContent['service_confession_description'],
             ],
             [
-                'title' => 'Celebratory Mass',
-                'description' => 'Arrange a Mass for meaningful occasions such as anniversaries, birthdays, and family milestones.',
+                'title' => $websiteContent['service_celebratory_title'],
+                'description' => $websiteContent['service_celebratory_description'],
             ],
         ];
     @endphp
@@ -71,8 +71,8 @@
     <section aria-labelledby="major-services-heading" class="bg-[#eae5da] py-16 sm:py-24">
         <div class="section-wrap">
             <div class="grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-end lg:gap-20">
-                <x-parish.section-heading id="major-services-heading" label="Sacraments & Pastoral Care" title="Services" />
-                <p class="max-w-2xl text-base leading-8 text-muted">Our parish accompanies individuals and families through life’s most meaningful moments. Begin by reviewing the service you need, then contact the parish office for scheduling and guidance.</p>
+                <x-parish.section-heading id="major-services-heading" :label="$websiteContent['services_major_label']" :title="$websiteContent['services_major_title']" />
+                <p class="max-w-2xl text-base leading-8 text-muted">{{ $websiteContent['services_major_copy'] }}</p>
             </div>
 
             <div class="mt-12 grid gap-5 lg:grid-cols-3">
@@ -97,8 +97,8 @@
     <section aria-labelledby="other-services-heading" class="border-y border-navy/10 bg-ivory py-16 sm:py-24">
         <div class="section-wrap">
             <div class="grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-end lg:gap-20">
-                <x-parish.section-heading id="other-services-heading" label="More Ways We Serve" title="Other Services" />
-                <p class="max-w-2xl text-base leading-8 text-muted">For preparation, availability, and service-specific requirements, please coordinate directly with the parish office.</p>
+                <x-parish.section-heading id="other-services-heading" :label="$websiteContent['services_other_label']" :title="$websiteContent['services_other_title']" />
+                <p class="max-w-2xl text-base leading-8 text-muted">{{ $websiteContent['services_other_copy'] }}</p>
             </div>
 
             <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -117,9 +117,9 @@
         <div class="section-wrap">
             <div class="grid gap-8 bg-navy px-7 py-10 text-ivory sm:px-10 sm:py-12 lg:grid-cols-[1fr_auto] lg:items-center lg:gap-16 lg:px-14">
                 <div>
-                    <p class="section-label mb-4 text-ivory/65">Parish Assistance</p>
-                    <h2 class="text-3xl leading-tight text-ivory sm:text-4xl">Let Us Help You Prepare</h2>
-                    <p class="mt-4 max-w-2xl text-base leading-8 text-ivory/70">Contact the parish office for sacrament inquiries, scheduling, document guidance, and special celebrations.</p>
+                    <p class="section-label mb-4 text-ivory/65">{{ $websiteContent['services_assistance_label'] }}</p>
+                    <h2 class="text-3xl leading-tight text-ivory sm:text-4xl">{{ $websiteContent['services_assistance_title'] }}</h2>
+                    <p class="mt-4 max-w-2xl text-base leading-8 text-ivory/70">{{ $websiteContent['services_assistance_copy'] }}</p>
                 </div>
                 <x-parish.button :href="route('contact')" class="w-full sm:w-auto">Contact the Parish Office</x-parish.button>
             </div>

@@ -1,25 +1,25 @@
 @if (request()->routeIs('home'))
     <section id="contact" class="bg-navy text-ivory">
         <div class="section-wrap grid gap-10 py-16 lg:grid-cols-[1fr_1.3fr] lg:gap-20">
-            <x-parish.section-heading label="Office Hours" title="We're Here to Help" :light="true" />
+            <x-parish.section-heading :label="$websiteContent['office_hours_label']" :title="$websiteContent['office_hours_title']" :light="true" />
             <div class="grid gap-8 sm:grid-cols-[1.4fr_1fr]">
                 <div class="border-l border-gold/45 pl-6">
-                    <p class="mb-5 text-sm text-[#d4ba80]">Tuesdays to Sundays</p>
+                    <p class="mb-5 text-sm text-[#d4ba80]">{{ $websiteContent['office_open_days'] }}</p>
                     <div class="flex flex-col gap-3 text-xl font-light">
-                        <p>8:00 AM – 11:30 AM</p>
-                        <p>2:00 PM – 5:00 PM</p>
+                        <p>{{ $websiteContent['office_morning_hours'] }}</p>
+                        <p>{{ $websiteContent['office_afternoon_hours'] }}</p>
                     </div>
                 </div>
                 <div class="border-l border-ivory/15 pl-6">
-                    <p class="mb-5 text-sm text-[#d4ba80]">Mondays</p>
-                    <p class="text-base text-ivory/70">No Office Hours</p>
+                    <p class="mb-5 text-sm text-[#d4ba80]">{{ $websiteContent['office_closed_day'] }}</p>
+                    <p class="text-base text-ivory/70">{{ $websiteContent['office_closed_message'] }}</p>
                 </div>
             </div>
         </div>
         <div id="appointment" class="section-wrap border-t border-ivory/15 py-20 text-center sm:py-24">
             <x-parish.icon name="cross" class="mx-auto mb-7 size-8 text-gold" />
-            <h2 class="text-4xl sm:text-5xl lg:text-6xl">Need to Visit the Parish Office?</h2>
-            <p class="mx-auto mt-6 max-w-2xl text-base leading-8 text-ivory/65">Whether you are inquiring about a sacrament, seeking parish assistance, requesting information, or simply need to speak with someone at the parish office, we're here to help.</p>
+            <h2 class="text-4xl sm:text-5xl lg:text-6xl">{{ $websiteContent['contact_cta_title'] }}</h2>
+            <p class="mx-auto mt-6 max-w-2xl text-base leading-8 text-ivory/65">{{ $websiteContent['contact_cta_copy'] }}</p>
             <div class="mt-9 flex flex-col justify-center gap-4 sm:flex-row">
                 <a href="{{ route('appointments.index') }}" class="inline-flex min-h-12 items-center justify-center gap-5 bg-gold px-7 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63]">Set an Appointment <x-parish.icon name="arrow" class="size-4" /></a>
                 <x-parish.button :href="route('contact')" :secondary="true">Contact Us</x-parish.button>
@@ -31,21 +31,21 @@
         $contactMethods = [
             [
                 'icon' => 'facebook',
-                'title' => 'Facebook',
-                'name' => 'St. John Nepomucene Parish',
-                'detail' => 'Facebook page link to be added.',
+                'title' => $websiteContent['contact_facebook_title'],
+                'name' => $websiteContent['contact_facebook_name'],
+                'detail' => $websiteContent['contact_facebook_detail'],
             ],
             [
                 'icon' => 'phone',
-                'title' => 'Phone',
-                'name' => 'Parish Office',
-                'detail' => 'Phone number to be added.',
+                'title' => $websiteContent['contact_phone_title'],
+                'name' => $websiteContent['contact_phone_name'],
+                'detail' => $websiteContent['contact_phone_detail'],
             ],
             [
                 'icon' => 'mail',
-                'title' => 'Email',
-                'name' => 'Parish Office Email',
-                'detail' => 'Email address to be added.',
+                'title' => $websiteContent['contact_email_title'],
+                'name' => $websiteContent['contact_email_name'],
+                'detail' => $websiteContent['contact_email_detail'],
             ],
         ];
     @endphp
@@ -53,8 +53,8 @@
     <section id="contact">
         <div class="section-wrap py-16 sm:py-24">
             <div class="grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-end lg:gap-20">
-                <x-parish.section-heading label="Contact Us" title="Connect With Our Parish" />
-                <p class="max-w-2xl text-base leading-8 text-muted">Reach the parish office through the contact method most convenient for you. We welcome questions about sacraments, documents, parish activities, and pastoral assistance.</p>
+                <x-parish.section-heading :label="$websiteContent['contact_label']" :title="$websiteContent['contact_title']" />
+                <p class="max-w-2xl text-base leading-8 text-muted">{{ $websiteContent['contact_copy'] }}</p>
             </div>
 
             <div class="mt-12 grid gap-8 md:grid-cols-3 md:gap-6">
@@ -73,18 +73,18 @@
 
         <div class="border-y border-navy/10 bg-[#eae5da]">
             <div class="section-wrap grid gap-10 py-16 sm:py-20 lg:grid-cols-[1fr_1.3fr] lg:gap-20">
-                <x-parish.section-heading label="Office Hours" title="We're Here to Help" />
+                <x-parish.section-heading :label="$websiteContent['office_hours_label']" :title="$websiteContent['office_hours_title']" />
                 <div class="grid gap-8 sm:grid-cols-[1.4fr_1fr]">
                     <div class="border-l border-gold pl-6">
-                        <p class="mb-5 text-sm font-medium text-[#80662e]">Tuesdays to Sundays</p>
+                        <p class="mb-5 text-sm font-medium text-[#80662e]">{{ $websiteContent['office_open_days'] }}</p>
                         <div class="flex flex-col gap-3 text-xl font-light">
-                            <p>8:00 AM – 11:30 AM</p>
-                            <p>2:00 PM – 5:00 PM</p>
+                            <p>{{ $websiteContent['office_morning_hours'] }}</p>
+                            <p>{{ $websiteContent['office_afternoon_hours'] }}</p>
                         </div>
                     </div>
                     <div class="border-l border-navy/15 pl-6">
-                        <p class="mb-5 text-sm font-medium text-[#80662e]">Mondays</p>
-                        <p class="text-base text-muted">No Office Hours</p>
+                        <p class="mb-5 text-sm font-medium text-[#80662e]">{{ $websiteContent['office_closed_day'] }}</p>
+                        <p class="text-base text-muted">{{ $websiteContent['office_closed_message'] }}</p>
                     </div>
                 </div>
             </div>
@@ -93,11 +93,11 @@
         <div id="appointment" class="bg-navy text-ivory">
             <div class="section-wrap py-20 text-center sm:py-24">
                 <x-parish.icon name="cross" class="mx-auto mb-7 size-8 text-gold" />
-                <h2 class="text-4xl text-ivory sm:text-5xl lg:text-6xl">Need to Visit the Parish Office?</h2>
-                <p class="mx-auto mt-6 max-w-2xl text-base leading-8 text-ivory/65">Whether you are inquiring about a sacrament, seeking parish assistance, requesting information, or simply need to speak with someone at the parish office, we're here to help.</p>
+                <h2 class="text-4xl text-ivory sm:text-5xl lg:text-6xl">{{ $websiteContent['contact_cta_title'] }}</h2>
+                <p class="mx-auto mt-6 max-w-2xl text-base leading-8 text-ivory/65">{{ $websiteContent['contact_cta_copy'] }}</p>
                 <div class="mx-auto mt-9 max-w-2xl border border-gold/45 p-7 text-left sm:p-9">
-                    <h3 class="text-3xl text-ivory">Arrange a Parish Visit</h3>
-                    <p class="mt-4 text-base leading-8 text-ivory/75">Submit an online request for Baptism, Wedding, or Funeral services. You can also use your reference number to review an existing request.</p>
+                    <h3 class="text-3xl text-ivory">{{ $websiteContent['contact_visit_title'] }}</h3>
+                    <p class="mt-4 text-base leading-8 text-ivory/75">{{ $websiteContent['contact_visit_copy'] }}</p>
                     <x-parish.button :href="route('appointments.index')" class="mt-7 w-full sm:w-auto">Set an Appointment</x-parish.button>
                 </div>
             </div>
