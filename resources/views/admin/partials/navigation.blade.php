@@ -1,9 +1,12 @@
-<div class="grid gap-6">
+<div class="grid gap-4">
     @foreach ($navigationSections as $section => $items)
         @php($visibleItems = collect($items)->filter(fn (array $item): bool => $item['ability'] === null || auth()->user()->can($item['ability'])))
         @if ($visibleItems->isNotEmpty())
-            <div class="grid gap-1">
-                <p class="px-3 pb-1 text-[0.65rem] font-semibold tracking-[0.18em] text-muted uppercase">{{ $section }}</p>
+            <div>
+                <p class="flex min-h-11 items-center px-3 text-xs font-semibold text-muted">
+                    {{ $section }}
+                </p>
+                <div class="mt-1 grid gap-1">
                 @foreach ($visibleItems as $item)
                     @php($isActive = request()->routeIs(...$item['active']))
                     <a href="{{ route($item['route']) }}" @class([
@@ -15,6 +18,7 @@
                         <span>{{ $item['label'] }}</span>
                     </a>
                 @endforeach
+                </div>
             </div>
         @endif
     @endforeach

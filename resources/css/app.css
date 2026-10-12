@@ -14,6 +14,7 @@
 
 @layer base {
     html { scroll-behavior: smooth; scroll-padding-top: 7rem; }
+    html.admin-document { scrollbar-gutter: stable; }
     body { @apply bg-ivory font-sans text-navy antialiased; }
     h1, h2, h3 { @apply font-display font-normal tracking-[-0.015em]; }
     button, a { -webkit-tap-highlight-color: transparent; }
@@ -43,6 +44,10 @@
     .admin-card summary { @apply rounded-md leading-6 marker:text-gold hover:text-gold; }
     .admin-mobile-menu[open] .menu-chevron { transform: rotate(180deg); }
     .admin-mobile-menu > summary::-webkit-details-marker { display: none; }
+    .admin-workspace a.admin-card { @apply hover:translate-y-0 hover:shadow-sm; }
+    .admin-workspace main > * { min-width: 0; }
+    .admin-workspace :is(input, select, textarea) { min-width: 0; }
+    .admin-workspace main :is(h1, h2, h3, dd) { overflow-wrap: anywhere; }
     .section-wrap { @apply mx-auto w-full max-w-7xl px-6 sm:px-10 lg:px-16; }
     .section-label { @apply flex items-center gap-3 text-xs font-medium tracking-[0.22em] uppercase; }
     .section-label::before { content: ''; width: 28px; height: 1px; background: #B8964A; }

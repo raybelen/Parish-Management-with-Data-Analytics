@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\ManageSchedule;
 use App\Models\Appointment;
 use App\Models\ParishSetting;
 use App\Models\ScheduleBlock;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,8 +39,9 @@ class AdminScheduleBlockController extends Controller
                         $q->orWhere('personnel_id', $data['personnel_id']);
                     }
                 })->exists();
-            if ($conflict) {
-                throw ValidationException::withMessages(['starts_at' => 'Reschedule the conflicting confirmed appointment before blocking this time.']);
+            $eventConflict = ManageSchedule::conflicts(CarbonImmutable::parse($data['starts_at'], config('office.timezone')), CarbonImmutable::parse($data['ends_at'], config('office.timezone')), $data['church'] ?? null, isset($data['personnel_id']) ? (int) $data['personnel_id'] : null);
+            if ($conflict || $eventConflict) {
+                throw ValidationException::withMessages(['starts_at' => 'Reschedule the conflicting appointment or calendar event before blocking this time.']);
             }
             $block = ScheduleBlock::create($data);
             OfficeAudit::record('schedule.blocked', $block, [], $block->toArray());

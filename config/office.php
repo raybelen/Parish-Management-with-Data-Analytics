@@ -20,8 +20,8 @@ return [
         'seasonal_order' => [0, 1, 1, 12],
     ],
     'permissions' => [
-        'admin' => ['appointments.view', 'appointments.manage', 'documents.manage', 'payments.manage', 'records.view', 'records.manage', 'reports.view', 'finance.view', 'forecasts.manage', 'settings.manage', 'content.manage', 'audit.view', 'notifications.manage'],
-        'staff' => ['appointments.view', 'appointments.manage', 'documents.manage', 'payments.manage', 'records.view', 'records.manage', 'reports.view', 'finance.view', 'notifications.manage'],
-        'priest' => ['appointments.view', 'appointments.approve'],
+        'admin' => ['schedules.view', 'schedules.manage', 'appointments.view', 'appointments.manage', 'documents.manage', 'payments.manage', 'records.view', 'records.manage', 'reports.view', 'finance.view', 'forecasts.manage', 'settings.manage', 'content.manage', 'audit.view', 'notifications.manage'],
+        'staff' => ['schedules.view', 'schedules.manage', 'appointments.view', 'appointments.manage', 'documents.manage', 'payments.manage', 'records.view', 'records.manage', 'reports.view', 'finance.view', 'notifications.manage'],
+        'priest' => ['appointments.view', 'appointments.approve', 'schedules.view'],
     ],
 ];

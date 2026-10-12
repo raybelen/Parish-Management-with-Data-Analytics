@@ -15,14 +15,20 @@
             </div><p class="mt-4 text-xs text-muted">Confirmed appointments and their preparation gaps. Regular Mass times and blocked periods are checked when scheduling.</p>
         </section>
     @endif
-    <form class="admin-card grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-5" method="GET">
+    <form class="admin-card grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-4" method="GET">
+        <div class="sm:col-span-2 xl:col-span-4"><h2 class="text-xl">Find appointments</h2></div>
         <input type="hidden" name="view" value="{{ request('view', 'list') }}">
         @if(request('view') === 'calendar')<input type="hidden" name="month" value="{{ $month->format('Y-m') }}">@endif
         <x-admin.field label="Search contact, participant or reference" name="q" :value="request('q')" />
         <x-admin.field label="Status" name="status"><select class="admin-input" name="status">@if(request('view') !== 'calendar')<option value="">All statuses</option>@endif @foreach(request('view') === 'calendar' ? ['confirmed'] : \App\Models\Appointment::STATUSES as $status)<option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst(str_replace('_', ' ', $status)) }}</option>@endforeach</select></x-admin.field>
         <x-admin.field label="Service" name="service"><select class="admin-input" name="service"><option value="">All services</option>@foreach($services as $service)<option value="{{ $service->slug }}" @selected(request('service') === $service->slug)>{{ $service->name }}</option>@endforeach</select></x-admin.field>
         <x-admin.field label="Schedule date" name="date" type="date" :value="request('date')" />
-        <button class="admin-button">Apply filters</button>
+        <div class="flex flex-wrap items-center gap-3 sm:col-span-2 xl:col-span-4">
+            <button class="admin-button">Apply filters</button>
+            @if(request()->filled('q') || request()->filled('status') || request()->filled('service') || request()->filled('date'))
+                <a class="admin-secondary" href="{{ route('admin.appointments.index', request()->only(['view', 'month'])) }}">Clear filters</a>
+            @endif
+        </div>
     </form>
     <div class="admin-card overflow-x-auto !p-0"><table class="admin-table"><thead><tr><th>Reference / contact</th><th>Service</th><th>Schedule</th><th>Personnel / venue</th><th>Status</th></tr></thead><tbody>
         @forelse($appointments as $appointment)<tr><td><a class="font-semibold underline decoration-gold underline-offset-4" href="{{ route('admin.appointments.show', $appointment) }}">{{ $appointment->reference_number }}</a><p class="mt-2">{{ $appointment->client_full_name }}</p></td><td>{{ ucfirst($appointment->service_type) }}</td><td>@if($appointment->starts_at){{ $appointment->starts_at->format('M j, Y · g:i A') }}<br><span class="text-xs text-muted">Ends {{ $appointment->ends_at->format('g:i A') }} · gap until {{ $appointment->reserved_until->format('g:i A') }}</span>@else{{ $appointment->preferred_date->format('M j, Y') }} · {{ substr($appointment->preferred_time, 0, 5) }}<br><span class="text-xs text-muted">Requested; not confirmed</span>@endif</td><td>{{ $appointment->personnel?->name ?? 'Unassigned' }}<br><span class="text-xs text-muted">{{ $appointment->confirmed_church ?? $appointment->preferred_church }}</span></td><td><x-admin.status :value="$appointment->status" /></td></tr>@empty<tr><td colspan="5" class="text-center text-muted">No appointments match these filters.</td></tr>@endforelse

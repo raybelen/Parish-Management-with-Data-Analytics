@@ -38,7 +38,7 @@ class RestoreOfficeBackup extends Command
         }
         if (($payload['version'] ?? null) !== 1 || ! is_array($payload['tables'] ?? null)
             || array_diff(array_keys($payload['tables']), CreateOfficeBackup::TABLES)
-            || array_diff(CreateOfficeBackup::TABLES, array_keys($payload['tables']))
+            || array_diff(array_diff(CreateOfficeBackup::TABLES, ['schedules']), array_keys($payload['tables']))
             || ! is_array($payload['documents'] ?? null)) {
             $this->error('Unsupported backup format.');
 

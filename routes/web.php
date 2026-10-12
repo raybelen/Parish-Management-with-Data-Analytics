@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminAppointmentController;
 use App\Http\Controllers\AdminAppointmentStatusController;
 use App\Http\Controllers\AdminAuditController;
 use App\Http\Controllers\AdminBackupController;
+use App\Http\Controllers\AdminCalendarController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminDocumentController;
 use App\Http\Controllers\AdminForecastController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\AdminRecordImportController;
 use App\Http\Controllers\AdminReportController;
 use App\Http\Controllers\AdminRoleController;
 use App\Http\Controllers\AdminScheduleBlockController;
+use App\Http\Controllers\AdminScheduleController;
 use App\Http\Controllers\AdminSecurityController;
 use App\Http\Controllers\AdminServiceTypeController;
 use App\Http\Controllers\AdminSettingsController;
@@ -56,6 +58,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
     });
     Route::middleware('admin.mfa')->group(function (): void {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
+        Route::get('calendar', [AdminCalendarController::class, 'index'])->name('calendar.index');
+        Route::get('calendar/events', [AdminCalendarController::class, 'events'])->name('calendar.events');
+        Route::resource('schedules', AdminScheduleController::class)->only(['store', 'update', 'destroy'])
+            ->middleware('throttle:60,1');
         Route::resource('appointments', AdminAppointmentController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
         Route::patch('appointments/{appointment}/details', [AdminAppointmentController::class, 'details'])->name('appointments.details');
         Route::post('appointments/{appointment}/status', [AdminAppointmentStatusController::class, 'store'])->name('appointments.status');

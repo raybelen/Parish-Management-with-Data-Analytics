@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Appointment;
+use App\Models\Schedule;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -36,5 +37,11 @@ class OfficeAccess
     public static function appointment(User $user, Appointment $appointment): void
     {
         abort_unless(self::appointments($user)->whereKey($appointment->id)->exists(), 404);
+    }
+
+    public static function schedules(User $user): Builder
+    {
+        return Schedule::query()->where('source', OfficeSettings::source())
+            ->when($user->role === 'priest', fn (Builder $query) => $query->whereHas('personnel', fn (Builder $personnel) => $personnel->where('user_id', $user->id)));
     }
 }

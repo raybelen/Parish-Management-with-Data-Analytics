@@ -44,7 +44,8 @@ class ManageAppointment
                 ->where(function ($query) use ($data): void {
                     $query->where('church', $data['confirmed_church'])->orWhere('personnel_id', $data['personnel_id']);
                 })->exists();
-            $this->require(! $conflicts && ! $blocks, 'starts_at', 'The venue or personnel is unavailable during this ceremony or preparation gap.');
+            $events = ManageSchedule::conflicts($start, $reservedUntil, $data['confirmed_church'], (int) $data['personnel_id']);
+            $this->require(! $conflicts && ! $blocks && ! $events, 'starts_at', 'The venue or personnel is unavailable during this ceremony or preparation gap.');
             $this->checkRegularMass($start, $reservedUntil, $data['confirmed_church']);
             $before = $locked->only(['starts_at', 'ends_at', 'reserved_until', 'confirmed_church', 'personnel_id', 'fee_cents', 'office_notes']);
             $locked->fill([
@@ -83,7 +84,8 @@ class ManageAppointment
                     ->where(fn ($query) => $query->where('confirmed_church', $locked->confirmed_church)->orWhere('personnel_id', $locked->personnel_id))->exists();
                 $blocked = ScheduleBlock::query()->where('starts_at', '<', $locked->reserved_until)->where('ends_at', '>', $locked->starts_at)
                     ->where(fn ($query) => $query->where('church', $locked->confirmed_church)->orWhere('personnel_id', $locked->personnel_id))->exists();
-                $this->require(! $conflict && ! $blocked, 'status', 'The schedule is no longer available. Choose another time.');
+                $events = ManageSchedule::conflicts($locked->starts_at, $locked->reserved_until, $locked->confirmed_church, $locked->personnel_id);
+                $this->require(! $conflict && ! $blocked && ! $events, 'status', 'The schedule is no longer available. Choose another time.');
                 $this->checkRegularMass($locked->starts_at, $locked->reserved_until, $locked->confirmed_church);
             }
             $before = $locked->only(['status', 'completed_at', 'outcome']);
