@@ -22,12 +22,16 @@ class AdminScheduleBlockController extends Controller
     {
         Gate::authorize('settings.manage');
         $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'], 'church' => ['required_without:personnel_id', 'nullable', Rule::in(config('parish.churches'))],
+            'title' => ['required', 'string', 'max:255'], 'church' => ['required_without:personnel_id', 'nullable', Rule::in(OfficeSettings::activeVenues())],
             'personnel_id' => ['nullable', 'integer', 'exists:personnel,id'],
             'starts_at' => ['required', 'date_format:Y-m-d\TH:i'], 'ends_at' => ['required', 'date_format:Y-m-d\TH:i', 'after:starts_at'],
         ]);
         DB::transaction(function () use ($data): void {
             ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
+            OfficeSettings::forgetMemoizedValues();
+            if (! empty($data['church']) && ! OfficeSettings::venueIsActive($data['church'])) {
+                throw ValidationException::withMessages(['church' => 'Choose a church or chapel that is currently available.']);
+            }
             $conflict = Appointment::query()->where('source', OfficeSettings::source())->where('status', 'confirmed')
                 ->where('starts_at', '<', str_replace('T', ' ', $data['ends_at']))->where('reserved_until', '>', str_replace('T', ' ', $data['starts_at']))
                 ->where(function ($q) use ($data): void {

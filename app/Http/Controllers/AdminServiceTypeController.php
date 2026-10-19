@@ -31,7 +31,7 @@ class AdminServiceTypeController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'slug' => [$serviceType->exists ? 'nullable' : 'required', 'regex:/^[a-z][a-z0-9_]{1,29}$/', Rule::unique('service_types')->ignore($serviceType)],
-            'duration_minutes' => ['required', 'integer', 'between:15,480'], 'buffer_minutes' => ['required', 'integer', 'between:0,240'],
+            'duration_minutes' => ['required', 'integer', Rule::in([60])], 'buffer_minutes' => ['required', 'integer', 'between:0,240'],
             'fee' => ['required', 'numeric', 'min:0', 'max:9999999', 'regex:/^\d+(\.\d{1,2})?$/'],
             'active' => ['required', 'boolean'], 'requirements' => ['nullable', 'array', 'max:20'],
             'requirements.*.key' => ['nullable', 'string', 'regex:/^[a-z][a-z0-9_]{0,60}$/'],
@@ -53,7 +53,7 @@ class AdminServiceTypeController extends Controller
             $before = $serviceType->toArray();
             $serviceType->fill([
                 'slug' => $serviceType->exists ? $serviceType->slug : $data['slug'], 'name' => $data['name'],
-                'duration_minutes' => $data['duration_minutes'], 'buffer_minutes' => $data['buffer_minutes'],
+                'duration_minutes' => 60, 'buffer_minutes' => $data['buffer_minutes'],
                 'fee_cents' => RecordPayment::cents($data['fee']), 'requirements' => $requirements, 'active' => $data['active'],
             ])->save();
             OfficeAudit::record('service.updated', $serviceType, $before, $serviceType->toArray());

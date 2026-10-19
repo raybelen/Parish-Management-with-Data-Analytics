@@ -1,5 +1,12 @@
+import './appointment-details';
+import './psgc-address';
+
 const menuToggle = document.getElementById('menu-toggle');
 const mobileNavigation = document.getElementById('mobile-navigation');
+const oneTimeAppointmentAccess = document.querySelector('[data-one-time-appointment-access]');
+if (oneTimeAppointmentAccess) {
+    window.history.replaceState(null, '', oneTimeAppointmentAccess.dataset.manageUrl);
+}
 function closeMenu() {
     mobileNavigation.hidden = true;
     menuToggle.setAttribute('aria-expanded', 'false');
@@ -112,9 +119,12 @@ function updateServiceFields() {
         const isActive = section.dataset.serviceFields === selectedService;
         section.hidden = !isActive;
 
-        section.querySelectorAll('input, select, textarea').forEach((field) => {
+        section.querySelectorAll('input[name], select[name], textarea[name]').forEach((field) => {
             field.disabled = !isActive;
             field.required = isActive && field.dataset.required === 'true';
+        });
+        section.querySelectorAll('[data-psgc-address-controls]').forEach((fieldset) => {
+            fieldset.disabled = !isActive;
         });
     });
 }
@@ -227,7 +237,7 @@ let requiredAlertFrame;
 let hasAttemptedAppointmentSubmission = false;
 
 function missingRequiredFields() {
-    return [...(appointmentForm?.querySelectorAll('[required]:not(:disabled)') ?? [])].filter((field) => {
+    return [...(appointmentForm?.querySelectorAll('[required]:not(:disabled), [data-required="true"]:not(:disabled)') ?? [])].filter((field) => {
         if (field.type === 'file') return field.files.length === 0;
 
         return field.value.trim() === '';
@@ -235,7 +245,7 @@ function missingRequiredFields() {
 }
 
 function requiredFieldLabel(field) {
-    return field.labels?.[0]?.querySelector('span')?.textContent?.trim() || field.name;
+    return field.dataset.requiredLabel || field.labels?.[0]?.querySelector('span')?.textContent?.trim() || field.name;
 }
 
 function updateRequiredAlert({ focus = false } = {}) {
@@ -273,4 +283,11 @@ appointmentForm?.addEventListener('input', () => {
 });
 appointmentForm?.addEventListener('change', () => {
     if (hasAttemptedAppointmentSubmission) updateRequiredAlert();
+});
+appointmentForm?.addEventListener('submit', (event) => {
+    if (missingRequiredFields().length === 0) return;
+
+    event.preventDefault();
+    hasAttemptedAppointmentSubmission = true;
+    updateRequiredAlert({ focus: true });
 });

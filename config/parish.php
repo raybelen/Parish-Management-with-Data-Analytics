@@ -14,8 +14,11 @@ return [
     ],
 
     'churches' => [
-        'St. John Nepomucene Parish Church',
-        'Parish Chapel',
+        'St. John Nepomucene Parish',
+        'San Isidro Labrador Chapel',
+        'Nuestra Señora de los Desamparados',
+        'San Fernando Chapel',
+        'Santa Misericordia Chapel',
     ],
 
     'regular_schedules' => [

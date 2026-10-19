@@ -53,7 +53,7 @@ class StoreAppointmentRequest extends FormRequest
             'service_type' => ['required', Rule::in($allowedServices)],
             'preferred_date' => ['required', 'date_format:Y-m-d', ...($this->routeIs('admin.appointments.details') ? [] : ['after_or_equal:today'])],
             'preferred_time' => ['required', 'date_format:H:i'],
-            'preferred_church' => ['required', Rule::in(config('parish.churches', []))],
+            'preferred_church' => ['required', Rule::in($this->allowedVenues())],
             'additional_notes' => ['nullable', 'string', 'max:2000'],
             'version' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'integer'],
             'change_reason' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'string', 'max:1000'],
@@ -91,55 +91,23 @@ class StoreAppointmentRequest extends FormRequest
      */
     private function serviceRules(string $serviceType): array
     {
-        return match ($serviceType) {
-            'baptism' => [
-                'service.child_full_name' => ['required', 'string', 'max:255'],
-                'service.child_date_of_birth' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
-                'service.child_place_of_birth' => ['required', 'string', 'max:255'],
-                'service.child_sex' => ['required', Rule::in(['male', 'female'])],
-                'service.father_name' => ['required', 'string', 'max:255'],
-                'service.mother_name' => ['required', 'string', 'max:255'],
-                'service.godfather_name' => ['required', 'string', 'max:255'],
-                'service.godmother_name' => ['required', 'string', 'max:255'],
-                'service.additional_godparents' => ['nullable', 'string', 'max:1000'],
-                'service.special_requests' => ['nullable', 'string', 'max:2000'],
-                'service.notes' => ['nullable', 'string', 'max:2000'],
-            ],
-            'wedding' => [
-                'service.bride_full_name' => ['required', 'string', 'max:255'],
-                'service.groom_full_name' => ['required', 'string', 'max:255'],
-                'service.bride_contact_number' => $this->phoneRules(),
-                'service.groom_contact_number' => $this->phoneRules(),
-                'service.current_address' => ['required', 'string', 'max:1000'],
-                'service.expected_guest_count' => ['required', 'integer', 'min:1', 'max:5000'],
-                'service.civil_status' => ['required', Rule::in(['single', 'widowed', 'annulled'])],
-                'service.previous_marriage' => ['nullable', 'string', 'max:2000'],
-                'service.marriage_license_status' => ['required', Rule::in(['not_started', 'in_process', 'secured'])],
-                'service.preferred_priest' => ['nullable', 'string', 'max:255'],
-                'service.principal_sponsors' => ['nullable', 'string', 'max:2000'],
-                'service.witnesses' => ['nullable', 'string', 'max:1000'],
-            ],
-            'funeral' => [
-                'service.deceased_full_name' => ['required', 'string', 'max:255'],
-                'service.date_of_birth' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:service.date_of_death'],
-                'service.date_of_death' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
-                'service.place_of_death' => ['required', 'string', 'max:255'],
-                'service.age' => ['required', 'integer', 'min:0', 'max:150'],
-                'service.residence_address' => ['required', 'string', 'max:1000'],
-                'service.funeral_home' => ['required', 'string', 'max:255'],
-                'service.wake_location' => ['required', 'string', 'max:1000'],
-                'service.cemetery_location' => ['required', 'string', 'max:1000'],
-                'service.expected_attendee_count' => ['nullable', 'integer', 'min:1', 'max:10000'],
-                'service.contact_full_name' => ['required', 'string', 'max:255'],
-                'service.contact_relationship' => ['required', 'string', 'max:100'],
-                'service.contact_number' => $this->phoneRules(),
-                'service.contact_email' => ['nullable', Rule::email()->rfcCompliant(strict: false), 'max:255'],
-                'service.contact_address' => ['required', 'string', 'max:1000'],
-                'service.special_requests' => ['nullable', 'string', 'max:2000'],
-                'service.priest_notes' => ['nullable', 'string', 'max:2000'],
-            ],
-            default => ['service.recipient_full_name' => ['required', 'string', 'max:255']],
-        };
+        $fields = config("appointments.details.{$serviceType}");
+
+        if ($fields === null) {
+            return ['service.recipient_full_name' => ['required', 'string', 'max:255']];
+        }
+
+        $rules = [];
+
+        foreach ($fields as $key => $field) {
+            $rules["service.{$key}"] = $field['rules'];
+        }
+
+        if ($serviceType === 'funeral') {
+            $rules['service.date_of_death'][] = 'before_or_equal:preferred_date';
+        }
+
+        return $rules;
     }
 
     /**
@@ -148,6 +116,22 @@ class StoreAppointmentRequest extends FormRequest
     private function phoneRules(): array
     {
         return ['required', 'string', 'regex:/^\+?[0-9]{7,15}$/'];
+    }
+
+    /** @return array<int, string> */
+    private function allowedVenues(): array
+    {
+        $venues = OfficeSettings::activeVenues();
+
+        if ($this->routeIs('admin.appointments.details')) {
+            $currentVenue = $this->route('appointment')->preferred_church;
+
+            if (! in_array($currentVenue, $venues, true)) {
+                $venues[] = $currentVenue;
+            }
+        }
+
+        return $venues;
     }
 
     /**
@@ -164,6 +148,7 @@ class StoreAppointmentRequest extends FormRequest
             'service.groom_contact_number.regex' => 'Please enter a valid groom contact number with 7 to 15 digits.',
             'service.contact_number.regex' => 'Please enter a valid contact number with 7 to 15 digits.',
             'preferred_date.after_or_equal' => 'The preferred date must be today or a future date.',
+            'preferred_church.in' => 'The selected church or chapel is currently unavailable.',
             'documents.*.required' => 'Please upload the required :attribute.',
             'documents.*.*.mimes' => 'Each document must be a PDF, JPG, or PNG file.',
             'documents.*.*.max' => 'Each document must not be larger than 5 MB.',
@@ -186,6 +171,10 @@ class StoreAppointmentRequest extends FormRequest
             'service.expected_guest_count' => 'expected number of guests',
             'service.expected_attendee_count' => 'expected number of attendees',
         ];
+
+        foreach (config('appointments.details.'.$this->string('service_type')->toString(), []) as $key => $definition) {
+            $attributes["service.{$key}"] = mb_strtolower($definition['label']);
+        }
 
         foreach (config('appointments.services.'.$this->string('service_type')->toString().'.documents', []) as $key => $definition) {
             $attributes["documents.{$key}"] = mb_strtolower($definition['label']);
@@ -216,7 +205,7 @@ class StoreAppointmentRequest extends FormRequest
                 $service['contact_email'] = $this->normalizeEmail($service['contact_email']);
             }
 
-            foreach (['special_requests', 'notes', 'previous_marriage', 'priest_notes'] as $field) {
+            foreach (['cause_of_death'] as $field) {
                 if (array_key_exists($field, $service)) {
                     $service[$field] = $this->normalizeText($service[$field]);
                 }
@@ -238,30 +227,9 @@ class StoreAppointmentRequest extends FormRequest
      */
     private function serviceTitleFields(): array
     {
-        return [
-            'child_full_name',
-            'child_place_of_birth',
-            'father_name',
-            'mother_name',
-            'godfather_name',
-            'godmother_name',
-            'additional_godparents',
-            'bride_full_name',
-            'groom_full_name',
-            'current_address',
-            'preferred_priest',
-            'principal_sponsors',
-            'witnesses',
-            'deceased_full_name',
-            'place_of_death',
-            'residence_address',
-            'funeral_home',
-            'wake_location',
-            'cemetery_location',
-            'contact_full_name',
-            'contact_relationship',
-            'contact_address',
-        ];
+        $fields = config('appointments.details.'.$this->string('service_type')->toString(), []);
+
+        return array_keys(array_filter($fields, fn (array $field): bool => $field['title_case'] ?? false));
     }
 
     private function normalizePhone(mixed $value): ?string

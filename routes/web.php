@@ -132,4 +132,5 @@ Route::post('/appointments/{appointment}/cancellation', [AppointmentCancellation
     ->name('appointments.cancellation.store');
 Route::get('/appointments/{appointment}/confirmation', [AppointmentController::class, 'show'])
     ->middleware('signed')
+    ->block()
     ->name('appointments.show');

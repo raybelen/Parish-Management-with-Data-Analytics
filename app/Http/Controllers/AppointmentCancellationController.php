@@ -4,14 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\CancelAppointmentRequest;
 use App\Models\Appointment;
+use App\Support\AppointmentAccess;
 use App\Support\OfficeAudit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\URL;
 
 class AppointmentCancellationController extends Controller
 {
-    public function store(CancelAppointmentRequest $request, Appointment $appointment): RedirectResponse
+    public function store(CancelAppointmentRequest $request, Appointment $appointment, AppointmentAccess $access): RedirectResponse
     {
         DB::transaction(function () use ($appointment): void {
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
@@ -24,10 +24,7 @@ class AppointmentCancellationController extends Controller
             OfficeAudit::notify($locked, 'cancelled', 'Client cancelled: '.$locked->reference_number);
         });
 
-        return redirect()->to(URL::temporarySignedRoute(
-            'appointments.show',
-            now()->addMinutes(30),
-            ['appointment' => $appointment],
-        ))->with('appointment_message', 'Your appointment request has been cancelled.');
+        return redirect()->to($access->issue($request, $appointment))
+            ->with('appointment_message', 'Your appointment request has been cancelled.');
     }
 }

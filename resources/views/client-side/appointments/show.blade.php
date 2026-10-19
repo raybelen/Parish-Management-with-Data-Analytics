@@ -1,6 +1,7 @@
 @extends('client-side.layouts.parish')
 
 @section('content')
+    <div hidden data-one-time-appointment-access data-manage-url="{{ route('appointments.lookup.create') }}"></div>
     @php
         $detailLabels = match ($appointment->service_type) {
             default => ['recipient_full_name' => 'Recipient full name'],
@@ -13,6 +14,8 @@
                 'mother_name' => "Mother's name",
                 'godfather_name' => "Godfather's name",
                 'godmother_name' => "Godmother's name",
+                'parents_address' => "Both parents' address",
+                'godparents_address' => "Godparents' address",
                 'additional_godparents' => 'Additional godparents',
                 'special_requests' => 'Baptism special requests',
                 'notes' => 'Notes for parish staff',
@@ -51,6 +54,8 @@
                 'priest_notes' => 'Notes for the priest / church staff',
             ],
         };
+        $fieldDefinitions = config('appointments.details.'.$appointment->service_type, []);
+        $detailLabels = array_map(fn (array $field): string => $field['label'], $fieldDefinitions) + $detailLabels;
         $dateFields = ['child_date_of_birth', 'date_of_birth', 'date_of_death'];
         $inputClass = 'min-h-12 w-full border border-navy/20 bg-white px-4 py-3 text-sm text-navy outline-none transition-colors focus:border-gold focus:ring-1 focus:ring-gold user-invalid:border-red-700';
         $statusClasses = match ($appointment->status) {
@@ -110,7 +115,14 @@
                     @elseif ($appointment->status === 'confirmed')
                         <p class="mt-5 text-sm leading-7 text-muted">This appointment has been confirmed by the parish office. Contact the office directly if you need further assistance.</p>
                     @else
-                        @if($appointment->status === 'pending')<p class="mt-5 text-sm leading-7 text-muted">This is a request, not yet a confirmed schedule. The parish office may contact you for physical documents or an alternate time.</p>@endif
+                        @if($appointment->status === 'pending')
+                            @if($appointment->starts_at)
+                                <p class="mt-5 text-sm leading-7 text-muted">Your requested date, time, and venue are reserved because no conflict was found. The appointment remains pending until the parish verifies the required documents and payment.</p>
+                                <p class="mt-4 text-sm leading-7"><strong>Reserved schedule:</strong><br>{{ $appointment->starts_at->format('F j, Y · g:i A') }} – {{ $appointment->ends_at->format('g:i A') }}<br>{{ $appointment->confirmed_church }}</p>
+                            @else
+                                <p class="mt-5 text-sm leading-7 text-muted">The requested slot could not be reserved automatically. The parish office will review an alternative date, time, or venue.</p>
+                            @endif
+                        @endif
                         @if($appointment->starts_at && in_array($appointment->status, ['confirmed', 'completed']))<p class="mt-5 text-sm leading-7"><strong>Confirmed schedule:</strong><br>{{ $appointment->starts_at->format('F j, Y · g:i A') }}<br>{{ $appointment->confirmed_church }}</p>@endif
                     @endif
                     <a href="{{ route('appointments.lookup.create') }}" class="text-link mt-7">Find this request again <x-parish.icon name="arrow" class="size-4" /></a>
@@ -216,14 +228,26 @@
                         <p class="section-label text-muted">Service Details</p>
                         <h2 id="service-details-heading" class="mt-4 text-3xl">Submitted information</h2>
                         <dl class="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+                            @if ($appointment->service_type === 'funeral')
+                                <div>
+                                    <dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">Year of death</dt>
+                                    <dd class="mt-2 text-sm">{{ substr($appointment->service_details['date_of_death'] ?? '', 0, 4) ?: 'Not provided' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">Date of burial / funeral Mass</dt>
+                                    <dd class="mt-2 text-sm">{{ ($appointment->starts_at ?? $appointment->preferred_date)->format('F j, Y') }}</dd>
+                                </div>
+                            @endif
                             @foreach ($detailLabels as $key => $label)
                                 @php($value = $appointment->service_details[$key] ?? null)
                                 @if ($value !== null && $value !== '')
-                                    <div @class(['sm:col-span-2' => in_array($key, ['current_address', 'previous_marriage', 'principal_sponsors', 'witnesses', 'residence_address', 'wake_location', 'cemetery_location', 'contact_address', 'special_requests', 'notes', 'priest_notes', 'additional_godparents'], true)])>
+                                    <div @class(['sm:col-span-2' => ($fieldDefinitions[$key]['type'] ?? null) === 'address' || in_array($key, ['current_address', 'parents_address', 'godparents_address', 'previous_marriage', 'principal_sponsors', 'witnesses', 'residence_address', 'wake_location', 'cemetery_location', 'contact_address', 'special_requests', 'notes', 'priest_notes', 'additional_godparents'], true)])>
                                         <dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">{{ $label }}</dt>
                                         <dd class="mt-2 whitespace-pre-line text-sm leading-6">
                                             @if (in_array($key, $dateFields, true))
                                                 {{ \Carbon\Carbon::parse($value)->format('F j, Y') }}
+                                            @elseif (isset($fieldDefinitions[$key]['options'][$value]))
+                                                {{ $fieldDefinitions[$key]['options'][$value] }}
                                             @elseif (in_array($key, ['civil_status', 'marriage_license_status', 'child_sex'], true))
                                                 {{ str($value)->replace('_', ' ')->title() }}
                                             @else

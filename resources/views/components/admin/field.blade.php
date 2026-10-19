@@ -1,5 +1,5 @@
 @props(['label', 'name', 'value' => '', 'type' => 'text', 'required' => false, 'help' => null])
-<label class="grid gap-2 text-sm">
+<label class="grid content-start gap-2 text-sm">
     <span class="flex flex-wrap items-center gap-2 font-medium">
         <span>{{ $label }}</span>
         @if($required)<span class="text-[0.62rem] font-semibold tracking-[0.1em] text-[#80662e] uppercase">Required</span>@endif

@@ -157,10 +157,10 @@ class AdminCalendarTest extends TestCase
         $person = Personnel::factory()->create();
         Appointment::factory()->create(['status' => 'confirmed', 'personnel_id' => $person->id, 'starts_at' => '2026-11-02 09:00', 'ends_at' => '2026-11-02 10:00', 'reserved_until' => '2026-11-02 10:30']);
         $this->postJson('/admin/schedules', [...$this->payload(), 'personnel_id' => $person->id])->assertInvalid('starts_at');
-        ScheduleBlock::factory()->create(['church' => 'Parish Chapel', 'starts_at' => '2026-11-02 10:00', 'ends_at' => '2026-11-02 10:30']);
-        $this->postJson('/admin/schedules', [...$this->payload(), 'location' => 'Parish Chapel'])->assertInvalid('starts_at');
+        ScheduleBlock::factory()->create(['church' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-02 10:00', 'ends_at' => '2026-11-02 10:30']);
+        $this->postJson('/admin/schedules', [...$this->payload(), 'location' => 'San Isidro Labrador Chapel'])->assertInvalid('starts_at');
 
-        $this->postJson('/admin/schedules', [...$this->payload(), 'personnel_id' => $person->id, 'location' => 'Parish Chapel', 'starts_at' => '2026-11-02T10:30'])->assertCreated();
+        $this->postJson('/admin/schedules', [...$this->payload(), 'personnel_id' => $person->id, 'location' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-02T10:30'])->assertCreated();
         $this->assertDatabaseCount('schedules', 1);
     }
 
@@ -191,14 +191,14 @@ class AdminCalendarTest extends TestCase
         $this->travelTo('2026-10-01');
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $person = Personnel::factory()->create();
-        Schedule::factory()->create(['location' => 'Parish Chapel', 'personnel_id' => $person->id]);
+        Schedule::factory()->create(['location' => 'San Isidro Labrador Chapel', 'personnel_id' => $person->id]);
         $appointment = Appointment::factory()->create();
 
         $this->put('/admin/appointments/'.$appointment->reference_number, [
-            'starts_at' => '2026-11-02T10:00', 'confirmed_church' => 'Parish Chapel', 'personnel_id' => $person->id,
+            'starts_at' => '2026-11-02T10:00', 'confirmed_church' => 'San Isidro Labrador Chapel', 'personnel_id' => $person->id,
             'duration_minutes' => 60, 'buffer_minutes' => 30, 'reason' => 'Schedule ceremony', 'version' => 1,
         ])->assertSessionHasErrors('starts_at');
-        $this->post('/admin/schedule-blocks', ['title' => 'Closed', 'church' => 'Parish Chapel', 'starts_at' => '2026-11-02T10:00', 'ends_at' => '2026-11-02T11:00'])->assertSessionHasErrors('starts_at');
+        $this->post('/admin/schedule-blocks', ['title' => 'Closed', 'church' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-02T10:00', 'ends_at' => '2026-11-02T11:00'])->assertSessionHasErrors('starts_at');
         $this->assertNull($appointment->refresh()->starts_at);
         $this->assertDatabaseEmpty('schedule_blocks');
     }

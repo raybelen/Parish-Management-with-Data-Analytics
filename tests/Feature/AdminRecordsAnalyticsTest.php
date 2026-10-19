@@ -38,8 +38,8 @@ class AdminRecordsAnalyticsTest extends TestCase
     {
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $header = implode(',', ImportServiceRecords::COLUMNS)."\n";
-        $good = "OLD-1,baptism,2020-01-01,Sample Name,Parish Chapel,Fr Sample,1,2,3,Register copy\n";
-        $bad = "OLD-2,wedding,invalid,Sample Couple,Parish Chapel,,,,,\n";
+        $good = "OLD-1,baptism,2020-01-01,Sample Name,San Isidro Labrador Chapel,Fr Sample,1,2,3,Register copy\n";
+        $bad = "OLD-2,wedding,invalid,Sample Couple,San Isidro Labrador Chapel,,,,,\n";
 
         $this->post('/admin/records/import', ['file' => UploadedFile::fake()->createWithContent('records.csv', $header.$good.$bad), 'reason' => 'Register import'])->assertSessionHasErrors('file');
         $this->assertDatabaseEmpty('service_records');

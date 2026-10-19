@@ -2,6 +2,7 @@
 
 namespace App\Actions;
 
+use App\Mail\AppointmentConfirmed;
 use App\Models\Appointment;
 use App\Models\ParishSetting;
 use App\Models\Personnel;
@@ -13,6 +14,7 @@ use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class ManageAppointment
@@ -22,6 +24,7 @@ class ManageAppointment
     {
         DB::transaction(function () use ($appointment, $data): void {
             ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
+            OfficeSettings::forgetMemoizedValues();
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
             $this->checkVersion($locked, (int) $data['version']);
             $this->require(in_array($locked->status, ['pending', 'confirmed'], true), 'status', 'Only pending or confirmed appointments can be scheduled.');
@@ -32,9 +35,10 @@ class ManageAppointment
             $reservedUntil = $end->addMinutes($buffer);
             $this->require($buffer >= $service->buffer_minutes, 'buffer_minutes', 'The preparation gap cannot be shorter than the service minimum.');
             $this->require(Personnel::query()->whereKey($data['personnel_id'])->where('active', true)->exists(), 'personnel_id', 'Choose active personnel.');
+            $this->require(OfficeSettings::venueIsActive($data['confirmed_church']), 'confirmed_church', 'Choose a church or chapel that is currently available.');
             $this->require($start->isFuture(), 'starts_at', 'Choose a future schedule.');
             $this->checkOperatingHours($start, $reservedUntil);
-            $conflicts = Appointment::query()->where('source', $locked->source)->where('status', 'confirmed')
+            $conflicts = Appointment::query()->where('source', $locked->source)->whereIn('status', ['pending', 'confirmed'])
                 ->whereKeyNot($locked->id)
                 ->where(function ($query) use ($data): void {
                     $query->where('confirmed_church', $data['confirmed_church'])->orWhere('personnel_id', $data['personnel_id']);
@@ -63,6 +67,7 @@ class ManageAppointment
     {
         DB::transaction(function () use ($appointment, $status, $version, $reason, $completedAt): void {
             ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
+            OfficeSettings::forgetMemoizedValues();
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
             $this->checkVersion($locked, $version);
             $allowed = match ($locked->status) {
@@ -73,13 +78,15 @@ class ManageAppointment
             $this->require(in_array($status, $allowed, true), 'status', 'This status transition is not permitted.');
             if ($status === 'confirmed') {
                 $this->require($locked->physicalDocumentsComplete(), 'status', 'Verify all required physical documents before confirmation.');
+                $this->require($locked->balanceCents() === 0, 'status', 'Record the full payment before confirmation.');
                 $this->require($locked->starts_at !== null && $locked->starts_at->isFuture(), 'status', 'Save a future confirmed schedule first.');
                 $this->require($locked->ends_at !== null && $locked->reserved_until !== null && $locked->confirmed_church !== null, 'status', 'Save a complete schedule before confirmation.');
                 $this->require(Personnel::query()->whereKey($locked->personnel_id)->where('active', true)->exists(), 'status', 'Assigned personnel must be active.');
+                $this->require(OfficeSettings::venueIsActive($locked->confirmed_church), 'status', 'The assigned venue is currently unavailable. Choose another venue before confirmation.');
                 $minimumGap = ServiceType::query()->where('slug', $locked->service_type)->value('buffer_minutes');
                 $this->require($locked->buffer_minutes >= $minimumGap, 'status', 'The preparation gap has changed. Save the schedule with the current minimum before confirmation.');
                 $this->checkOperatingHours($locked->starts_at, $locked->reserved_until);
-                $conflict = Appointment::query()->where('source', $locked->source)->where('status', 'confirmed')->whereKeyNot($locked->id)
+                $conflict = Appointment::query()->where('source', $locked->source)->whereIn('status', ['pending', 'confirmed'])->whereKeyNot($locked->id)
                     ->where('starts_at', '<', $locked->reserved_until)->where('reserved_until', '>', $locked->starts_at)
                     ->where(fn ($query) => $query->where('confirmed_church', $locked->confirmed_church)->orWhere('personnel_id', $locked->personnel_id))->exists();
                 $blocked = ScheduleBlock::query()->where('starts_at', '<', $locked->reserved_until)->where('ends_at', '>', $locked->starts_at)
@@ -113,6 +120,12 @@ class ManageAppointment
             $locked->save();
             OfficeAudit::record('appointment.'.$status, $locked, $before, $locked->only(array_keys($before)), $reason);
             OfficeAudit::notify($locked, $status, ucfirst(str_replace('_', ' ', $status)).': '.$locked->reference_number);
+
+            if ($status === 'confirmed' && $locked->client_email !== null) {
+                Mail::to($locked->client_email)->queue(
+                    (new AppointmentConfirmed($locked))->afterCommit(),
+                );
+            }
         });
     }
 

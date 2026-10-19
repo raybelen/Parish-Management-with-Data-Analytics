@@ -14,6 +14,7 @@ use App\Models\ServiceType;
 use App\Support\AppointmentParticipants;
 use App\Support\OfficeAccess;
 use App\Support\OfficeAudit;
+use App\Support\OfficeSettings;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -52,6 +53,7 @@ class AdminAppointmentController extends Controller
             'services' => ServiceType::query()->orderBy('name')->get(),
             'personnel' => $request->user()->can('settings.manage') ? Personnel::query()->where('active', true)->orderBy('name')->get() : collect(),
             'blocks' => ScheduleBlock::query()->with('personnel')->where('ends_at', '>=', now())->orderBy('starts_at')->limit(30)->get(),
+            'churches' => OfficeSettings::activeVenues(),
         ]);
     }
 
@@ -59,7 +61,10 @@ class AdminAppointmentController extends Controller
     {
         Gate::authorize('appointments.manage');
 
-        return view('admin.appointments.create', ['services' => ServiceType::query()->where('active', true)->orderBy('name')->get()]);
+        return view('admin.appointments.create', [
+            'services' => ServiceType::query()->where('active', true)->orderBy('name')->get(),
+            'churches' => OfficeSettings::activeVenues(),
+        ]);
     }
 
     public function store(StoreAppointmentRequest $request, CreateAppointment $create): RedirectResponse
@@ -76,7 +81,11 @@ class AdminAppointmentController extends Controller
         OfficeAccess::appointment($request->user(), $appointment);
         abort_unless(in_array($appointment->status, ['pending', 'confirmed'], true), 409);
 
-        return view('admin.appointments.create', ['appointment' => $appointment, 'services' => ServiceType::query()->where('slug', $appointment->service_type)->get()]);
+        return view('admin.appointments.create', [
+            'appointment' => $appointment,
+            'services' => ServiceType::query()->where('slug', $appointment->service_type)->get(),
+            'churches' => OfficeSettings::activeVenues(),
+        ]);
     }
 
     public function details(StoreAppointmentRequest $request, Appointment $appointment): RedirectResponse
@@ -112,6 +121,7 @@ class AdminAppointmentController extends Controller
             'appointment' => $appointment,
             'service' => ServiceType::query()->where('slug', $appointment->service_type)->firstOrFail(),
             'personnel' => Personnel::query()->where('active', true)->orderBy('name')->get(),
+            'churches' => OfficeSettings::activeVenues(),
             'history' => AuditLog::query()->with('actor')->where('entity_type', Appointment::class)->where('entity_id', $appointment->id)
                 ->when(! $request->user()->can('finance.view'), fn ($query) => $query->where('action', '!=', 'appointment.fee_changed'))->latest('id')->limit(50)->get(),
         ]);

@@ -29,7 +29,7 @@ class AppointmentFactory extends Factory
             'service_type' => 'baptism',
             'preferred_date' => fake()->dateTimeBetween('+1 week', '+6 months')->format('Y-m-d'),
             'preferred_time' => '09:00',
-            'preferred_church' => 'St. John Nepomucene Parish Church',
+            'preferred_church' => 'St. John Nepomucene Parish',
             'additional_notes' => null,
             'service_details' => [
                 'child_full_name' => fake()->name(),
@@ -40,9 +40,11 @@ class AppointmentFactory extends Factory
                 'mother_name' => fake()->name('female'),
                 'godfather_name' => fake()->name('male'),
                 'godmother_name' => fake()->name('female'),
-                'additional_godparents' => null,
-                'special_requests' => null,
-                'notes' => null,
+                'father_origin_address' => fake()->address(),
+                'mother_origin_address' => fake()->address(),
+                'parents_current_residence' => fake()->address(),
+                'godfather_address' => fake()->address(),
+                'godmother_address' => fake()->address(),
             ],
             'documents' => [],
         ];

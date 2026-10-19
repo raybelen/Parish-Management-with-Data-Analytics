@@ -114,7 +114,7 @@ class RestoreOfficeBackup extends Command
             $default = config('appointments.services.'.$service->slug);
             if (! $default || $service->name !== $default['label'] || $service->requirements !== $default['documents']
                 || $service->fee_cents !== 0 || ! $service->active || $service->buffer_minutes !== 30
-                || $service->duration_minutes !== ($service->slug === 'wedding' ? 90 : 60)) {
+                || $service->duration_minutes !== 60) {
                 return false;
             }
         }

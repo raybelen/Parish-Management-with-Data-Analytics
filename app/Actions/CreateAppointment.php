@@ -17,6 +17,8 @@ use Throwable;
 
 class CreateAppointment
 {
+    public function __construct(private ReserveAppointmentSlot $reserveAppointmentSlot) {}
+
     /**
      * @param  array<string, mixed>  $validated
      */
@@ -77,6 +79,7 @@ class CreateAppointment
 
                 $appointment->update(['documents' => $documents]);
                 AppointmentParticipants::sync($appointment);
+                $this->reserveAppointmentSlot->handle($appointment);
                 OfficeAudit::record('appointment.created', $appointment, [], ['reference_number' => $appointment->reference_number, 'service_type' => $appointment->service_type]);
                 OfficeAudit::notify($appointment, 'new', 'New appointment request: '.$appointment->reference_number);
 

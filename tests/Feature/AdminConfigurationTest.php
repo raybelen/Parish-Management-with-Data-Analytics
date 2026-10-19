@@ -69,11 +69,57 @@ class AdminConfigurationTest extends TestCase
         $this->assertSame(['2020-03', '2020-04'], OfficeSettings::all()['missing_months']);
     }
 
+    public function test_admin_can_control_appointment_venue_availability(): void
+    {
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $existingAppointment = Appointment::factory()->create([
+            'preferred_church' => 'San Isidro Labrador Chapel',
+        ]);
+        $data = [
+            ...config('office.defaults'),
+            'analytics_start' => '2020-01-01',
+            'missing_months_text' => '',
+            'active_venues_present' => '1',
+            'active_venues' => ['St. John Nepomucene Parish', 'San Fernando Chapel'],
+        ];
+        unset($data['missing_months']);
+
+        $this->get('/admin/settings')
+            ->assertSee('Appointment venue availability')
+            ->assertSee('St. John Nepomucene Parish')
+            ->assertSee('San Isidro Labrador Chapel')
+            ->assertSee('Nuestra Señora de los Desamparados')
+            ->assertSee('San Fernando Chapel')
+            ->assertSee('Santa Misericordia Chapel');
+        $this->put('/admin/settings', $data)->assertSessionHasNoErrors();
+
+        $this->assertSame(['St. John Nepomucene Parish', 'San Fernando Chapel'], OfficeSettings::activeVenues());
+        $this->get('/appointments/new')
+            ->assertSee('St. John Nepomucene Parish')
+            ->assertSee('San Fernando Chapel')
+            ->assertDontSee('San Isidro Labrador Chapel');
+        $this->get('/admin/appointments/create')
+            ->assertSee('San Fernando Chapel')
+            ->assertDontSee('San Isidro Labrador Chapel');
+        $this->get('/admin/appointments/'.$existingAppointment->reference_number.'/edit')
+            ->assertSee('San Isidro Labrador Chapel (currently unavailable)');
+        $this->assertSame('San Isidro Labrador Chapel', $existingAppointment->refresh()->preferred_church);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'settings.updated']);
+
+        $data['active_venues'] = [];
+        $this->put('/admin/settings', $data)->assertSessionHasNoErrors();
+        $this->assertSame([], OfficeSettings::activeVenues());
+        $this->get('/appointments/new')
+            ->assertSee('No venues currently available')
+            ->assertSee('Please contact the parish office.');
+    }
+
     public function test_new_service_accepts_optional_uploads_and_creates_recipient_without_registration(): void
     {
         $this->withoutVite();
         $service = ServiceType::factory()->create(['slug' => 'blessing', 'name' => 'House blessing', 'requirements' => ['letter' => ['label' => 'Request letter', 'required' => true, 'multiple' => false]]]);
-        $payload = ['client_full_name' => 'Sample Contact', 'client_contact_number' => '09123456789', 'client_address' => 'Sample Address', 'preferred_contact_method' => 'phone', 'service_type' => $service->slug, 'preferred_date' => now()->addWeek()->toDateString(), 'preferred_time' => '09:00', 'preferred_church' => 'Parish Chapel', 'service' => ['recipient_full_name' => 'Sample Recipient']];
+        $payload = ['client_full_name' => 'Sample Contact', 'client_contact_number' => '09123456789', 'client_address' => 'Sample Address', 'preferred_contact_method' => 'phone', 'service_type' => $service->slug, 'preferred_date' => now()->addWeek()->toDateString(), 'preferred_time' => '09:00', 'preferred_church' => 'San Isidro Labrador Chapel', 'service' => ['recipient_full_name' => 'Sample Recipient']];
 
         $this->get('/appointments/new')->assertSee('House blessing')->assertSee('Online uploads are optional');
         $response = $this->post('/appointments', $payload)->assertSessionHasNoErrors();
@@ -94,6 +140,7 @@ class AdminConfigurationTest extends TestCase
         $this->put('/admin/service-types/'.$service->id, ['name' => 'Baptism', 'duration_minutes' => 60, 'buffer_minutes' => 45, 'fee' => '200.50', 'active' => 1, 'requirements' => [['label' => 'Office form', 'required' => 1]]])->assertSessionHasNoErrors();
 
         $this->assertSame(20050, $service->refresh()->fee_cents);
+        $this->assertSame(60, $service->duration_minutes);
         $this->assertSame(15000, $appointment->refresh()->fee_cents);
         $this->assertArrayHasKey('birth_certificate', $appointment->requirements);
     }
@@ -101,9 +148,9 @@ class AdminConfigurationTest extends TestCase
     public function test_unavailable_time_cannot_overwrite_confirmed_service(): void
     {
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
-        Appointment::factory()->create(['status' => 'confirmed', 'starts_at' => '2026-11-01 10:00', 'reserved_until' => '2026-11-01 11:30', 'confirmed_church' => 'Parish Chapel']);
+        Appointment::factory()->create(['status' => 'confirmed', 'starts_at' => '2026-11-01 10:00', 'reserved_until' => '2026-11-01 11:30', 'confirmed_church' => 'San Isidro Labrador Chapel']);
 
-        $this->post('/admin/schedule-blocks', ['title' => 'Maintenance', 'church' => 'Parish Chapel', 'starts_at' => '2026-11-01T11:15', 'ends_at' => '2026-11-01T12:00'])->assertSessionHasErrors('starts_at');
+        $this->post('/admin/schedule-blocks', ['title' => 'Maintenance', 'church' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-01T11:15', 'ends_at' => '2026-11-01T12:00'])->assertSessionHasErrors('starts_at');
 
         $this->assertDatabaseEmpty('schedule_blocks');
     }
@@ -134,6 +181,40 @@ class AdminConfigurationTest extends TestCase
         $this->artisan('office:reminders')->assertSuccessful();
 
         $this->assertDatabaseCount('office_notifications', 2);
+    }
+
+    public function test_office_forms_use_the_updated_service_fields_and_preserve_saved_values(): void
+    {
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $appointment = Appointment::factory()->create([
+            'service_type' => 'wedding',
+            'service_details' => [
+                'groom_mother_maiden_name' => 'Ana Cruz',
+                'bride_mother_maiden_name' => 'Luz Santos',
+                'godfather_address' => '123 Parish Road',
+            ],
+        ]);
+
+        $this->get('/admin/appointments/create')
+            ->assertSee('name="service[father_origin_address]"', false)
+            ->assertSee('name="service[mother_origin_address]"', false)
+            ->assertSee('name="service[parents_current_residence]"', false)
+            ->assertSee('name="service[godfather_address]"', false)
+            ->assertSee('name="service[godmother_address]"', false)
+            ->assertDontSee('name="service[parents_address]"', false)
+            ->assertDontSee('name="service[godparents_address]"', false)
+            ->assertSee('name="service[groom_mother_maiden_name]"', false)
+            ->assertSee('name="service[bride_mother_maiden_name]"', false)
+            ->assertSee('name="service[anointing_of_sick]"', false)
+            ->assertDontSee('name="service[minister_name]"', false)
+            ->assertDontSee('name="service[bride_contact_number]"', false);
+
+        $this->get('/admin/appointments/'.$appointment->reference_number.'/edit')
+            ->assertSee('Ana Cruz')
+            ->assertSee('Luz Santos')
+            ->assertSee('123 Parish Road')
+            ->assertDontSee('name="service[minister_name]"', false);
     }
 
     public function test_contact_corrections_update_participants_and_are_audited(): void

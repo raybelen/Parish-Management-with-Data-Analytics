@@ -18,10 +18,12 @@ class AppointmentCancellationControllerTest extends TestCase
     {
         $this->withoutVite();
         $appointment = Appointment::factory()->create(['status' => 'pending']);
+        $accessToken = 'appointment-modal-access-token';
+        $this->withSession(['appointment_access_tokens' => [$accessToken => $appointment->id]]);
         $showUrl = URL::temporarySignedRoute(
             'appointments.show',
             now()->addMinutes(5),
-            ['appointment' => $appointment],
+            ['appointment' => $appointment, 'access_token' => $accessToken],
         );
 
         $response = $this->get($showUrl);

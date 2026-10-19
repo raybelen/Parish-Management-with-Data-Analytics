@@ -54,9 +54,9 @@ class SeedAnalyticsDemo extends Command
                             'reference_number' => 'DEMO-'.$service->slug.'-'.$month.'-'.$index, 'source' => 'synthetic', 'status' => $status,
                             'client_full_name' => 'Demo contact '.$index, 'client_contact_number' => '09000000000', 'client_contact_key' => '09000000000',
                             'client_address' => 'Simulated address', 'preferred_contact_method' => 'phone', 'service_type' => $service->slug,
-                            'preferred_date' => $date->toDateString(), 'preferred_time' => '10:00', 'preferred_church' => 'Parish Chapel',
+                            'preferred_date' => $date->toDateString(), 'preferred_time' => '10:00', 'preferred_church' => 'San Isidro Labrador Chapel',
                             'starts_at' => $date, 'ends_at' => $date->copy()->addHour(), 'reserved_until' => $date->copy()->addMinutes(90),
-                            'confirmed_church' => 'Parish Chapel', 'completed_at' => $status === 'completed' ? $date->copy()->addHour() : null,
+                            'confirmed_church' => 'San Isidro Labrador Chapel', 'completed_at' => $status === 'completed' ? $date->copy()->addHour() : null,
                             'fee_cents' => 50000 + ($month % 7) * 2500, 'service_details' => $details, 'documents' => [], 'requirements' => [],
                             'outcome' => 'Synthetic demonstration record',
                         ]);
@@ -64,7 +64,7 @@ class SeedAnalyticsDemo extends Command
                         $appointment->save();
                         AppointmentParticipants::sync($appointment);
                         if ($status === 'completed') {
-                            ServiceRecord::create(['appointment_id' => $appointment->id, 'record_number' => 'REC-'.$appointment->reference_number, 'source' => 'synthetic', 'service_type' => $service->slug, 'service_date' => $date->toDateString(), 'participant_names' => $name, 'church' => 'Parish Chapel', 'details' => $details]);
+                            ServiceRecord::create(['appointment_id' => $appointment->id, 'record_number' => 'REC-'.$appointment->reference_number, 'source' => 'synthetic', 'service_type' => $service->slug, 'service_date' => $date->toDateString(), 'participant_names' => $name, 'church' => 'San Isidro Labrador Chapel', 'details' => $details]);
                             if ($index % 9 !== 0) {
                                 $payment = $appointment->payments()->create(['kind' => 'payment', 'amount_cents' => $index % 5 === 0 ? (int) ($appointment->fee_cents / 2) : $appointment->fee_cents, 'idempotency_key' => (string) Str::uuid(), 'method' => 'cash', 'paid_at' => $date, 'notes' => 'Synthetic demo payment']);
                                 if ($index % 8 === 0) {

@@ -8,7 +8,7 @@
     'errorBag' => 'default',
 ])
 
-<div {{ $attributes->merge(['class' => 'grid gap-2']) }}>
+<div {{ $attributes->merge(['class' => 'grid content-start gap-2']) }}>
     <label for="{{ $id }}" class="flex flex-wrap items-center gap-2 text-sm font-medium text-navy">
         <span>{{ $label }}</span>
         @if ($required)

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Personnel;
 use App\Support\AdminCalendar;
 use App\Support\OfficeAccess;
+use App\Support\OfficeSettings;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ class AdminCalendarController extends Controller
             'categories' => OfficeAccess::schedules($request->user())->distinct()->orderBy('category')->pluck('category')
                 ->merge($request->user()->can('appointments.view') ? OfficeAccess::appointments($request->user())->distinct()->pluck('service_type')->map(fn (string $type): string => ucfirst($type)) : []),
             'today' => CarbonImmutable::now(config('office.timezone'))->toDateString(),
+            'churches' => OfficeSettings::activeVenues(),
         ]);
     }
 

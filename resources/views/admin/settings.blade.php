@@ -2,7 +2,7 @@
 @section('title', 'Parish settings')
 @section('content')
     <nav aria-label="Settings sections" class="flex flex-wrap gap-2">
-        <a class="admin-secondary" href="#office-settings">Office hours</a>
+        <a class="admin-secondary" href="#office-settings">Office & venues</a>
         <a class="admin-secondary" href="#service-settings">Services & fees</a>
         <a class="admin-secondary" href="#personnel-settings">Personnel</a>
         @can('manage-admin-roles')
@@ -15,6 +15,19 @@
         <x-admin.field label="Parish name" name="parish_name" :value="$settings['parish_name']" required />
         <x-admin.field label="Opening time" name="opens_at" type="time" :value="$settings['opens_at']" required /><x-admin.field label="Closing time (including preparation)" name="closes_at" type="time" :value="$settings['closes_at']" required />
         <fieldset class="sm:col-span-2 xl:col-span-3"><legend class="mb-3 text-sm font-semibold">Operating days</legend><div class="flex flex-wrap gap-4">@foreach([1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday'] as $number => $day)<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="operating_days[]" value="{{ $number }}" @checked(in_array($number, $settings['operating_days']))>{{ $day }}</label>@endforeach</div></fieldset>
+        <fieldset class="sm:col-span-2 xl:col-span-3">
+            <legend class="mb-2 text-sm font-semibold">Appointment venue availability</legend>
+            <p class="mb-4 text-sm text-muted">Turn off a church or chapel to prevent new client requests and staff scheduling there. Existing appointment records keep their saved venue.</p>
+            <input type="hidden" name="active_venues_present" value="1">
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                @foreach($venues as $venue)
+                    <label class="flex items-center gap-3 rounded-lg border border-navy/10 p-3 text-sm">
+                        <input type="checkbox" name="active_venues[]" value="{{ $venue }}" @checked(in_array($venue, old('active_venues_present') ? old('active_venues', []) : $activeVenues, true))>
+                        <span>{{ $venue }}</span>
+                    </label>
+                @endforeach
+            </div>
+        </fieldset>
         @if(config('office.analytics_enabled'))
         <x-admin.field label="First complete operational month (first day)" name="analytics_start" type="date" :value="$settings['analytics_start']" />
         <x-admin.field label="Unknown months (YYYY-MM, comma-separated)" name="missing_months_text" :value="implode(', ', $settings['missing_months'])" />

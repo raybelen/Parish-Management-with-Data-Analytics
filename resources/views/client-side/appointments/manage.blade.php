@@ -15,6 +15,10 @@
                 <span aria-current="page">Manage</span>
             </nav>
 
+            @if(session('appointment_access_notice'))
+                <div class="mt-7 border-l-4 border-amber-700 bg-amber-50 px-6 py-5 text-sm text-amber-950" role="status">{{ session('appointment_access_notice') }}</div>
+            @endif
+
             <div class="mt-8 grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
                 <div>
                     <p class="section-label text-muted">Existing Request</p>

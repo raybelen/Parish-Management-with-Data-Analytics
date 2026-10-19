@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\AppointmentConfirmed;
 use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\ParishSetting;
@@ -10,6 +11,7 @@ use App\Models\Personnel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -35,6 +37,20 @@ class AdminOperationsTest extends TestCase
         }
     }
 
+    public function test_appointment_service_details_open_in_a_modal_instead_of_a_dropdown(): void
+    {
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $appointment = Appointment::factory()->create();
+
+        $this->get('/admin/appointments/'.$appointment->reference_number)
+            ->assertOk()
+            ->assertSee('data-dialog-target="appointment-service-details"', false)
+            ->assertSee('<dialog id="appointment-service-details"', false)
+            ->assertSee('View full appointment details')
+            ->assertDontSee('<summary class="cursor-pointer text-sm font-semibold">Full service details</summary>', false);
+    }
+
     public function test_priest_can_only_view_assigned_appointments_and_cannot_view_finances(): void
     {
         $this->withoutVite();
@@ -55,7 +71,7 @@ class AdminOperationsTest extends TestCase
         $this->travelTo('2026-10-01 00:00:00');
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $personnel = Personnel::factory()->create();
-        Appointment::factory()->create(['status' => 'confirmed', 'personnel_id' => $personnel->id, 'starts_at' => '2026-10-10 10:00:00', 'ends_at' => '2026-10-10 11:00:00', 'reserved_until' => '2026-10-10 11:30:00', 'confirmed_church' => 'Parish Chapel']);
+        Appointment::factory()->create(['status' => 'confirmed', 'personnel_id' => $personnel->id, 'starts_at' => '2026-10-10 10:00:00', 'ends_at' => '2026-10-10 11:00:00', 'reserved_until' => '2026-10-10 11:30:00', 'confirmed_church' => 'San Isidro Labrador Chapel']);
         $appointment = Appointment::factory()->create();
         $payload = $this->schedule($personnel, '2026-10-10T11:15');
 
@@ -68,16 +84,48 @@ class AdminOperationsTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'appointment.scheduled', 'entity_id' => $appointment->id]);
         $other = Appointment::factory()->create();
         $payload['starts_at'] = '2026-10-10T10:30';
-        $payload['confirmed_church'] = 'St. John Nepomucene Parish Church';
+        $payload['confirmed_church'] = 'St. John Nepomucene Parish';
         $this->put('/admin/appointments/'.$other->reference_number, $payload)->assertSessionHasErrors('starts_at');
+    }
+
+    public function test_schedule_form_prefills_the_requested_slot_and_enforces_one_hour_services(): void
+    {
+        $this->withoutVite();
+        $this->travelTo('2026-10-01');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $personnel = Personnel::factory()->create();
+        $appointment = Appointment::factory()->create([
+            'preferred_date' => '2026-10-22',
+            'preferred_time' => '08:00',
+            'starts_at' => null,
+            'ends_at' => null,
+            'reserved_until' => null,
+            'confirmed_church' => null,
+        ]);
+
+        $this->get('/admin/appointments/'.$appointment->reference_number)
+            ->assertSee('value="2026-10-22T08:00"', false)
+            ->assertSee('name="duration_minutes" type="number" value="60"', false)
+            ->assertSee('Venue turnaround gap after service');
+
+        $payload = $this->schedule($personnel, '2026-10-22T08:00');
+        $this->put('/admin/appointments/'.$appointment->reference_number, [...$payload, 'duration_minutes' => 90])
+            ->assertSessionHasErrors(['duration_minutes' => 'All parish services must use the standard 60-minute duration.']);
+        $this->assertNull($appointment->refresh()->starts_at);
+
+        $this->put('/admin/appointments/'.$appointment->reference_number, $payload)->assertSessionHasNoErrors();
+        $appointment->refresh();
+        $this->assertSame('2026-10-22 09:00', $appointment->ends_at?->format('Y-m-d H:i'));
+        $this->assertSame('2026-10-22 09:30', $appointment->reserved_until?->format('Y-m-d H:i'));
     }
 
     public function test_confirmation_requires_physical_copies_and_rechecks_conflicts(): void
     {
         $this->travelTo('2026-10-01');
+        Mail::fake();
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $personnel = Personnel::factory()->create();
-        $appointment = Appointment::factory()->create(['starts_at' => '2026-10-10 10:00', 'ends_at' => '2026-10-10 11:00', 'reserved_until' => '2026-10-10 11:30', 'confirmed_church' => 'Parish Chapel', 'personnel_id' => $personnel->id]);
+        $appointment = Appointment::factory()->create(['starts_at' => '2026-10-10 10:00', 'ends_at' => '2026-10-10 11:00', 'reserved_until' => '2026-10-10 11:30', 'confirmed_church' => 'San Isidro Labrador Chapel', 'personnel_id' => $personnel->id]);
         $payload = ['status' => 'confirmed', 'version' => 1, 'reason' => 'Reviewed'];
 
         $this->post('/admin/appointments/'.$appointment->reference_number.'/status', $payload)->assertSessionHasErrors('status');
@@ -87,13 +135,64 @@ class AdminOperationsTest extends TestCase
 
         $this->assertSame('confirmed', $appointment->refresh()->status);
         $this->assertSame(3, $appointment->version);
+        Mail::assertQueued(AppointmentConfirmed::class, function (AppointmentConfirmed $mail) use ($appointment): bool {
+            return $mail->appointment->is($appointment) && $mail->hasTo($appointment->client_email);
+        });
+    }
+
+    public function test_confirmation_requires_the_appointment_to_be_fully_paid(): void
+    {
+        $this->travelTo('2026-10-01');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $personnel = Personnel::factory()->create();
+        $appointment = Appointment::factory()->create([
+            'requirements' => [],
+            'starts_at' => '2026-10-10 10:00',
+            'ends_at' => '2026-10-10 11:00',
+            'reserved_until' => '2026-10-10 11:30',
+            'confirmed_church' => 'San Isidro Labrador Chapel',
+            'personnel_id' => $personnel->id,
+            'fee_cents' => 10000,
+        ]);
+
+        $this->post('/admin/appointments/'.$appointment->reference_number.'/status', [
+            'status' => 'confirmed',
+            'version' => 1,
+            'reason' => 'Reviewed',
+        ])->assertSessionHasErrors(['status' => 'Record the full payment before confirmation.']);
+
+        Payment::factory()->create(['appointment_id' => $appointment->id, 'amount_cents' => 10000]);
+
+        $this->post('/admin/appointments/'.$appointment->reference_number.'/status', [
+            'status' => 'confirmed',
+            'version' => 1,
+            'reason' => 'Reviewed',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('confirmed', $appointment->refresh()->status);
+    }
+
+    public function test_confirmation_email_contains_the_confirmed_schedule_and_church(): void
+    {
+        $appointment = Appointment::factory()->make([
+            'reference_number' => 'APT-261014-ABC123',
+            'client_full_name' => 'Maria Dela Cruz',
+            'starts_at' => '2026-11-20 09:00:00',
+            'confirmed_church' => 'San Isidro Labrador Chapel',
+        ]);
+
+        $mail = new AppointmentConfirmed($appointment);
+
+        $mail->assertHasSubject('Appointment confirmed: APT-261014-ABC123');
+        $mail->assertSeeInHtml('November 20, 2026 at 9:00 AM');
+        $mail->assertSeeInHtml('San Isidro Labrador Chapel');
+        $mail->assertSeeInText('appointment is confirmed');
     }
 
     public function test_completion_preserves_unpaid_service_and_rejects_duplicate_finalization(): void
     {
         $this->travelTo('2026-10-10 14:00');
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
-        $appointment = Appointment::factory()->create(['status' => 'confirmed', 'starts_at' => '2026-10-10 09:00', 'ends_at' => '2026-10-10 10:00', 'confirmed_church' => 'Parish Chapel', 'fee_cents' => 50000]);
+        $appointment = Appointment::factory()->create(['status' => 'confirmed', 'starts_at' => '2026-10-10 09:00', 'ends_at' => '2026-10-10 10:00', 'confirmed_church' => 'San Isidro Labrador Chapel', 'fee_cents' => 50000]);
         $payload = ['status' => 'completed', 'completed_at' => '2026-10-10T10:00', 'version' => 1, 'reason' => 'Service administered'];
 
         $this->post('/admin/appointments/'.$appointment->reference_number.'/status', $payload)->assertSessionHasNoErrors();
@@ -174,13 +273,43 @@ class AdminOperationsTest extends TestCase
         $this->travelTo('2026-10-01');
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $personnel = Personnel::factory()->create();
-        $appointment = Appointment::factory()->create(['requirements' => [], 'starts_at' => '2026-10-10 10:00', 'ends_at' => '2026-10-10 11:00', 'reserved_until' => '2026-10-10 11:30', 'confirmed_church' => 'Parish Chapel', 'personnel_id' => $personnel->id]);
+        $appointment = Appointment::factory()->create(['requirements' => [], 'starts_at' => '2026-10-10 10:00', 'ends_at' => '2026-10-10 11:00', 'reserved_until' => '2026-10-10 11:30', 'confirmed_church' => 'San Isidro Labrador Chapel', 'personnel_id' => $personnel->id]);
         ParishSetting::query()->where('key', 'office')->update(['value' => ['opens_at' => '12:00']]);
 
         $this->post('/admin/appointments/'.$appointment->reference_number.'/status', ['status' => 'confirmed', 'version' => 1, 'reason' => 'Reviewed'])->assertSessionHasErrors('starts_at');
 
         $this->assertSame('pending', $appointment->refresh()->status);
         $this->assertDatabaseMissing('audit_logs', ['action' => 'appointment.confirmed']);
+    }
+
+    public function test_staff_cannot_schedule_or_confirm_at_a_disabled_venue(): void
+    {
+        $this->travelTo('2026-10-01');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $personnel = Personnel::factory()->create();
+        ParishSetting::query()->where('key', 'office')->update([
+            'value' => ['active_venues' => ['St. John Nepomucene Parish']],
+        ]);
+        $appointment = Appointment::factory()->create([
+            'requirements' => [],
+            'starts_at' => '2026-10-10 10:00',
+            'ends_at' => '2026-10-10 11:00',
+            'reserved_until' => '2026-10-10 11:30',
+            'confirmed_church' => 'San Isidro Labrador Chapel',
+            'personnel_id' => $personnel->id,
+        ]);
+
+        $this->put('/admin/appointments/'.$appointment->reference_number, $this->schedule($personnel, '2026-10-11T10:00'))
+            ->assertSessionHasErrors(['confirmed_church' => 'Choose a church or chapel that is currently available.']);
+        $this->post('/admin/appointments/'.$appointment->reference_number.'/status', [
+            'status' => 'confirmed',
+            'version' => 1,
+            'reason' => 'Reviewed',
+        ])->assertSessionHasErrors([
+            'status' => 'The assigned venue is currently unavailable. Choose another venue before confirmation.',
+        ]);
+
+        $this->assertSame('pending', $appointment->refresh()->status);
     }
 
     public function test_calendar_agenda_only_contains_confirmed_appointments_in_selected_month(): void
@@ -200,7 +329,7 @@ class AdminOperationsTest extends TestCase
     /** @return array<string, mixed> */
     private function schedule(Personnel $personnel, string $start): array
     {
-        return ['starts_at' => $start, 'duration_minutes' => 60, 'buffer_minutes' => 30, 'confirmed_church' => 'Parish Chapel', 'personnel_id' => $personnel->id, 'version' => 1, 'reason' => 'Schedule reviewed'];
+        return ['starts_at' => $start, 'duration_minutes' => 60, 'buffer_minutes' => 30, 'confirmed_church' => 'San Isidro Labrador Chapel', 'personnel_id' => $personnel->id, 'version' => 1, 'reason' => 'Schedule reviewed'];
     }
 
     private function verified(User $user): static

@@ -4,15 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RecoverAppointmentReferenceRequest;
 use App\Models\Appointment;
+use App\Support\AppointmentAccess;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 class AppointmentReferenceRecoveryController extends Controller
 {
-    public function store(RecoverAppointmentReferenceRequest $request): View|RedirectResponse
+    public function store(RecoverAppointmentReferenceRequest $request, AppointmentAccess $access): View|RedirectResponse
     {
         $validated = $request->validated();
         $fullName = Str::lower($validated['recovery_full_name']);
@@ -61,11 +61,7 @@ class AppointmentReferenceRecoveryController extends Controller
                 'service' => config("appointments.services.{$appointment->service_type}.label", Str::headline($appointment->service_type)),
                 'preferred_date' => $appointment->preferred_date->format('F j, Y'),
                 'preferred_church' => $appointment->preferred_church,
-                'url' => URL::temporarySignedRoute(
-                    'appointments.show',
-                    now()->addMinutes(30),
-                    ['appointment' => $appointment],
-                ),
+                'url' => $access->issue($request, $appointment),
             ]),
         ]);
     }

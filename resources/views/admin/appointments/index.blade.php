@@ -38,7 +38,7 @@
         <details class="admin-card"><summary class="cursor-pointer text-lg font-semibold">Block unavailable venue or personnel time</summary>
             <form class="mt-5 grid gap-4 sm:grid-cols-2" method="POST" action="{{ route('admin.blocks.store') }}">@csrf
                 <x-admin.field label="Reason / event" name="title" required />
-                <x-admin.field label="Venue (choose venue, personnel, or both)" name="church"><select name="church" class="admin-input"><option value="">No venue restriction</option>@foreach(config('parish.churches') as $church)<option>{{ $church }}</option>@endforeach</select></x-admin.field>
+                <x-admin.field label="Venue (choose venue, personnel, or both)" name="church"><select name="church" class="admin-input"><option value="">No venue restriction</option>@foreach($churches as $church)<option>{{ $church }}</option>@endforeach</select></x-admin.field>
                 <x-admin.field label="Unavailable priest / personnel" name="personnel_id"><select name="personnel_id" class="admin-input"><option value="">No personnel restriction</option>@foreach($personnel as $person)<option value="{{ $person->id }}">{{ $person->name }}</option>@endforeach</select></x-admin.field>
                 <x-admin.field label="Start" name="starts_at" type="datetime-local" required /><x-admin.field label="End, including preparation" name="ends_at" type="datetime-local" required />
                 <button class="admin-button sm:col-span-2">Block unavailable time</button>

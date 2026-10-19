@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\FindAppointmentRequest;
 use App\Models\Appointment;
+use App\Support\AppointmentAccess;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 class AppointmentLookupController extends Controller
@@ -19,7 +19,7 @@ class AppointmentLookupController extends Controller
         ]);
     }
 
-    public function store(FindAppointmentRequest $request): RedirectResponse
+    public function store(FindAppointmentRequest $request, AppointmentAccess $access): RedirectResponse
     {
         $validated = $request->validated();
         $contactInformation = Str::lower(trim($validated['contact_information']));
@@ -42,10 +42,6 @@ class AppointmentLookupController extends Controller
                 ->withInput(['reference_number' => $validated['reference_number']]);
         }
 
-        return redirect()->to(URL::temporarySignedRoute(
-            'appointments.show',
-            now()->addMinutes(30),
-            ['appointment' => $appointment],
-        ));
+        return redirect()->to($access->issue($request, $appointment));
     }
 }

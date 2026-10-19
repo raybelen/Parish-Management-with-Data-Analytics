@@ -31,6 +31,8 @@ class AdminSettingsController extends Controller
             'personnel' => Personnel::query()->with('user')->orderBy('name')->get(),
             'users' => User::query()->where('role', 'priest')->orderBy('name')->get(['id', 'name']),
             'abilities' => $abilities,
+            'venues' => config('parish.churches', []),
+            'activeVenues' => OfficeSettings::activeVenues(),
         ]);
     }
 
@@ -41,6 +43,9 @@ class AdminSettingsController extends Controller
             'parish_name' => ['required', 'string', 'max:255'], 'opens_at' => ['required', 'date_format:H:i'],
             'closes_at' => ['required', 'date_format:H:i', 'after:opens_at'],
             'operating_days' => ['required', 'array', 'min:1'], 'operating_days.*' => ['integer', 'between:1,7', 'distinct'],
+            'active_venues_present' => ['nullable', Rule::in(['1'])],
+            'active_venues' => ['nullable', 'array'],
+            'active_venues.*' => ['string', 'distinct', Rule::in(config('parish.churches', []))],
         ];
         if (config('office.analytics_enabled')) {
             $rules = [...$rules,
@@ -67,6 +72,10 @@ class AdminSettingsController extends Controller
             $data['order'] = array_map('intval', $data['order']);
             $data['seasonal_order'] = array_map('intval', $data['seasonal_order']);
         }
+        if ($request->boolean('active_venues_present')) {
+            $data['active_venues'] = array_values($data['active_venues'] ?? []);
+        }
+        unset($data['active_venues_present']);
         $data['operating_days'] = array_map('intval', $data['operating_days']);
         DB::transaction(function () use ($data): void {
             $settings = ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();

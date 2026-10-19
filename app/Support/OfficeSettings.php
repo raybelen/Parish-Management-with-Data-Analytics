@@ -19,6 +19,24 @@ class OfficeSettings
         ]])->all();
     }
 
+    /** @return array<int, string> */
+    public static function activeVenues(): array
+    {
+        $venues = config('parish.churches', []);
+        $activeVenues = self::all()['active_venues'] ?? $venues;
+
+        if (! is_array($activeVenues)) {
+            return $venues;
+        }
+
+        return array_values(array_intersect($venues, $activeVenues));
+    }
+
+    public static function venueIsActive(string $venue): bool
+    {
+        return in_array($venue, self::activeVenues(), true);
+    }
+
     /** @return array<string, mixed> */
     public static function all(): array
     {
