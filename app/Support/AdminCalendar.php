@@ -52,7 +52,7 @@ class AdminCalendar
                 'edit_url' => null, 'detail_url' => $user->can('settings.manage') ? route('admin.settings.index') : null, 'kind' => 'Unavailable time',
             ]);
 
-        return $schedules->concat($appointments)->concat($blocks)->map(function (array $event): array {
+        return $schedules->concat($appointments)->concat($blocks)->concat($this->regularMasses($from, $to ?? $from->addYear()))->map(function (array $event): array {
             $now = CarbonImmutable::now(config('office.timezone'))->format('Y-m-d\TH:i');
             $event['display_status'] = match (true) {
                 $event['status'] === 'cancelled' => 'cancelled',
@@ -84,5 +84,38 @@ class AdminCalendar
     private function range(Builder $query, CarbonImmutable $from, ?CarbonImmutable $to): Builder
     {
         return $query->where('ends_at', '>', $from)->when($to, fn (Builder $query) => $query->where('starts_at', '<', $to));
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function regularMasses(CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $events = [];
+        for ($date = $from->startOfDay(); $date < $to; $date = $date->addDay()) {
+            foreach (config('parish.regular_schedules', []) as $index => $schedule) {
+                if (! in_array($date->dayOfWeekIso, $schedule['days'], true)) {
+                    continue;
+                }
+                foreach ($schedule['times'] as $time) {
+                    $start = $date->setTimeFromTimeString($time['value']);
+                    $end = $start->addMinutes($schedule['duration_minutes'] ?? 60);
+                    if ($end <= $from || $start >= $to) {
+                        continue;
+                    }
+                    $events[] = [
+                        'id' => 'mass-'.$index.'-'.$start->format('YmdHi'),
+                        'title' => $schedule['service'],
+                        'starts_at' => $start->format('Y-m-d\TH:i'),
+                        'ends_at' => $end->format('Y-m-d\TH:i'),
+                        'location' => $schedule['church'] ?? config('parish.churches.0'),
+                        'status' => 'scheduled', 'category' => 'Mass', 'kind' => 'Regular Mass',
+                        'personnel_id' => null, 'personnel' => null, 'department' => null,
+                        'description' => 'Regular weekly Mass. The venue remains reserved for '.($schedule['buffer_minutes'] ?? 30).' minutes after Mass.',
+                        'notes' => null, 'edit_url' => null, 'detail_url' => null,
+                    ];
+                }
+            }
+        }
+
+        return $events;
     }
 }

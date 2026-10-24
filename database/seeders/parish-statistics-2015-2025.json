@@ -1,0 +1,1178 @@
+{
+  "reference": "Parish monthly reports 2015–2025; validated monthly sums accepted by the parish project owner",
+  "decisions": [
+    "Blank source cells count as zero; absent First Communicants category in 2015–2017 remains unknown.",
+    "Photo 10 represents 2024 despite its printed 2023 heading.",
+    "Accepted monthly sums: 2020 baptism ages 1–7=19; 2021 funerals=80; 2022 funerals=53; 2024 baptism ages 1–7=28; 2024 confirmations=274."
+  ],
+  "printed_annual": [
+    {
+      "year": 2015,
+      "infant": 274,
+      "child": 14,
+      "older": 3,
+      "wedding": 33,
+      "funeral": 74,
+      "confirmation": 10,
+      "first_communion": null
+    },
+    {
+      "year": 2016,
+      "infant": 214,
+      "child": 9,
+      "older": 29,
+      "wedding": 54,
+      "funeral": 91,
+      "confirmation": 39,
+      "first_communion": null
+    },
+    {
+      "year": 2017,
+      "infant": 205,
+      "child": 28,
+      "older": 4,
+      "wedding": 51,
+      "funeral": 68,
+      "confirmation": 229,
+      "first_communion": null
+    },
+    {
+      "year": 2018,
+      "infant": 215,
+      "child": 35,
+      "older": 3,
+      "wedding": 47,
+      "funeral": 85,
+      "confirmation": 41,
+      "first_communion": 0
+    },
+    {
+      "year": 2019,
+      "infant": 218,
+      "child": 27,
+      "older": 7,
+      "wedding": 40,
+      "funeral": 49,
+      "confirmation": 280,
+      "first_communion": 0
+    },
+    {
+      "year": 2020,
+      "infant": 150,
+      "child": 23,
+      "older": 0,
+      "wedding": 15,
+      "funeral": 67,
+      "confirmation": 6,
+      "first_communion": 243
+    },
+    {
+      "year": 2021,
+      "infant": 159,
+      "child": 57,
+      "older": 1,
+      "wedding": 35,
+      "funeral": 79,
+      "confirmation": 24,
+      "first_communion": 0
+    },
+    {
+      "year": 2022,
+      "infant": 177,
+      "child": 41,
+      "older": 4,
+      "wedding": 29,
+      "funeral": 54,
+      "confirmation": 634,
+      "first_communion": 378
+    },
+    {
+      "year": 2023,
+      "infant": 138,
+      "child": 34,
+      "older": 8,
+      "wedding": 27,
+      "funeral": 64,
+      "confirmation": 20,
+      "first_communion": 215
+    },
+    {
+      "year": 2024,
+      "infant": 163,
+      "child": 30,
+      "older": 5,
+      "wedding": 25,
+      "funeral": 62,
+      "confirmation": 272,
+      "first_communion": 240
+    },
+    {
+      "year": 2025,
+      "infant": 137,
+      "child": 28,
+      "older": 3,
+      "wedding": 22,
+      "funeral": 64,
+      "confirmation": 32,
+      "first_communion": 221
+    }
+  ],
+  "months": [
+    {
+      "month": "2015-01",
+      "baptism": 17,
+      "wedding": 2,
+      "funeral": 8,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2015-02",
+      "baptism": 55,
+      "wedding": 1,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2015-03",
+      "baptism": 3,
+      "wedding": 1,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2015-04",
+      "baptism": 6,
+      "wedding": 4,
+      "funeral": 6,
+      "confirmation": 2,
+      "first_communion": null
+    },
+    {
+      "month": "2015-05",
+      "baptism": 125,
+      "wedding": 3,
+      "funeral": 9,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2015-06",
+      "baptism": 4,
+      "wedding": 5,
+      "funeral": 7,
+      "confirmation": 1,
+      "first_communion": null
+    },
+    {
+      "month": "2015-07",
+      "baptism": 3,
+      "wedding": 0,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2015-08",
+      "baptism": 10,
+      "wedding": 2,
+      "funeral": 2,
+      "confirmation": 1,
+      "first_communion": null
+    },
+    {
+      "month": "2015-09",
+      "baptism": 27,
+      "wedding": 1,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2015-10",
+      "baptism": 2,
+      "wedding": 4,
+      "funeral": 9,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2015-11",
+      "baptism": 3,
+      "wedding": 1,
+      "funeral": 8,
+      "confirmation": 1,
+      "first_communion": null
+    },
+    {
+      "month": "2015-12",
+      "baptism": 36,
+      "wedding": 9,
+      "funeral": 4,
+      "confirmation": 5,
+      "first_communion": null
+    },
+    {
+      "month": "2016-01",
+      "baptism": 10,
+      "wedding": 4,
+      "funeral": 7,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2016-02",
+      "baptism": 31,
+      "wedding": 7,
+      "funeral": 7,
+      "confirmation": 8,
+      "first_communion": null
+    },
+    {
+      "month": "2016-03",
+      "baptism": 8,
+      "wedding": 4,
+      "funeral": 11,
+      "confirmation": 6,
+      "first_communion": null
+    },
+    {
+      "month": "2016-04",
+      "baptism": 4,
+      "wedding": 12,
+      "funeral": 12,
+      "confirmation": 2,
+      "first_communion": null
+    },
+    {
+      "month": "2016-05",
+      "baptism": 129,
+      "wedding": 8,
+      "funeral": 10,
+      "confirmation": 8,
+      "first_communion": null
+    },
+    {
+      "month": "2016-06",
+      "baptism": 3,
+      "wedding": 3,
+      "funeral": 8,
+      "confirmation": 2,
+      "first_communion": null
+    },
+    {
+      "month": "2016-07",
+      "baptism": 1,
+      "wedding": 1,
+      "funeral": 4,
+      "confirmation": 7,
+      "first_communion": null
+    },
+    {
+      "month": "2016-08",
+      "baptism": 2,
+      "wedding": 1,
+      "funeral": 3,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2016-09",
+      "baptism": 20,
+      "wedding": 2,
+      "funeral": 9,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2016-10",
+      "baptism": 3,
+      "wedding": 3,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2016-11",
+      "baptism": 2,
+      "wedding": 0,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2016-12",
+      "baptism": 39,
+      "wedding": 9,
+      "funeral": 8,
+      "confirmation": 6,
+      "first_communion": null
+    },
+    {
+      "month": "2017-01",
+      "baptism": 11,
+      "wedding": 8,
+      "funeral": 5,
+      "confirmation": 3,
+      "first_communion": null
+    },
+    {
+      "month": "2017-02",
+      "baptism": 48,
+      "wedding": 2,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2017-03",
+      "baptism": 3,
+      "wedding": 2,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2017-04",
+      "baptism": 8,
+      "wedding": 8,
+      "funeral": 3,
+      "confirmation": 1,
+      "first_communion": null
+    },
+    {
+      "month": "2017-05",
+      "baptism": 85,
+      "wedding": 5,
+      "funeral": 8,
+      "confirmation": 203,
+      "first_communion": null
+    },
+    {
+      "month": "2017-06",
+      "baptism": 4,
+      "wedding": 3,
+      "funeral": 5,
+      "confirmation": 9,
+      "first_communion": null
+    },
+    {
+      "month": "2017-07",
+      "baptism": 1,
+      "wedding": 0,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2017-08",
+      "baptism": 0,
+      "wedding": 1,
+      "funeral": 7,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2017-09",
+      "baptism": 21,
+      "wedding": 3,
+      "funeral": 12,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2017-10",
+      "baptism": 9,
+      "wedding": 1,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2017-11",
+      "baptism": 2,
+      "wedding": 1,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2017-12",
+      "baptism": 45,
+      "wedding": 17,
+      "funeral": 1,
+      "confirmation": 13,
+      "first_communion": null
+    },
+    {
+      "month": "2018-01",
+      "baptism": 21,
+      "wedding": 6,
+      "funeral": 11,
+      "confirmation": 7,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-02",
+      "baptism": 35,
+      "wedding": 1,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-03",
+      "baptism": 2,
+      "wedding": 0,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-04",
+      "baptism": 15,
+      "wedding": 6,
+      "funeral": 11,
+      "confirmation": 6,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-05",
+      "baptism": 90,
+      "wedding": 5,
+      "funeral": 7,
+      "confirmation": 7,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-06",
+      "baptism": 1,
+      "wedding": 3,
+      "funeral": 7,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-07",
+      "baptism": 2,
+      "wedding": 0,
+      "funeral": 14,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-08",
+      "baptism": 7,
+      "wedding": 1,
+      "funeral": 11,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-09",
+      "baptism": 29,
+      "wedding": 3,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-10",
+      "baptism": 4,
+      "wedding": 3,
+      "funeral": 5,
+      "confirmation": 4,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-11",
+      "baptism": 2,
+      "wedding": 0,
+      "funeral": 3,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2018-12",
+      "baptism": 45,
+      "wedding": 19,
+      "funeral": 3,
+      "confirmation": 15,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-01",
+      "baptism": 15,
+      "wedding": 6,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-02",
+      "baptism": 39,
+      "wedding": 1,
+      "funeral": 2,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-03",
+      "baptism": 0,
+      "wedding": 1,
+      "funeral": 3,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-04",
+      "baptism": 5,
+      "wedding": 3,
+      "funeral": 3,
+      "confirmation": 8,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-05",
+      "baptism": 111,
+      "wedding": 9,
+      "funeral": 3,
+      "confirmation": 263,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-06",
+      "baptism": 7,
+      "wedding": 7,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-07",
+      "baptism": 6,
+      "wedding": 0,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-08",
+      "baptism": 4,
+      "wedding": 1,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-09",
+      "baptism": 28,
+      "wedding": 2,
+      "funeral": 1,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-10",
+      "baptism": 3,
+      "wedding": 0,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-11",
+      "baptism": 6,
+      "wedding": 0,
+      "funeral": 1,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2019-12",
+      "baptism": 28,
+      "wedding": 10,
+      "funeral": 11,
+      "confirmation": 8,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-01",
+      "baptism": 14,
+      "wedding": 1,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": 189
+    },
+    {
+      "month": "2020-02",
+      "baptism": 33,
+      "wedding": 0,
+      "funeral": 4,
+      "confirmation": 3,
+      "first_communion": 54
+    },
+    {
+      "month": "2020-03",
+      "baptism": 4,
+      "wedding": 1,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-04",
+      "baptism": 0,
+      "wedding": 0,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-05",
+      "baptism": 16,
+      "wedding": 0,
+      "funeral": 8,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-06",
+      "baptism": 10,
+      "wedding": 2,
+      "funeral": 10,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-07",
+      "baptism": 5,
+      "wedding": 0,
+      "funeral": 2,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-08",
+      "baptism": 8,
+      "wedding": 0,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-09",
+      "baptism": 21,
+      "wedding": 3,
+      "funeral": 4,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-10",
+      "baptism": 10,
+      "wedding": 2,
+      "funeral": 11,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-11",
+      "baptism": 3,
+      "wedding": 1,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2020-12",
+      "baptism": 45,
+      "wedding": 5,
+      "funeral": 2,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-01",
+      "baptism": 8,
+      "wedding": 2,
+      "funeral": 3,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-02",
+      "baptism": 32,
+      "wedding": 0,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-03",
+      "baptism": 6,
+      "wedding": 2,
+      "funeral": 4,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-04",
+      "baptism": 15,
+      "wedding": 4,
+      "funeral": 4,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-05",
+      "baptism": 67,
+      "wedding": 10,
+      "funeral": 7,
+      "confirmation": 7,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-06",
+      "baptism": 4,
+      "wedding": 3,
+      "funeral": 11,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-07",
+      "baptism": 7,
+      "wedding": 0,
+      "funeral": 8,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-08",
+      "baptism": 1,
+      "wedding": 0,
+      "funeral": 8,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-09",
+      "baptism": 29,
+      "wedding": 8,
+      "funeral": 6,
+      "confirmation": 6,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-10",
+      "baptism": 6,
+      "wedding": 2,
+      "funeral": 7,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-11",
+      "baptism": 6,
+      "wedding": 0,
+      "funeral": 8,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2021-12",
+      "baptism": 36,
+      "wedding": 4,
+      "funeral": 8,
+      "confirmation": 3,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-01",
+      "baptism": 11,
+      "wedding": 2,
+      "funeral": 8,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-02",
+      "baptism": 22,
+      "wedding": 0,
+      "funeral": 1,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-03",
+      "baptism": 6,
+      "wedding": 1,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-04",
+      "baptism": 5,
+      "wedding": 1,
+      "funeral": 4,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-05",
+      "baptism": 98,
+      "wedding": 5,
+      "funeral": 6,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-06",
+      "baptism": 7,
+      "wedding": 5,
+      "funeral": 4,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-07",
+      "baptism": 6,
+      "wedding": 2,
+      "funeral": 8,
+      "confirmation": 2,
+      "first_communion": 378
+    },
+    {
+      "month": "2022-08",
+      "baptism": 2,
+      "wedding": 0,
+      "funeral": 4,
+      "confirmation": 503,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-09",
+      "baptism": 20,
+      "wedding": 2,
+      "funeral": 4,
+      "confirmation": 3,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-10",
+      "baptism": 6,
+      "wedding": 3,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-11",
+      "baptism": 1,
+      "wedding": 1,
+      "funeral": 2,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2022-12",
+      "baptism": 38,
+      "wedding": 7,
+      "funeral": 4,
+      "confirmation": 122,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-01",
+      "baptism": 6,
+      "wedding": 4,
+      "funeral": 6,
+      "confirmation": 3,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-02",
+      "baptism": 24,
+      "wedding": 5,
+      "funeral": 8,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-03",
+      "baptism": 2,
+      "wedding": 1,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-04",
+      "baptism": 9,
+      "wedding": 0,
+      "funeral": 3,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-05",
+      "baptism": 73,
+      "wedding": 0,
+      "funeral": 7,
+      "confirmation": 7,
+      "first_communion": 39
+    },
+    {
+      "month": "2023-06",
+      "baptism": 0,
+      "wedding": 8,
+      "funeral": 8,
+      "confirmation": 0,
+      "first_communion": 176
+    },
+    {
+      "month": "2023-07",
+      "baptism": 5,
+      "wedding": 0,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-08",
+      "baptism": 5,
+      "wedding": 1,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-09",
+      "baptism": 21,
+      "wedding": 2,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-10",
+      "baptism": 4,
+      "wedding": 1,
+      "funeral": 3,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-11",
+      "baptism": 4,
+      "wedding": 1,
+      "funeral": 4,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2023-12",
+      "baptism": 27,
+      "wedding": 4,
+      "funeral": 6,
+      "confirmation": 5,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-01",
+      "baptism": 14,
+      "wedding": 5,
+      "funeral": 7,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-02",
+      "baptism": 28,
+      "wedding": 1,
+      "funeral": 6,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-03",
+      "baptism": 11,
+      "wedding": 3,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-04",
+      "baptism": 1,
+      "wedding": 0,
+      "funeral": 3,
+      "confirmation": 0,
+      "first_communion": 240
+    },
+    {
+      "month": "2024-05",
+      "baptism": 65,
+      "wedding": 1,
+      "funeral": 4,
+      "confirmation": 262,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-06",
+      "baptism": 4,
+      "wedding": 5,
+      "funeral": 2,
+      "confirmation": 4,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-07",
+      "baptism": 2,
+      "wedding": 0,
+      "funeral": 3,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-08",
+      "baptism": 5,
+      "wedding": 0,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-09",
+      "baptism": 18,
+      "wedding": 3,
+      "funeral": 7,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-10",
+      "baptism": 4,
+      "wedding": 1,
+      "funeral": 7,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-11",
+      "baptism": 5,
+      "wedding": 0,
+      "funeral": 10,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2024-12",
+      "baptism": 39,
+      "wedding": 6,
+      "funeral": 4,
+      "confirmation": 2,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-01",
+      "baptism": 15,
+      "wedding": 2,
+      "funeral": 4,
+      "confirmation": 3,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-02",
+      "baptism": 23,
+      "wedding": 0,
+      "funeral": 4,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-03",
+      "baptism": 5,
+      "wedding": 0,
+      "funeral": 7,
+      "confirmation": 0,
+      "first_communion": 221
+    },
+    {
+      "month": "2025-04",
+      "baptism": 1,
+      "wedding": 2,
+      "funeral": 7,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-05",
+      "baptism": 59,
+      "wedding": 1,
+      "funeral": 3,
+      "confirmation": 1,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-06",
+      "baptism": 8,
+      "wedding": 5,
+      "funeral": 5,
+      "confirmation": 4,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-07",
+      "baptism": 3,
+      "wedding": 0,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-08",
+      "baptism": 3,
+      "wedding": 1,
+      "funeral": 10,
+      "confirmation": 4,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-09",
+      "baptism": 19,
+      "wedding": 2,
+      "funeral": 0,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-10",
+      "baptism": 3,
+      "wedding": 1,
+      "funeral": 7,
+      "confirmation": 0,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-11",
+      "baptism": 1,
+      "wedding": 0,
+      "funeral": 8,
+      "confirmation": 3,
+      "first_communion": 0
+    },
+    {
+      "month": "2025-12",
+      "baptism": 28,
+      "wedding": 8,
+      "funeral": 4,
+      "confirmation": 16,
+      "first_communion": 0
+    }
+  ]
+}

@@ -22,7 +22,8 @@ class AdminCalendarController extends Controller
         return view('admin.calendar', [
             'personnel' => Personnel::query()->orderBy('name')->get(['id', 'name', 'active']),
             'categories' => OfficeAccess::schedules($request->user())->distinct()->orderBy('category')->pluck('category')
-                ->merge($request->user()->can('appointments.view') ? OfficeAccess::appointments($request->user())->distinct()->pluck('service_type')->map(fn (string $type): string => ucfirst($type)) : []),
+                ->merge($request->user()->can('appointments.view') ? OfficeAccess::appointments($request->user())->distinct()->pluck('service_type')->map(fn (string $type): string => ucfirst($type)) : [])
+                ->push('Mass')->unique()->sort()->values(),
             'today' => CarbonImmutable::now(config('office.timezone'))->toDateString(),
             'churches' => OfficeSettings::activeVenues(),
         ]);
@@ -47,7 +48,7 @@ class AdminCalendarController extends Controller
         $events = $calendar->filter($calendar->events($request->user(), $from, $to), $data);
         $current = $calendar->events($request->user(), $now->startOfMonth(), $now->addMonthNoOverflow()->startOfMonth());
         $future = $calendar->events($request->user(), $now, null)->whereIn('display_status', ['upcoming', 'ongoing'])->values();
-        $agenda = $calendar->filter($future, $data);
+        $agenda = $calendar->filter($future->where('kind', '!=', 'Regular Mass'), $data);
         $page = $request->integer('page', 1);
 
         return response()->json([

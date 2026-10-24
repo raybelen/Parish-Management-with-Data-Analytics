@@ -1,6 +1,24 @@
 import './admin-calendar';
 import './appointment-details';
 
+document.querySelectorAll('[data-forecast-form]').forEach((form) => {
+    const button = form.querySelector('button');
+    const progress = form.querySelector('[data-forecast-progress]');
+    const originalLabel = button.textContent;
+    form.addEventListener('submit', () => {
+        button.disabled = true;
+        button.textContent = 'Updating…';
+        progress.classList.remove('hidden');
+        form.setAttribute('aria-busy', 'true');
+    });
+    window.addEventListener('pageshow', () => {
+        button.disabled = false;
+        button.textContent = originalLabel;
+        progress.classList.add('hidden');
+        form.removeAttribute('aria-busy');
+    });
+});
+
 document.querySelectorAll('form[data-confirm]').forEach((form) => {
     form.addEventListener('submit', (event) => {
         if (!window.confirm(form.dataset.confirm)) event.preventDefault();

@@ -20,6 +20,8 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/app/forecast-runtime/
+__pycache__/
 /vendor
 _ide_helper.php
 Homestead.json

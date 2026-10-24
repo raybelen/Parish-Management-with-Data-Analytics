@@ -2,10 +2,10 @@
 
 return [
     'timezone' => 'Asia/Manila',
-    'analytics_enabled' => env('ANALYTICS_ENABLED', false),
+    'analytics_enabled' => env('ANALYTICS_ENABLED', true),
     'demo' => env('ANALYTICS_DEMO', false),
     'python' => env('FORECAST_PYTHON', PHP_OS_FAMILY === 'Windows' ? storage_path('app/forecast-runtime/Scripts/python.exe') : storage_path('app/forecast-runtime/bin/python')),
-    'forecast_timeout' => 50,
+    'forecast_timeout' => 180,
     'defaults' => [
         'parish_name' => 'St. John Nepomucene Parish',
         'opens_at' => '06:00',

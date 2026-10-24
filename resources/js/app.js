@@ -233,8 +233,12 @@ updateScheduleSelection();
 const appointmentForm = document.querySelector('[data-appointment-form]');
 const requiredAlert = document.querySelector('[data-required-alert]');
 const requiredAlertList = document.querySelector('[data-required-alert-list]');
+const appointmentConfirmationDialog = document.getElementById('confirm-appointment-dialog');
+const appointmentConfirmationButton = document.querySelector('[data-confirm-appointment]');
+const appointmentReviewButton = document.querySelector('[data-review-appointment]');
 let requiredAlertFrame;
 let hasAttemptedAppointmentSubmission = false;
+let isAppointmentSubmissionConfirmed = false;
 
 function missingRequiredFields() {
     return [...(appointmentForm?.querySelectorAll('[required]:not(:disabled), [data-required="true"]:not(:disabled)') ?? [])].filter((field) => {
@@ -284,10 +288,56 @@ appointmentForm?.addEventListener('input', () => {
 appointmentForm?.addEventListener('change', () => {
     if (hasAttemptedAppointmentSubmission) updateRequiredAlert();
 });
+
+function selectedOptionText(fieldName) {
+    return appointmentForm?.elements.namedItem(fieldName)?.selectedOptions?.[0]?.textContent?.trim() || 'Not provided';
+}
+
+function fieldValue(fieldName) {
+    return appointmentForm?.elements.namedItem(fieldName)?.value?.trim() || 'Not provided';
+}
+
+function updateAppointmentReview() {
+    if (!appointmentForm || !appointmentConfirmationDialog) return;
+
+    const reviewValues = {
+        client: fieldValue('client_full_name'),
+        contact: `${selectedOptionText('preferred_contact_method')}: ${fieldValue(fieldValue('preferred_contact_method') === 'email' ? 'client_email' : 'client_contact_number')}`,
+        address: fieldValue('client_address'),
+        service: selectedOptionText('service_type'),
+        schedule: `${preferredDate?.value ? new Intl.DateTimeFormat('en-PH', { dateStyle: 'long' }).format(new Date(`${preferredDate.value}T12:00:00`)) : 'Not provided'} at ${preferredTime?.value ? new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(`2000-01-01T${preferredTime.value}:00`)) : 'Not provided'}`,
+        church: selectedOptionText('preferred_church'),
+        documents: [...appointmentForm.querySelectorAll('input[type="file"]:not(:disabled)')]
+            .flatMap((field) => [...field.files].map((file) => file.name))
+            .join(', ') || 'No optional documents selected',
+    };
+
+    Object.entries(reviewValues).forEach(([name, value]) => {
+        const output = appointmentConfirmationDialog.querySelector(`[data-review-${name}]`);
+        if (output) output.textContent = value;
+    });
+}
+
 appointmentForm?.addEventListener('submit', (event) => {
-    if (missingRequiredFields().length === 0) return;
+    if (missingRequiredFields().length > 0) {
+        event.preventDefault();
+        hasAttemptedAppointmentSubmission = true;
+        updateRequiredAlert({ focus: true });
+
+        return;
+    }
+
+    if (isAppointmentSubmissionConfirmed || !appointmentConfirmationDialog) return;
 
     event.preventDefault();
-    hasAttemptedAppointmentSubmission = true;
-    updateRequiredAlert({ focus: true });
+    updateAppointmentReview();
+    openDialog(appointmentConfirmationDialog, appointmentReviewButton);
+});
+
+appointmentConfirmationButton?.addEventListener('click', () => {
+    isAppointmentSubmissionConfirmed = true;
+    appointmentConfirmationButton.disabled = true;
+    appointmentConfirmationButton.textContent = 'Submitting request...';
+    appointmentConfirmationDialog.close();
+    appointmentForm.requestSubmit();
 });

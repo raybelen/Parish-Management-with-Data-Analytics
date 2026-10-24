@@ -74,7 +74,7 @@ class ClientPagesTest extends TestCase
         $this->assertSame(0, $xpath->query('//section[@id="announcements"]//details')->length);
     }
 
-    public function test_about_page_contains_three_placeholder_sections(): void
+    public function test_about_page_contains_parish_images_and_history_section(): void
     {
         $this->withoutVite();
 
@@ -83,9 +83,11 @@ class ClientPagesTest extends TestCase
         $response->assertSee('About the Church')
             ->assertSee('History of the Parish')
             ->assertSee('St. John Nepomucene')
-            ->assertSee('Church Photo Placeholder')
+            ->assertSee('images/church-about-natural.png', false)
+            ->assertSee('Our parish church and bell tower in natural daylight')
             ->assertSee('History Photo Placeholder')
-            ->assertSee('Patron Saint Photo Placeholder');
+            ->assertSee('images/patron-saint.png', false)
+            ->assertSee('Mosaic of Saint John Nepomucene holding a crucifix with a finger to his lips');
     }
 
     public function test_announcements_show_concise_previews_with_closed_details(): void

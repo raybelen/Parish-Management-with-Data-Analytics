@@ -1,5 +1,5 @@
         <section id="home" class="relative isolate flex min-h-[680px] items-center overflow-hidden bg-navy text-ivory lg:min-h-[760px]">
-            <img src="{{ $churchImage }}" alt="Sunlit church architecture, an invitation to prayer and reflection" fetchpriority="high" width="2200" height="1400" class="absolute inset-0 -z-20 h-full w-full object-cover object-center">
+            <img src="{{ asset('images/church-hero.png') }}" alt="Our parish church and bell tower in warm afternoon light" fetchpriority="high" width="1536" height="1024" class="absolute inset-0 -z-20 h-full w-full object-cover object-center">
             <div class="hero-shade absolute inset-0 -z-10"></div>
             <div class="section-wrap hero-enter py-24 lg:py-32">
                 <p class="section-label text-[10px] text-ivory/85 sm:text-xs">{{ $websiteContent['home_hero_label'] }}</p>

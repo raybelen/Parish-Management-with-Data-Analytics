@@ -49,24 +49,24 @@
         <p class="mt-5 text-xs leading-5 text-muted">Collections and refunds use payment dates. Completed-service collections use completion dates and net payments recorded to date. Historical imports are excluded.</p>
         </details>
     @endif
-    @if(config('office.analytics_enabled') && $history)<section class="admin-card"><h2 class="mb-2 text-2xl">Monthly completed services</h2><p class="mb-5 text-sm text-muted">Completed calendar months only. Unknown periods remain blank.</p>@include('admin.partials.trend', ['history' => array_slice($history, -12)])</section>@endif
-    @if(config('office.analytics_enabled'))@can('forecasts.manage')
+    @if(config('office.analytics_enabled'))
+        @can('reports.view')
         <section class="admin-card">
-            <div class="flex flex-wrap items-center justify-between gap-4"><h2 class="text-2xl">Forecast outlook</h2><a class="text-link" href="{{ route('admin.forecasts.index') }}">View forecasts</a></div>
-            <p class="mt-4 text-sm text-muted">{{ $forecast?->message ?? 'No forecast generated yet. Estimates require sufficient eligible history.' }}</p>
-            @if($forecast)<div class="mt-3"><x-admin.status :value="$forecast->status" /></div>@endif
-            @if($forecast?->results && $forecast->history)
-                <p class="mt-4 text-sm font-semibold">{{ \Carbon\CarbonImmutable::parse(collect($forecast->history)->last()['month'].'-01')->addMonth()->format('F Y') }} estimates</p>
-                <div class="mt-3 grid gap-4 sm:grid-cols-2">
-                    @foreach(['count' => 'Completed services', 'revenue' => 'Net completed-service collections (PHP)'] as $metric => $label)
-                        @if(isset($forecast->results[$metric]['forecast'][0]))
-                            @php($point = $forecast->results[$metric]['forecast'][0])
-                            <div class="rounded-lg bg-slate-50 p-4"><p class="text-sm text-muted">{{ $label }}</p><p class="mt-2 text-2xl font-semibold">{{ number_format($point['estimate'], $metric === 'count' ? 1 : 2) }}</p><p class="mt-2 text-xs text-muted">95% range: {{ number_format($point['lower'], 2) }} – {{ number_format($point['upper'], 2) }}</p></div>
-                        @endif
+            <div class="flex flex-wrap items-center justify-between gap-4"><h2 class="text-2xl">Parish historical statistics</h2><a class="text-link" href="{{ route('admin.statistics.index') }}">Review monthly totals</a></div>
+            @if($annualStatistics)
+                @php($annualSummary = $annualStatistics[0])
+                <p class="mt-3 text-sm text-muted">Recorded parish activity in {{ $annualSummary['year'] }}.</p>
+                <div class="mt-4 grid gap-4 sm:grid-cols-3">
+                    @foreach(\App\Support\ParishStatistics::FORECAST_SERVICES as $code)
+                        <div class="rounded-lg bg-slate-50 p-4"><p class="text-sm text-muted">{{ \App\Support\ParishStatistics::SERVICES[$code] }}</p><p class="mt-2 text-2xl">{{ $annualSummary['services'][$code]['total'] ?? 'Unavailable' }}</p><p class="mt-2 text-xs text-muted">{{ $annualSummary['services'][$code]['months'] === 12 ? 'Full-year total' : $annualSummary['services'][$code]['months'].' of 12 months recorded' }}</p></div>
                     @endforeach
                 </div>
-            @endif
+            @else<p class="mt-4 text-sm text-muted">Import the verified reports or enter confirmed monthly totals to begin.</p>@endif
         </section>
-    @endcan @endif
+        @endcan
+        @can('forecasts.manage')
+        <section class="admin-card"><h2 class="text-2xl">Service forecasts</h2><p class="my-3 text-sm text-muted">Explore estimated monthly activity to help plan parish services.</p><div class="flex flex-wrap gap-3">@foreach(\App\Support\ParishStatistics::FORECAST_SERVICES as $code)<a class="admin-secondary" href="{{ route('admin.forecasts.index', ['service' => $code]) }}">{{ \App\Support\ParishStatistics::SERVICES[$code] }}</a>@endforeach</div></section>
+        @endcan
+    @endif
     @if($activity->isNotEmpty())<details class="admin-card"><summary class="cursor-pointer text-lg font-semibold">Recent office activity</summary><div class="mt-4">@foreach($activity as $entry)<p class="border-b border-navy/10 py-3 text-sm">{{ \Illuminate\Support\Str::headline($entry->action) }} · {{ $entry->actor?->name ?? 'Client / system' }} · {{ $entry->created_at->format('M j, g:i A') }}</p>@endforeach<a class="text-link mt-4" href="{{ route('admin.audit.index') }}">Open audit trail</a></div></details>@endif
 @endsection

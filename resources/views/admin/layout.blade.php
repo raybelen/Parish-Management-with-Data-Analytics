@@ -9,6 +9,7 @@
             ['route' => 'admin.notifications.index', 'label' => 'Office inbox', 'ability' => 'notifications.manage', 'icon' => 'inbox', 'active' => ['admin.notifications.*']],
         ],
         'Insights' => [
+            ['route' => 'admin.statistics.index', 'label' => 'Parish statistics', 'ability' => 'reports.view', 'icon' => 'chart', 'active' => ['admin.statistics.*']],
             ['route' => 'admin.reports.index', 'label' => 'Reports & exports', 'ability' => 'reports.view', 'icon' => 'report', 'active' => ['admin.reports.*']],
             ['route' => 'admin.forecasts.index', 'label' => 'Forecasts', 'ability' => 'forecasts.manage', 'icon' => 'chart', 'active' => ['admin.forecasts.*']],
         ],
@@ -24,7 +25,7 @@
     if (! config('office.analytics_enabled')) {
         $navigationSections['Insights'] = array_values(array_filter(
             $navigationSections['Insights'],
-            fn (array $item): bool => $item['route'] !== 'admin.forecasts.index',
+            fn (array $item): bool => ! in_array($item['route'], ['admin.forecasts.index', 'admin.statistics.index']),
         ));
     }
 @endphp

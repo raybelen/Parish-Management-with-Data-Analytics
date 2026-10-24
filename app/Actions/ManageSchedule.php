@@ -139,9 +139,12 @@ class ManageSchedule
         if ($appointment || $block || self::conflicts($start, $end, $location, $personnel, $except)) {
             throw ValidationException::withMessages(['starts_at' => 'Schedule conflict on '.$start->format('M j, Y g:i A').': the location or assigned personnel is already reserved. Choose another time, location, or person.']);
         }
-        if ($location && mb_strtolower(trim($location)) === mb_strtolower(config('parish.churches.0'))) {
+        if ($location) {
             for ($date = $start->startOfDay(); $date < $end; $date = $date->addDay()) {
                 foreach (config('parish.regular_schedules', []) as $regular) {
+                    if (mb_strtolower(trim($location)) !== mb_strtolower($regular['church'] ?? config('parish.churches.0'))) {
+                        continue;
+                    }
                     if (! in_array($date->dayOfWeekIso, $regular['days'], true)) {
                         continue;
                     }

@@ -12,6 +12,7 @@ public/build
 public/hot
 public/storage
 storage/logs/*
+storage/app/forecast-runtime
 storage/framework/cache/data/*
 tests
 vendor

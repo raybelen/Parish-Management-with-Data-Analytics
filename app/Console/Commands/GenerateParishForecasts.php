@@ -3,34 +3,35 @@
 namespace App\Console\Commands;
 
 use App\Actions\GenerateForecast;
-use App\Models\ServiceType;
+use App\Support\ParishStatistics;
 use Illuminate\Console\Command;
 
 class GenerateParishForecasts extends Command
 {
-    protected $signature = 'analytics:forecast {--service= : Service code; omit for overall} {--all : Generate overall and each service}';
+    protected $signature = 'analytics:forecast {--service=baptism : baptism, wedding or funeral} {--all : Generate the three supported service forecasts}';
 
-    protected $description = 'Generate and store SARIMA forecasts from eligible monthly operational data';
+    protected $description = 'Generate SARIMA forecasts from confirmed monthly parish statistics';
 
     public function handle(GenerateForecast $generate): int
     {
         if (! config('office.analytics_enabled')) {
-            $this->error('Analytics and SARIMA forecasting are temporarily disabled.');
+            $this->error('Analytics is disabled.');
 
             return self::FAILURE;
         }
-
-        $service = $this->option('service');
-        if ($service && ! ServiceType::query()->where('slug', $service)->exists()) {
-            $this->error('Unknown service code.');
+        $services = $this->option('all') ? ParishStatistics::FORECAST_SERVICES : [$this->option('service')];
+        if (array_diff($services, ParishStatistics::FORECAST_SERVICES)) {
+            $this->error('Choose baptism, wedding or funeral.');
 
             return self::FAILURE;
         }
-        foreach ($this->option('all') ? [null, ...ServiceType::query()->pluck('slug')->all()] : [$service] as $code) {
-            $run = $generate->handle($code);
-            $this->info(($code ?? 'Overall').': '.$run->status.' — '.$run->message);
+        $failed = false;
+        foreach ($services as $service) {
+            $run = $generate->handle($service);
+            $this->info($service.': '.$run->status.' - '.$run->message);
+            $failed = $failed || ! in_array($run->status, ['ready', 'unreliable'], true);
         }
 
-        return self::SUCCESS;
+        return $failed ? self::FAILURE : self::SUCCESS;
     }
 }

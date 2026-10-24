@@ -9,6 +9,7 @@ use App\Models\ServiceType;
 use App\Models\User;
 use App\Support\OfficeSettings;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -239,6 +240,7 @@ class AdminConfigurationTest extends TestCase
     public function test_disabled_analytics_are_hidden_without_removing_configuration_or_results(): void
     {
         $this->withoutVite();
+        $this->withoutMiddleware(ThrottleRequests::class);
         config(['office.analytics_enabled' => false]);
         $user = User::factory()->superAdmin()->withTwoFactor()->create();
         $settings = ParishSetting::query()->where('key', 'office')->firstOrFail();
@@ -246,11 +248,14 @@ class AdminConfigurationTest extends TestCase
         ForecastRun::factory()->create();
         $this->verified($user);
 
-        $this->get('/admin')->assertOk()->assertDontSee('Monthly completed services')->assertDontSee('Forecast outlook');
+        $this->get('/admin')->assertOk()->assertDontSee('Parish historical statistics')->assertDontSee('Service forecasts');
         $this->get('/admin/settings')->assertOk()->assertDontSee('Advanced SARIMA parameters')->assertDontSee('Forecasts Manage');
         $this->get('/admin/reports')->assertOk()->assertDontSee('Monthly completed-service statistics')->assertDontSee('Forecast results and configuration');
         $this->get('/admin/forecasts')->assertNotFound();
         $this->post('/admin/forecasts')->assertNotFound();
+        $this->get('/admin/statistics')->assertNotFound();
+        $this->post('/admin/statistics')->assertNotFound();
+        $this->post('/admin/statistics/import')->assertNotFound();
         $this->get('/admin/reports?type=monthly&export=1')->assertSessionHasErrors('type');
         $this->artisan('analytics:forecast')->assertFailed();
 

@@ -81,7 +81,11 @@ class AdminReportController extends Controller
             $runs = ForecastRun::query()->where('source', OfficeSettings::source())->whereDate('created_at', '>=', $from)->whereDate('created_at', '<=', $to)
                 ->when($filters['service'] ?? null, fn ($query, $service) => $query->where('service_type', $service))->latest('id')->lazy();
 
-            return [['dataset', 'generated_at', 'service', 'status', 'configuration', 'results'], $runs->map(fn ($run) => [$label, $run->created_at->toDateTimeString(), $run->service_type ?? 'overall', $run->status, json_encode($run->configuration), json_encode($run->results)])];
+            return [['dataset', 'generated_at', 'service', 'status', 'data_through', 'configuration', 'results', 'evaluation'], $runs->map(fn ($run) => [
+                ($run->configuration['data_source'] ?? null) === 'confirmed_monthly_statistics' ? 'Confirmed monthly parish statistics; saved forecast snapshot' : $label.'; legacy forecast snapshot',
+                $run->created_at->toDateTimeString(), $run->service_type ?? 'overall', $run->status,
+                collect($run->history)->last()['month'] ?? null, json_encode($run->configuration), json_encode($run->results), json_encode($run->evaluation),
+            ])];
         }
         if ($type === 'payments') {
             $payments = Payment::query()->with('appointment')->whereHas('appointment', fn ($q) => $q->where('source', OfficeSettings::source())->when($filters['service'] ?? null, fn ($q, $service) => $q->where('service_type', $service)))

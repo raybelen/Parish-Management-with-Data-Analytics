@@ -145,10 +145,10 @@ class ManageAppointment
 
     private function checkRegularMass(CarbonImmutable $start, CarbonImmutable $end, string $church): void
     {
-        if ($church !== config('parish.churches.0')) {
-            return;
-        }
         foreach (config('parish.regular_schedules', []) as $schedule) {
+            if ($church !== ($schedule['church'] ?? config('parish.churches.0'))) {
+                continue;
+            }
             if (! in_array($start->dayOfWeekIso, $schedule['days'], true)) {
                 continue;
             }

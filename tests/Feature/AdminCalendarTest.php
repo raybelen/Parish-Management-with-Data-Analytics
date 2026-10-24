@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\ReserveAppointmentSlot;
 use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\ParishSetting;
@@ -50,6 +51,7 @@ class AdminCalendarTest extends TestCase
 
     public function test_feed_combines_sources_orders_agenda_and_calculates_current_summaries(): void
     {
+        config(['parish.regular_schedules' => []]);
         $this->travelTo('2026-11-02 10:30:00');
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         Schedule::factory()->create(['title' => 'Ongoing']);
@@ -71,6 +73,7 @@ class AdminCalendarTest extends TestCase
 
     public function test_filters_match_search_category_status_personnel_and_overlapping_dates(): void
     {
+        config(['parish.regular_schedules' => []]);
         $this->travelTo('2026-11-01');
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $person = Personnel::factory()->create();
@@ -87,6 +90,7 @@ class AdminCalendarTest extends TestCase
 
     public function test_priest_only_sees_assigned_events_and_cannot_mutate_schedules(): void
     {
+        config(['parish.regular_schedules' => []]);
         $this->travelTo('2026-11-01');
         $priest = User::factory()->priest()->withTwoFactor()->create();
         $person = Personnel::factory()->create(['user_id' => $priest->id]);
@@ -230,6 +234,7 @@ class AdminCalendarTest extends TestCase
 
     public function test_agenda_paginates_beyond_selected_year_and_feed_includes_cross_year_events(): void
     {
+        config(['parish.regular_schedules' => []]);
         $this->travelTo('2026-12-30');
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         Schedule::factory()->create(['title' => 'Overnight', 'starts_at' => '2026-12-31 23:00', 'ends_at' => '2027-01-01 01:00']);
@@ -237,6 +242,96 @@ class AdminCalendarTest extends TestCase
 
         $this->getJson('/admin/calendar/events?from=2027-01-01&to=2028-01-01&page=1')->assertOk()->assertJsonPath('events.0.title', 'Overnight')->assertJsonCount(20, 'upcoming')->assertJsonPath('upcoming_total', 22);
         $this->getJson($this->feed().'&page=2')->assertOk()->assertJsonCount(2, 'upcoming')->assertJsonCount(1, 'events');
+    }
+
+    public function test_regular_masses_appear_with_venues_and_read_only_details_for_admins_and_priests(): void
+    {
+        $this->travelTo('2026-11-07 16:30:00');
+
+        foreach (['admin', 'priest'] as $role) {
+            $this->verified(User::factory()->withTwoFactor()->create(['role' => $role]));
+            $response = $this->getJson('/admin/calendar/events?from=2026-11-07&to=2026-11-09&category=Mass');
+
+            $response->assertJsonCount(7, 'events')
+                ->assertJsonPath('events.0.starts_at', '2026-11-07T07:00')
+                ->assertJsonPath('events.1.location', 'Nuestra Señora de los Desamparados')
+                ->assertJsonPath('events.1.display_status', 'ongoing')
+                ->assertJsonPath('events.2.location', 'San Isidro Labrador Chapel')
+                ->assertJsonPath('events.3.starts_at', '2026-11-08T06:00')
+                ->assertJsonPath('events.3.location', 'Santa Misericordia Chapel')
+                ->assertJsonPath('events.4.starts_at', '2026-11-08T07:30')
+                ->assertJsonPath('events.5.location', 'San Fernando Chapel')
+                ->assertJsonPath('events.6.starts_at', '2026-11-08T17:00')
+                ->assertJsonCount(0, 'upcoming')
+                ->assertJsonPath('upcoming_total', 0);
+            foreach ($response->json('events') as $event) {
+                $this->assertNull($event['edit_url']);
+                $this->assertNull($event['detail_url']);
+            }
+            $this->getJson('/admin/calendar/events?from=2026-11-07&to=2026-11-09&category=Mass&search=San%20Isidro')
+                ->assertJsonCount(1, 'events')->assertJsonPath('events.0.starts_at', '2026-11-07T17:00');
+        }
+        $this->assertDatabaseEmpty('schedules');
+    }
+
+    public function test_upcoming_list_keeps_other_services_and_excludes_regular_masses(): void
+    {
+        $this->travelTo('2026-11-07 12:00:00');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        Appointment::factory()->create([
+            'status' => 'confirmed', 'service_type' => 'baptism',
+            'starts_at' => '2026-11-08 10:00', 'ends_at' => '2026-11-08 11:00',
+        ]);
+        Schedule::factory()->create([
+            'title' => 'Choir rehearsal', 'starts_at' => '2026-11-08 12:00', 'ends_at' => '2026-11-08 13:00',
+        ]);
+
+        $response = $this->getJson('/admin/calendar/events?from=2026-11-07&to=2026-11-09');
+
+        $response->assertJsonCount(9, 'events')->assertJsonCount(2, 'upcoming')
+            ->assertJsonPath('upcoming_total', 2)
+            ->assertJsonPath('upcoming.0.kind', 'Appointment')
+            ->assertJsonPath('upcoming.1.title', 'Choir rehearsal');
+    }
+
+    public function test_chapel_mass_and_turnaround_block_only_the_matching_venue(): void
+    {
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $payload = [...$this->payload(), 'starts_at' => '2026-11-07T17:00', 'ends_at' => '2026-11-07T17:30', 'location' => 'Nuestra Señora de los Desamparados'];
+
+        $this->postJson('/admin/schedules', $payload)->assertInvalid('starts_at');
+        $this->assertDatabaseEmpty('schedules');
+        $this->postJson('/admin/schedules', [...$payload, 'location' => 'St. John Nepomucene Parish'])->assertCreated();
+        $this->postJson('/admin/schedules', [...$payload, 'starts_at' => '2026-11-07T17:30', 'ends_at' => '2026-11-07T18:00'])->assertCreated();
+        $this->assertDatabaseCount('schedules', 2);
+    }
+
+    public function test_appointment_reservations_and_admin_scheduling_respect_chapel_masses(): void
+    {
+        $this->travelTo('2026-11-01');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $appointment = Appointment::factory()->create([
+            'preferred_date' => '2026-11-07', 'preferred_time' => '17:00',
+            'preferred_church' => 'San Isidro Labrador Chapel',
+        ]);
+
+        $this->assertFalse(app(ReserveAppointmentSlot::class)->handle($appointment));
+        $this->assertNull($appointment->refresh()->starts_at);
+        $this->assertSame('pending', $appointment->status);
+
+        $personnel = Personnel::factory()->create();
+        $this->putJson('/admin/appointments/'.$appointment->reference_number, [
+            'version' => $appointment->version, 'starts_at' => '2026-11-07T17:00',
+            'duration_minutes' => 60, 'buffer_minutes' => 30,
+            'confirmed_church' => 'San Isidro Labrador Chapel', 'personnel_id' => $personnel->id,
+            'reason' => 'Schedule requested ceremony',
+        ])->assertInvalid(['starts_at' => 'regular Mass']);
+        $this->assertNull($appointment->refresh()->starts_at);
+
+        $appointment->update(['preferred_church' => 'St. John Nepomucene Parish']);
+        $this->assertTrue(app(ReserveAppointmentSlot::class)->handle($appointment));
+        $this->assertSame('2026-11-07 17:00', $appointment->refresh()->starts_at->format('Y-m-d H:i'));
+        $this->assertSame('pending', $appointment->status);
     }
 
     private function payload(): array

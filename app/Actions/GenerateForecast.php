@@ -3,46 +3,53 @@
 namespace App\Actions;
 
 use App\Models\ForecastRun;
-use App\Support\AnalyticsData;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
+use App\Support\ParishStatistics;
 use App\Support\SarimaEngine;
 use Illuminate\Support\Facades\Cache;
+use InvalidArgumentException;
 use Throwable;
 
 class GenerateForecast
 {
-    public function __construct(private AnalyticsData $analytics, private SarimaEngine $engine) {}
+    public function __construct(private ParishStatistics $statistics, private SarimaEngine $engine) {}
 
     public function handle(?string $service = null): ForecastRun
     {
-        return Cache::lock('forecast:'.OfficeSettings::source().':'.($service ?? 'overall'), 70)->block(2, function () use ($service): ForecastRun {
-            $settings = OfficeSettings::all();
-            $history = $this->analytics->monthly($service);
-            $configuration = array_intersect_key($settings, array_flip(['forecast_horizon', 'training_months', 'minimum_months', 'order', 'seasonal_order', 'analytics_start', 'missing_months']));
+        $service ??= 'baptism';
+        if (! in_array($service, ParishStatistics::FORECAST_SERVICES, true)) {
+            throw new InvalidArgumentException('This service supports historical analytics only.');
+        }
+
+        return Cache::lock('forecast:'.OfficeSettings::source().':'.$service, (int) config('office.forecast_timeout') + 30)->block(2, function () use ($service): ForecastRun {
+            $history = $this->statistics->history($service);
+            $configuration = [...config('forecast.services.'.$service), 'forecast_horizon' => 6, 'minimum_months' => 72,
+                'model_version' => config('forecast.version'), 'history_hash' => $this->statistics->fingerprint($history),
+                'data_source' => 'confirmed_monthly_statistics'];
             $run = ForecastRun::create([
                 'source' => OfficeSettings::source(), 'service_type' => $service, 'status' => 'insufficient_data',
-                'message' => 'Insufficient complete monthly history. Confirm the analytics start date and collect eligible completed appointments.',
+                'message' => 'At least 72 consecutive confirmed monthly totals are required. Enter or confirm the missing parish statistics.',
                 'configuration' => $configuration, 'history' => $history, 'generated_by' => auth()->id(),
             ]);
-            $minimum = max($settings['minimum_months'], 2 * $settings['seasonal_order'][3] + min(6, $settings['forecast_horizon']));
-            if (count($history) >= $minimum && ! collect($history)->contains(fn ($row) => $row['count'] === null || $row['revenue'] === null)) {
+            if (collect($history)->contains(fn ($row) => $row['count'] === null)) {
+                $run->update(['message' => 'There are unconfirmed or missing months inside the history. Confirm those totals before forecasting; unknown months are not zero.']);
+            } elseif (count($history) >= 72) {
                 try {
                     $output = $this->engine->forecast($history, $configuration);
-                    $hasForecast = isset($output['count']['forecast']) || isset($output['revenue']['forecast']);
-                    $reliable = ($output['count']['evaluation']['reliable'] ?? false) && ($output['revenue']['evaluation']['reliable'] ?? false);
+                    $hasForecast = isset($output['count']['forecast']);
+                    $passed = $output['count']['evaluation']['outperformed_baselines'] ?? false;
                     $run->update([
-                        'status' => $hasForecast ? ($reliable ? 'ready' : 'unreliable') : 'unavailable',
-                        'message' => $hasForecast ? ($reliable ? 'Estimates only; actual outcomes may differ.' : 'Use caution: one or more series failed validation or did not outperform the seasonal baseline.') : 'The series cannot support reliable seasonal estimation.',
-                        'results' => $output,
-                        'evaluation' => ['count' => $output['count']['evaluation'] ?? null, 'revenue' => $output['revenue']['evaluation'] ?? null],
+                        'status' => $hasForecast ? ($passed ? 'ready' : 'unreliable') : 'unavailable',
+                        'message' => $hasForecast
+                            ? ($passed ? 'SARIMA outperformed both comparison baselines in the rolling test. Estimates remain uncertain.' : 'Planning estimate: SARIMA did not outperform both comparison baselines. Review the error and planning range before use.')
+                            : ($output['count']['error'] ?? 'Forecast unavailable for this series.'),
+                        'results' => $output, 'evaluation' => $output['count']['evaluation'] ?? null,
                     ]);
                 } catch (Throwable $exception) {
                     report($exception);
-                    $run->update(['status' => 'unavailable', 'message' => 'Forecasting could not run. Check the Python runtime, installed statsmodels package, and server logs.']);
+                    $run->update(['status' => 'unavailable', 'message' => 'Forecast generation failed. Check the Python runtime and server logs, then retry.']);
                 }
-            } elseif (collect($history)->contains(fn ($row) => $row['count'] === null)) {
-                $run->update(['message' => 'Missing months are marked unknown. Resolve missing records before forecasting; unknown months are not treated as zero.']);
             }
             OfficeAudit::record('forecast.generated', $run, [], ['status' => $run->status, 'source' => $run->source, 'service_type' => $service]);
 

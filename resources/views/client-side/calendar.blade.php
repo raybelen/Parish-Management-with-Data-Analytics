@@ -66,6 +66,9 @@
                                                                         <li @class(['border-l-2 px-2 py-1.5 text-[11px] leading-4', 'border-gold bg-gold/10 text-[#705824]' => $event['kind'] === 'regular', 'border-navy bg-navy/8 text-navy' => $event['kind'] === 'scheduled'])>
                                                                             <span class="block font-semibold">{{ $event['name'] }}</span>
                                                                             <span class="block">{{ $event['time'] }}</span>
+                                                                            @isset($event['location'])
+                                                                                <span class="block">{{ $event['location'] }}</span>
+                                                                            @endisset
                                                                         </li>
                                                                     @endforeach
                                                                 </ul>

@@ -8,12 +8,11 @@
                     <x-parish.section-heading :label="$websiteContent['mass_label']" :title="$websiteContent['mass_title']">{{ $websiteContent['mass_copy'] }}</x-parish.section-heading>
                     @if (request()->routeIs('home'))<a class="text-link self-start lg:shrink-0" href="{{ route('calendar') }}">View Calendar <x-parish.icon name="calendar" class="size-4" /></a>@endif
                 </div>
-                <div class="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    @foreach (config('parish.regular_schedules', []) as $schedule)
+                <div class="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    @foreach (config('parish.public_mass_schedules', []) as $schedule)
                         <x-parish.mass-card
-                            :day="$schedule['day_label']"
                             :type="$schedule['service']"
-                            :time="implode(' & ', array_column($schedule['times'], 'label'))"
+                            :entries="$schedule['entries']"
                             :featured="$schedule['featured']"
                         />
                     @endforeach

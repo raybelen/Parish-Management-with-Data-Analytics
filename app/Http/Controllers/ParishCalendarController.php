@@ -31,7 +31,7 @@ class ParishCalendarController extends Controller
     }
 
     /**
-     * @return array<string, list<array{kind: string, name: string, time: string, time_value: string}>>
+     * @return array<string, list<array{kind: string, name: string, time: string, time_value: string, location?: string}>>
      */
     private function scheduledEvents(CarbonImmutable $startsAt, CarbonImmutable $endsAt): array
     {
@@ -67,8 +67,8 @@ class ParishCalendarController extends Controller
     }
 
     /**
-     * @param  array<string, list<array{kind: string, name: string, time: string, time_value: string}>>  $scheduledEvents
-     * @return array{key: string, label: string, weeks: list<list<array{date: string, day: int, is_today: bool, events: list<array{kind: string, name: string, time: string, time_value: string}>}|null>>}
+     * @param  array<string, list<array{kind: string, name: string, time: string, time_value: string, location?: string}>>  $scheduledEvents
+     * @return array{key: string, label: string, weeks: list<list<array{date: string, day: int, is_today: bool, events: list<array{kind: string, name: string, time: string, time_value: string, location?: string}>}|null>>}
      */
     private function calendarMonth(CarbonImmutable $month, array $scheduledEvents): array
     {
@@ -102,7 +102,7 @@ class ParishCalendarController extends Controller
     }
 
     /**
-     * @return list<array{kind: string, name: string, time: string, time_value: string}>
+     * @return list<array{kind: string, name: string, time: string, time_value: string, location?: string}>
      */
     private function regularEventsFor(CarbonImmutable $date): array
     {
@@ -117,6 +117,7 @@ class ParishCalendarController extends Controller
                 $events[] = [
                     'kind' => 'regular',
                     'name' => $schedule['service'],
+                    'location' => $schedule['church'] ?? config('parish.churches.0'),
                     'time' => $time['label'],
                     'time_value' => $time['value'],
                 ];

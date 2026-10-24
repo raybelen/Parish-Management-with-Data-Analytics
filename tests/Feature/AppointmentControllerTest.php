@@ -83,6 +83,24 @@ class AppointmentControllerTest extends TestCase
         }
     }
 
+    public function test_new_request_page_requires_review_confirmation_before_submission(): void
+    {
+        $this->withoutVite();
+
+        $response = $this->get(route('appointments.create'));
+        $document = new DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new DOMXPath($document);
+
+        $response->assertSee('Review appointment request')
+            ->assertSee('Check your information')
+            ->assertSee('Confirm and submit')
+            ->assertSee('Go back and edit');
+        $this->assertSame(1, $xpath->query('//form[@data-appointment-form]//button[@type="submit" and @data-review-appointment]')->length);
+        $this->assertSame(1, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//button[@type="button" and @data-confirm-appointment]')->length);
+        $this->assertSame(7, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//dd[@*[starts-with(name(), "data-review-")]]')->length);
+    }
+
     #[DataProvider('invalidServiceDetails')]
     public function test_new_service_details_are_validated(string $serviceType, string $field, mixed $value): void
     {

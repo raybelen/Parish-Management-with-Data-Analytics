@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\ImportServiceRecords;
 use App\Models\Appointment;
 use App\Models\ForecastRun;
+use App\Models\MonthlyStatistic;
 use App\Models\ParishSetting;
 use App\Models\Payment;
 use App\Models\ServiceRecord;
@@ -122,6 +123,8 @@ class AdminRecordsAnalyticsTest extends TestCase
         $this->travelTo('2026-10-04');
         ParishSetting::query()->where('key', 'office')->update(['value' => ['analytics_start' => '2026-08-01', 'missing_months' => ['2026-09']]]);
         $this->mock(SarimaEngine::class)->shouldNotReceive('forecast');
+        MonthlyStatistic::factory()->create(['month' => '2026-06-01']);
+        MonthlyStatistic::factory()->create(['month' => '2026-08-01']);
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
 
         $this->post('/admin/forecasts')->assertRedirect();

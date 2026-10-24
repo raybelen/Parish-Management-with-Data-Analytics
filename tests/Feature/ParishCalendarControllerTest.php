@@ -44,7 +44,7 @@ class ParishCalendarControllerTest extends TestCase
             ->assertSee('September 2026')
             ->assertSee('October 2026')
             ->assertSee('Daily Mass')
-            ->assertSee('Perpetual Mass')
+            ->assertDontSee('Perpetual Mass')
             ->assertSee('Anticipated Mass')
             ->assertSee('Sunday Mass')
             ->assertSee('Wedding')
@@ -60,7 +60,7 @@ class ParishCalendarControllerTest extends TestCase
         $septemberWednesday = $xpath->query('//td[@data-date="2026-09-16"]')->item(0);
         $this->assertNotNull($septemberWednesday);
         $this->assertStringContainsString('Daily Mass', $septemberWednesday->textContent);
-        $this->assertStringContainsString('Perpetual Mass', $septemberWednesday->textContent);
+        $this->assertStringContainsString('5:00 PM', $septemberWednesday->textContent);
     }
 
     public function test_navigation_places_calendar_link_beside_the_appointment_action(): void
@@ -76,6 +76,22 @@ class ParishCalendarControllerTest extends TestCase
         $this->assertNotNull($calendarLink);
         $this->assertSame(route('calendar'), $calendarLink->getAttribute('href'));
         $this->assertSame('Set an Appointment', trim($calendarLink->nextElementSibling->textContent));
+    }
+
+    public function test_calendar_shows_updated_mass_times_at_each_venue(): void
+    {
+        $this->withoutVite();
+        $this->travelTo('2026-11-01');
+
+        $response = $this->get(route('calendar'));
+        $days = collect($response->viewData('calendarMonths')[0]['weeks'])->flatten(1)->filter()->keyBy('date');
+
+        $this->assertSame(['07:00', '16:00', '17:00'], array_column($days['2026-11-07']['events'], 'time_value'));
+        $this->assertSame(['St. John Nepomucene Parish', 'Nuestra Señora de los Desamparados', 'San Isidro Labrador Chapel'], array_column($days['2026-11-07']['events'], 'location'));
+        $this->assertSame(['06:00', '07:30', '09:00', '17:00'], array_column($days['2026-11-08']['events'], 'time_value'));
+        $this->assertSame(['Santa Misericordia Chapel', 'St. John Nepomucene Parish', 'San Fernando Chapel', 'St. John Nepomucene Parish'], array_column($days['2026-11-08']['events'], 'location'));
+        $this->assertSame(['07:00', '17:00'], array_column($days['2026-11-04']['events'], 'time_value'));
+        $response->assertSee('Nuestra Señora de los Desamparados')->assertSee('San Isidro Labrador Chapel');
     }
 
     public function test_calendar_range_handles_the_turn_of_the_year(): void

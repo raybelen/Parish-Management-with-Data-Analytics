@@ -35,7 +35,7 @@
         <p class="mt-4 text-xs text-muted">Appointments and unavailable-time blocks are included. Regular Mass times also reserve the church. Past events use the completed calendar color; appointment completion still requires the existing office workflow.</p>
     </section>
     <section class="admin-card min-w-0" aria-labelledby="upcoming-heading">
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 id="upcoming-heading" class="text-2xl">Upcoming Schedules</h2><p class="mt-1 text-sm text-muted">Ongoing and future events, earliest first. Independent of the displayed year.</p></div><span data-agenda-count class="text-sm text-muted"></span></div>
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 id="upcoming-heading" class="text-2xl">Upcoming Schedules</h2><p class="mt-1 text-sm text-muted">Ongoing and future services and activities, earliest first. Regular Masses appear in the calendar only. Independent of the displayed year.</p></div><span data-agenda-count class="text-sm text-muted"></span></div>
         <div data-calendar-agenda class="grid gap-3"></div>
         <div class="mt-4 flex items-center justify-between gap-2"><button type="button" class="admin-secondary" data-agenda-prev>Previous</button><span data-agenda-page class="text-sm"></span><button type="button" class="admin-secondary" data-agenda-next>Next</button></div>
     </section>

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\CreateOfficeBackup;
 use App\Models\Appointment;
 use App\Models\AuditLog;
+use App\Models\MonthlyStatistic;
 use App\Models\Payment;
 use App\Models\ServiceRecord;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -27,6 +28,7 @@ class OfficeRecoveryTest extends TestCase
         $appointment->update(['documents' => ['birth_certificate' => [['path' => $document, 'original_name' => 'certificate.pdf']]]]);
         $payment = Payment::factory()->create(['appointment_id' => $appointment->id]);
         $record = ServiceRecord::factory()->create(['appointment_id' => $appointment->id, 'source' => 'operational']);
+        $statistic = MonthlyStatistic::factory()->create(['count' => 168, 'reference' => 'Verified parish register']);
         $path = app(CreateOfficeBackup::class)->handle();
         foreach (array_reverse(CreateOfficeBackup::TABLES) as $table) {
             DB::table($table)->delete();
@@ -38,6 +40,8 @@ class OfficeRecoveryTest extends TestCase
         $this->assertModelExists($appointment);
         $this->assertSame($appointment->id, $payment->fresh()->appointment_id);
         $this->assertSame($record->id, $appointment->fresh()->serviceRecord->id);
+        $this->assertSame(168, $statistic->fresh()->count);
+        $this->assertSame('Verified parish register', $statistic->fresh()->reference);
         $this->assertSame('Private certificate content', Storage::disk('local')->get($document));
     }
 

@@ -20,7 +20,7 @@ class SarimaEngine
             throw new RuntimeException('The forecasting runtime is unavailable or failed. Check the configured Python environment and statsmodels installation.');
         }
         $output = json_decode($result->output(), true, 512, JSON_THROW_ON_ERROR);
-        if (! is_array($output) || ! isset($output['count'], $output['revenue'])) {
+        if (! is_array($output) || ! isset($output['count'])) {
             throw new RuntimeException('The forecasting runtime returned an invalid result.');
         }
 

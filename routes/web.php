@@ -21,6 +21,7 @@ use App\Http\Controllers\AdminScheduleController;
 use App\Http\Controllers\AdminSecurityController;
 use App\Http\Controllers\AdminServiceTypeController;
 use App\Http\Controllers\AdminSettingsController;
+use App\Http\Controllers\AdminStatisticsController;
 use App\Http\Controllers\AdminTwoFactorSessionController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminWebsiteContentController;
@@ -78,6 +79,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::resource('records', AdminRecordController::class)->parameters(['records' => 'record'])->except('edit');
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
         if (config('office.analytics_enabled')) {
+            Route::get('statistics', [AdminStatisticsController::class, 'index'])->name('statistics.index');
+            Route::post('statistics', [AdminStatisticsController::class, 'store'])->middleware('throttle:30,1')->name('statistics.store');
+            Route::post('statistics/import', [AdminStatisticsController::class, 'import'])->middleware('throttle:2,1')->name('statistics.import');
             Route::get('forecasts', [AdminForecastController::class, 'index'])->name('forecasts.index');
             Route::post('forecasts', [AdminForecastController::class, 'store'])->middleware('throttle:2,1')->name('forecasts.store');
         }

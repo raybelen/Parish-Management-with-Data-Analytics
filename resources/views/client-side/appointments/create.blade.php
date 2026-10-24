@@ -169,11 +169,57 @@
                 @endforeach
                 <div class="flex flex-col-reverse gap-4 border border-navy/15 bg-navy p-6 text-ivory sm:flex-row sm:items-center sm:justify-between sm:p-8">
                     <p class="max-w-xl text-sm leading-7 text-ivory/65">Submitting this form creates a request with a unique reference number. Parish staff will review it before the appointment is confirmed.</p>
-                    <button type="submit" class="inline-flex min-h-12 shrink-0 items-center justify-center gap-4 bg-gold px-7 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63]">
-                        Submit appointment request <x-parish.icon name="arrow" class="size-4" />
+                    <button type="submit" data-review-appointment class="inline-flex min-h-12 shrink-0 items-center justify-center gap-4 bg-gold px-7 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63]">
+                        Review appointment request <x-parish.icon name="arrow" class="size-4" />
                     </button>
                 </div>
             </div>
         </form>
+
+        <x-parish.dialog id="confirm-appointment-dialog" title="Check your information" aria-describedby="confirm-appointment-description">
+            <p id="confirm-appointment-description">Please check these appointment details before submitting your request.</p>
+
+            <dl class="mt-6 divide-y divide-navy/10 border-y border-navy/10 text-sm">
+                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
+                    <dt class="font-medium text-navy">Client</dt>
+                    <dd data-review-client></dd>
+                </div>
+                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
+                    <dt class="font-medium text-navy">Contact</dt>
+                    <dd data-review-contact></dd>
+                </div>
+                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
+                    <dt class="font-medium text-navy">Address</dt>
+                    <dd data-review-address></dd>
+                </div>
+                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
+                    <dt class="font-medium text-navy">Service</dt>
+                    <dd data-review-service></dd>
+                </div>
+                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
+                    <dt class="font-medium text-navy">Schedule</dt>
+                    <dd data-review-schedule></dd>
+                </div>
+                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
+                    <dt class="font-medium text-navy">Church / chapel</dt>
+                    <dd data-review-church></dd>
+                </div>
+                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
+                    <dt class="font-medium text-navy">Documents</dt>
+                    <dd data-review-documents></dd>
+                </div>
+            </dl>
+
+            <p class="mt-5 border-l-2 border-gold bg-gold/10 px-5 py-4 text-sm leading-6 text-navy">This creates a pending request for parish review. It does not confirm the appointment yet.</p>
+
+            <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button type="button" data-close-dialog class="inline-flex min-h-12 items-center justify-center border border-navy/20 px-6 py-3 text-sm font-medium text-navy transition-colors hover:border-gold hover:bg-gold/10">
+                    Go back and edit
+                </button>
+                <button type="button" data-confirm-appointment class="inline-flex min-h-12 items-center justify-center bg-gold px-6 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63]">
+                    Confirm and submit
+                </button>
+            </div>
+        </x-parish.dialog>
     </section>
 @endsection

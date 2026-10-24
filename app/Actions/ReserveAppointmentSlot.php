@@ -91,11 +91,10 @@ class ReserveAppointmentSlot
 
     private function overlapsRegularMass(CarbonImmutable $start, CarbonImmutable $end, string $church): bool
     {
-        if ($church !== config('parish.churches.0')) {
-            return false;
-        }
-
         foreach (config('parish.regular_schedules', []) as $schedule) {
+            if ($church !== ($schedule['church'] ?? config('parish.churches.0'))) {
+                continue;
+            }
             if (! in_array($start->dayOfWeekIso, $schedule['days'], true)) {
                 continue;
             }

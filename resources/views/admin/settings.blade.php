@@ -10,34 +10,75 @@
             <a class="admin-secondary" href="#backup-settings">Backup & recovery</a>
         @endcan
     </nav>
-    <form id="office-settings" class="admin-card grid gap-4 sm:grid-cols-2 xl:grid-cols-3" method="POST" action="{{ route('admin.settings.update') }}">@csrf @method('PUT')
-        <h2 class="text-2xl sm:col-span-2 xl:col-span-3">Office settings</h2>
-        <x-admin.field label="Parish name" name="parish_name" :value="$settings['parish_name']" required />
-        <x-admin.field label="Opening time" name="opens_at" type="time" :value="$settings['opens_at']" required /><x-admin.field label="Closing time (including preparation)" name="closes_at" type="time" :value="$settings['closes_at']" required />
-        <fieldset class="sm:col-span-2 xl:col-span-3"><legend class="mb-3 text-sm font-semibold">Operating days</legend><div class="flex flex-wrap gap-4">@foreach([1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday'] as $number => $day)<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="operating_days[]" value="{{ $number }}" @checked(in_array($number, $settings['operating_days']))>{{ $day }}</label>@endforeach</div></fieldset>
-        <fieldset class="sm:col-span-2 xl:col-span-3">
-            <legend class="mb-2 text-sm font-semibold">Appointment venue availability</legend>
-            <p class="mb-4 text-sm text-muted">Turn off a church or chapel to prevent new client requests and staff scheduling there. Existing appointment records keep their saved venue.</p>
+    <form id="office-settings" class="admin-card grid gap-6" method="POST" action="{{ route('admin.settings.update') }}">@csrf @method('PUT')
+        <header>
+            <h2 class="text-2xl">Office settings</h2>
+            <p class="mt-1 text-sm text-muted">Manage the parish details used for appointment requests and office schedules.</p>
+        </header>
+
+        <section class="grid gap-4 border-t border-navy/10 pt-5">
+            <div>
+                <h3 class="font-semibold">Parish information</h3>
+                <p class="mt-1 text-sm text-muted">This name appears throughout the administration workspace.</p>
+            </div>
+            <div class="max-w-2xl">
+                <x-admin.field label="Parish name" name="parish_name" :value="$settings['parish_name']" required />
+            </div>
+        </section>
+
+        <section class="grid gap-4 border-t border-navy/10 pt-5">
+            <div>
+                <h3 class="font-semibold">Operating schedule</h3>
+                <p class="mt-1 text-sm text-muted">Set the regular hours and days available for parish appointments.</p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <x-admin.field label="Opening time" name="opens_at" type="time" :value="$settings['opens_at']" required />
+                <x-admin.field label="Closing time" name="closes_at" type="time" :value="$settings['closes_at']" help="Include any preparation time needed after the final appointment." required />
+            </div>
+            <fieldset>
+                <legend class="mb-3 text-sm font-semibold">Operating days</legend>
+                <div class="flex flex-wrap gap-x-5 gap-y-3">
+                    @foreach([1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday'] as $number => $day)
+                        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="operating_days[]" value="{{ $number }}" @checked(in_array($number, $settings['operating_days']))>{{ $day }}</label>
+                    @endforeach
+                </div>
+            </fieldset>
+        </section>
+
+        <fieldset class="grid gap-3 border-t border-navy/10 pt-5">
+            <legend class="font-semibold">Appointment venue availability</legend>
+            <p class="text-sm text-muted">Checked venues can receive new appointment requests. Existing appointments are not affected.</p>
             <input type="hidden" name="active_venues_present" value="1">
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 @foreach($venues as $venue)
-                    <label class="flex items-center gap-3 rounded-lg border border-navy/10 p-3 text-sm">
+                    <label class="flex min-h-12 items-center gap-3 rounded-lg border border-navy/10 px-4 py-3 text-sm transition hover:border-navy/20 hover:bg-navy/[0.02]">
                         <input type="checkbox" name="active_venues[]" value="{{ $venue }}" @checked(in_array($venue, old('active_venues_present') ? old('active_venues', []) : $activeVenues, true))>
                         <span>{{ $venue }}</span>
                     </label>
                 @endforeach
             </div>
         </fieldset>
+
         @if(config('office.analytics_enabled'))
-        <x-admin.field label="First complete operational month (first day)" name="analytics_start" type="date" :value="$settings['analytics_start']" />
-        <x-admin.field label="Unknown months (YYYY-MM, comma-separated)" name="missing_months_text" :value="implode(', ', $settings['missing_months'])" />
-        <x-admin.field label="Forecast horizon (months)" name="forecast_horizon" type="number" min="1" max="12" :value="$settings['forecast_horizon']" required />
-        <x-admin.field label="Training window (months)" name="training_months" type="number" min="36" max="120" :value="$settings['training_months']" required />
-        <x-admin.field label="Minimum history (months)" name="minimum_months" type="number" min="24" max="120" :value="$settings['minimum_months']" required />
-        <p class="text-sm text-muted">Mark a month complete only when all its operational records are available. Unknown periods are not treated as zero. Archived register imports remain excluded.</p>
-        <fieldset class="sm:col-span-2 xl:col-span-3"><legend class="mb-3 text-sm font-semibold">Advanced SARIMA parameters</legend><div class="grid gap-3 sm:grid-cols-7">@foreach(['p','d','q'] as $index => $label)<x-admin.field :label="$label" :name="'order['.$index.']'" type="number" min="0" max="2" :value="$settings['order'][$index]" required />@endforeach @foreach(['P','D','Q','Season length'] as $index => $label)<x-admin.field :label="$label" :name="'seasonal_order['.$index.']'" type="number" min="0" max="12" :value="$settings['seasonal_order'][$index]" required />@endforeach</div></fieldset>
+            <details class="group rounded-xl border border-navy/10 bg-navy/[0.02]" @if($errors->has('analytics_start') || $errors->has('missing_months_text')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-4 py-3 marker:hidden">
+                    <span>
+                        <span class="block text-sm font-semibold">Advanced reporting settings</span>
+                        <span class="mt-0.5 block text-xs leading-5 text-muted">Only needed when correcting gaps in historical appointment data.</span>
+                    </span>
+                    <svg class="size-5 shrink-0 text-muted transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="m5 7.5 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" />
+                    </svg>
+                </summary>
+                <div class="grid gap-4 border-t border-navy/10 px-4 py-4 sm:grid-cols-2">
+                    <x-admin.field label="Reporting history starts" name="analytics_start" type="date" :value="$settings['analytics_start']" help="Choose the first month with complete online appointment records." />
+                    <x-admin.field label="Months with incomplete records" name="missing_months_text" :value="implode(', ', $settings['missing_months'])" placeholder="Example: 2025-02, 2025-03" help="Optional. Enter each month as YYYY-MM, separated by commas." />
+                    <p class="text-xs leading-5 text-muted sm:col-span-2">These settings affect operational reports only. Forecasts use confirmed parish statistics.</p>
+                </div>
+            </details>
         @endif
-        <button class="admin-button justify-self-start">Save settings</button>
+
+        <button class="admin-button justify-self-start">Save office settings</button>
     </form>
     <section id="service-settings" class="admin-card"><h2 class="mb-2 text-2xl">Services, fees & preparation gaps</h2><p class="mb-5 text-sm text-muted">Changes apply to new requests. Current appointments retain their document requirements and fee. Preparation gaps may be extended when scheduling.</p>
         @foreach($services as $service)<details class="border-b border-navy/10 py-4"><summary class="cursor-pointer font-semibold">{{ $service->name }} · {{ $service->duration_minutes }} min + {{ $service->buffer_minutes }} min preparation · ₱{{ number_format($service->fee_cents / 100, 2) }}</summary>@include('admin.partials.service-form', ['service' => $service])</details>@endforeach
