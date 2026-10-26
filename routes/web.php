@@ -25,6 +25,7 @@ use App\Http\Controllers\AdminStatisticsController;
 use App\Http\Controllers\AdminTwoFactorSessionController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminWebsiteContentController;
+use App\Http\Controllers\AppointmentAvailabilityController;
 use App\Http\Controllers\AppointmentCancellationController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AppointmentLookupController;
@@ -123,6 +124,8 @@ Route::get('/contact', ParishPageController::class)->defaults('page', 'contact')
 Route::get('/calendar', ParishCalendarController::class)->name('calendar');
 
 Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+Route::post('/appointments/availability', AppointmentAvailabilityController::class)->middleware('throttle:60,1')->name('appointments.availability');
+Route::post('/appointments/{appointment}/availability', AppointmentAvailabilityController::class)->middleware(['signed', 'throttle:60,1'])->name('appointments.availability.update');
 Route::get('/appointments/new', [AppointmentController::class, 'create'])->name('appointments.create');
 Route::post('/appointments', [AppointmentController::class, 'store'])->middleware('throttle:5,1')->name('appointments.store');
 Route::get('/appointments/manage', [AppointmentLookupController::class, 'create'])->name('appointments.lookup.create');

@@ -32,8 +32,8 @@ class AdminScheduleBlockController extends Controller
             if (! empty($data['church']) && ! OfficeSettings::venueIsActive($data['church'])) {
                 throw ValidationException::withMessages(['church' => 'Choose a church or chapel that is currently available.']);
             }
-            $conflict = Appointment::query()->where('source', OfficeSettings::source())->where('status', 'confirmed')
-                ->where('starts_at', '<', str_replace('T', ' ', $data['ends_at']))->where('reserved_until', '>', str_replace('T', ' ', $data['starts_at']))
+            $conflict = Appointment::query()->where('source', OfficeSettings::source())->whereIn('status', ['pending', 'confirmed'])
+                ->where('starts_at', '<', str_replace('T', ' ', $data['ends_at']))->where('ends_at', '>', str_replace('T', ' ', $data['starts_at']))
                 ->where(function ($q) use ($data): void {
                     $q->whereRaw('1 = 0');
                     if (! empty($data['church'])) {

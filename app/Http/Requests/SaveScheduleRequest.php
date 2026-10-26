@@ -23,6 +23,8 @@ class SaveScheduleRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:10000'],
             'location' => ['nullable', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
+            'group_capacity' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'group_fee' => ['nullable', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
             'category' => ['required', 'string', 'max:80'],
             'personnel_id' => ['nullable', 'integer', Rule::exists('personnel', 'id')->where('active', true)],
             'starts_at' => ['required', 'date_format:Y-m-d\TH:i', 'after_or_equal:1900-01-01', 'before:2101-01-01'],

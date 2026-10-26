@@ -138,7 +138,7 @@ class AdminConfigurationTest extends TestCase
         $service = ServiceType::query()->where('slug', 'baptism')->firstOrFail();
         $appointment = Appointment::factory()->create(['fee_cents' => 15000, 'requirements' => $service->requirements]);
 
-        $this->put('/admin/service-types/'.$service->id, ['name' => 'Baptism', 'duration_minutes' => 60, 'buffer_minutes' => 45, 'fee' => '200.50', 'active' => 1, 'requirements' => [['label' => 'Office form', 'required' => 1]]])->assertSessionHasNoErrors();
+        $this->put('/admin/service-types/'.$service->id, ['name' => 'Baptism', 'duration_minutes' => 60, 'buffer_minutes' => 0, 'fee' => '200.50', 'active' => 1, 'requirements' => [['label' => 'Office form', 'required' => 1]]])->assertSessionHasNoErrors();
 
         $this->assertSame(20050, $service->refresh()->fee_cents);
         $this->assertSame(60, $service->duration_minutes);
@@ -149,9 +149,9 @@ class AdminConfigurationTest extends TestCase
     public function test_unavailable_time_cannot_overwrite_confirmed_service(): void
     {
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
-        Appointment::factory()->create(['status' => 'confirmed', 'starts_at' => '2026-11-01 10:00', 'reserved_until' => '2026-11-01 11:30', 'confirmed_church' => 'San Isidro Labrador Chapel']);
+        Appointment::factory()->create(['status' => 'confirmed', 'starts_at' => '2026-11-01 10:00', 'ends_at' => '2026-11-01 11:00', 'reserved_until' => '2026-11-01 11:30', 'confirmed_church' => 'San Isidro Labrador Chapel']);
 
-        $this->post('/admin/schedule-blocks', ['title' => 'Maintenance', 'church' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-01T11:15', 'ends_at' => '2026-11-01T12:00'])->assertSessionHasErrors('starts_at');
+        $this->post('/admin/schedule-blocks', ['title' => 'Maintenance', 'church' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-01T10:45', 'ends_at' => '2026-11-01T12:00'])->assertSessionHasErrors('starts_at');
 
         $this->assertDatabaseEmpty('schedule_blocks');
     }

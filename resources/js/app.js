@@ -1,3 +1,5 @@
+import './group-baptisms';
+import './appointment-availability';
 import './appointment-details';
 import './psgc-address';
 
@@ -195,10 +197,9 @@ const suggestedTimeButtons = [...document.querySelectorAll('[data-time-value]')]
 function updateScheduleSelection() {
     suggestedTimeButtons.forEach((button) => {
         const isSelected = preferredTime?.value === button.dataset.timeValue;
+        button.hidden = serviceSelect?.value === 'wedding' && !['08:00', '08:30', '09:00', '09:30', '10:00', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30'].includes(button.dataset.timeValue);
 
         button.setAttribute('aria-pressed', String(isSelected));
-        button.classList.toggle('border-gold', isSelected);
-        button.classList.toggle('bg-gold/20', isSelected);
     });
 
     if (!scheduleSummary) return;
@@ -226,6 +227,7 @@ suggestedTimeButtons.forEach((button) => {
     });
 });
 
+serviceSelect?.addEventListener('change', updateScheduleSelection);
 preferredDate?.addEventListener('change', updateScheduleSelection);
 preferredTime?.addEventListener('change', updateScheduleSelection);
 updateScheduleSelection();

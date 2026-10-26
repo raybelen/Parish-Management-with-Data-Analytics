@@ -33,7 +33,7 @@
     </section>
 
     <section class="bg-[#eae5da] py-12 sm:py-16">
-        <form method="POST" action="{{ route('appointments.store') }}" enctype="multipart/form-data" class="section-wrap max-w-6xl" data-appointment-form>
+        <form method="POST" action="{{ route('appointments.store') }}" enctype="multipart/form-data" class="section-wrap max-w-6xl" data-appointment-form data-availability-url="{{ route('appointments.availability') }}">
             @csrf
 
             @if ($errors->any())
@@ -106,6 +106,7 @@
                             </select>
                         </x-parish.form-field>
 
+
                         <div class="grid items-start gap-6 border-y border-navy/10 py-6 sm:col-span-2 sm:grid-cols-2" data-schedule-fields>
                             <x-parish.form-field id="preferred_date" name="preferred_date" label="Preferred date" :required="true" help="Choose a date from the calendar." class="self-start">
                                 <input id="preferred_date" name="preferred_date" type="date" value="{{ old('preferred_date') }}" min="{{ now()->toDateString() }}" required data-preferred-date class="{{ $inputClass }}">
@@ -123,17 +124,33 @@
                                 @endif
                             </x-parish.form-field>
 
-                            <x-parish.form-field id="preferred_time" name="preferred_time" label="Preferred time" :required="true" help="Select a suggested time or enter another time." class="border-t border-navy/10 pt-6 sm:col-span-2">
-                                <div class="grid items-start gap-3 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]" data-time-controls>
-                                    <input id="preferred_time" name="preferred_time" type="time" value="{{ old('preferred_time') }}" step="900" required data-preferred-time class="{{ $inputClass }}">
-                                    <div class="grid grid-cols-2 gap-2 min-[460px]:grid-cols-3" aria-label="Suggested time options">
-                                        @foreach (['08:00' => '8:00 AM', '09:00' => '9:00 AM', '10:00' => '10:00 AM', '14:00' => '2:00 PM', '15:00' => '3:00 PM', '16:00' => '4:00 PM'] as $timeValue => $timeLabel)
-                                            <button type="button" data-time-value="{{ $timeValue }}" class="min-h-12 border border-navy/20 bg-white px-2 text-xs font-medium text-navy transition-colors hover:border-gold hover:bg-gold/10">{{ $timeLabel }}</button>
-                                        @endforeach
+                            <x-parish.form-field id="preferred_time" name="preferred_time" label="Preferred time" :required="true" help="Choose a suggested time or enter a different time in 15-minute intervals." class="border-t border-navy/10 pt-6 sm:col-span-2">
+                                <div class="border border-navy/10 bg-white/45 p-4 sm:p-5" data-time-controls>
+                                    <div class="grid gap-5">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <p class="text-[11px] font-semibold tracking-[0.14em] uppercase text-muted">Suggested times</p>
+                                            <p class="text-[11px] text-muted">Tap a time to select it</p>
+                                        </div>
+
+                                        <div class="flex flex-wrap gap-2" aria-label="Suggested time options">
+                                            @foreach (['08:00' => '8:00 AM', '09:00' => '9:00 AM', '10:00' => '10:00 AM', '13:00' => '1:00 PM', '14:00' => '2:00 PM', '15:00' => '3:00 PM'] as $timeValue => $timeLabel)
+                                                <button type="button" data-time-value="{{ $timeValue }}" aria-pressed="false" class="min-h-12 min-w-[calc(50%_-_0.25rem)] flex-1 basis-[calc(50%_-_0.25rem)] border border-navy/15 bg-white px-3 text-sm font-medium text-navy shadow-[0_1px_0_rgb(19_35_63/0.04)] transition-[border-color,background-color,color,transform,box-shadow] hover:-translate-y-0.5 hover:border-gold hover:bg-gold/10 hover:shadow-sm sm:min-w-[calc(25%_-_0.375rem)] sm:basis-[calc(25%_-_0.375rem)] lg:min-w-0 lg:basis-0 aria-pressed:border-navy aria-pressed:bg-navy aria-pressed:text-ivory aria-pressed:shadow-sm">{{ $timeLabel }}</button>
+                                            @endforeach
+                                        </div>
+
+                                        <div class="flex flex-col gap-4 border-t border-navy/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                                            <div>
+                                                <label for="preferred_time" class="text-sm font-medium text-navy">Need another time?</label>
+                                                <p class="mt-1 text-xs leading-5 text-muted">Enter a time in 15-minute intervals.</p>
+                                            </div>
+                                            <input id="preferred_time" name="preferred_time" type="time" value="{{ old('preferred_time') }}" step="900" required data-preferred-time class="{{ $inputClass }} border-navy/25 bg-white text-base font-medium focus:bg-white sm:w-64">
+                                        </div>
                                     </div>
                                 </div>
                             </x-parish.form-field>
                         </div>
+
+                        <p id="schedule-availability" data-availability-status role="status" aria-live="polite" hidden class="sm:col-span-2 border-l-4 border-red-700 bg-red-50 px-5 py-4 text-sm text-red-900"></p>
 
                         <div class="sm:col-span-2 border-l-2 border-gold bg-gold/10 px-4 py-3 text-sm text-navy" aria-live="polite" data-schedule-summary>
                             Choose a preferred date and time.

@@ -17,7 +17,7 @@ class AdminCalendar
     {
         $schedules = $this->range(OfficeAccess::schedules($user), $from, $to)->with('personnel')->get()
             ->map(fn (Schedule $schedule): array => [
-                ...$schedule->only(['title', 'description', 'notes', 'location', 'department', 'category', 'personnel_id', 'status', 'version', 'recurrence', 'series_id']),
+                ...$schedule->only(['title', 'description', 'notes', 'location', 'department', 'category', 'personnel_id', 'status', 'version', 'recurrence', 'series_id', 'group_capacity', 'group_fee']),
                 'id' => 'schedule-'.$schedule->id,
                 'starts_at' => $schedule->starts_at->format('Y-m-d\TH:i'),
                 'ends_at' => $schedule->ends_at->format('Y-m-d\TH:i'),

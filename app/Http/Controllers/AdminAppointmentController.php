@@ -132,6 +132,6 @@ class AdminAppointmentController extends Controller
         OfficeAccess::appointment($request->user(), $appointment);
         $manage->schedule($appointment, $request->validated());
 
-        return back()->with('status', 'Schedule saved, including preparation time.');
+        return back()->with('status', 'One-hour schedule saved. Applicable service gaps and period restrictions have been checked.');
     }
 }

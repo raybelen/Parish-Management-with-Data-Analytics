@@ -66,7 +66,7 @@ class AdminOperationsTest extends TestCase
         $this->get('/admin/appointments')->assertDontSee($other->reference_number);
     }
 
-    public function test_scheduling_reserves_preparation_gap_and_blocks_venue_and_personnel_conflicts(): void
+    public function test_scheduling_respects_lunch_and_blocks_venue_and_personnel_conflicts(): void
     {
         $this->travelTo('2026-10-01 00:00:00');
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
@@ -77,10 +77,10 @@ class AdminOperationsTest extends TestCase
 
         $this->put('/admin/appointments/'.$appointment->reference_number, $payload)->assertSessionHasErrors('starts_at');
         $this->assertNull($appointment->refresh()->starts_at);
-        $payload['starts_at'] = '2026-10-10T11:30';
+        $payload['starts_at'] = '2026-10-10T13:00';
         $this->put('/admin/appointments/'.$appointment->reference_number, $payload)->assertSessionHasNoErrors();
 
-        $this->assertSame('2026-10-10 13:00:00', $appointment->refresh()->reserved_until->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-10 14:00:00', $appointment->refresh()->reserved_until->format('Y-m-d H:i:s'));
         $this->assertDatabaseHas('audit_logs', ['action' => 'appointment.scheduled', 'entity_id' => $appointment->id]);
         $other = Appointment::factory()->create();
         $payload['starts_at'] = '2026-10-10T10:30';
@@ -106,7 +106,7 @@ class AdminOperationsTest extends TestCase
         $this->get('/admin/appointments/'.$appointment->reference_number)
             ->assertSee('value="2026-10-22T08:00"', false)
             ->assertSee('name="duration_minutes" type="number" value="60"', false)
-            ->assertSee('Venue turnaround gap after service');
+            ->assertSee('A separate one-hour gap');
 
         $payload = $this->schedule($personnel, '2026-10-22T08:00');
         $this->put('/admin/appointments/'.$appointment->reference_number, [...$payload, 'duration_minutes' => 90])
@@ -116,7 +116,7 @@ class AdminOperationsTest extends TestCase
         $this->put('/admin/appointments/'.$appointment->reference_number, $payload)->assertSessionHasNoErrors();
         $appointment->refresh();
         $this->assertSame('2026-10-22 09:00', $appointment->ends_at?->format('Y-m-d H:i'));
-        $this->assertSame('2026-10-22 09:30', $appointment->reserved_until?->format('Y-m-d H:i'));
+        $this->assertSame('2026-10-22 09:00', $appointment->reserved_until?->format('Y-m-d H:i'));
     }
 
     public function test_confirmation_requires_physical_copies_and_rechecks_conflicts(): void

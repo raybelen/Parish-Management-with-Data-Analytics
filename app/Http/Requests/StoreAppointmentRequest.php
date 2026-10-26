@@ -54,6 +54,8 @@ class StoreAppointmentRequest extends FormRequest
             'preferred_date' => ['required', 'date_format:Y-m-d', ...($this->routeIs('admin.appointments.details') ? [] : ['after_or_equal:today'])],
             'preferred_time' => ['required', 'date_format:H:i'],
             'preferred_church' => ['required', Rule::in($this->allowedVenues())],
+            'baptism_mode' => ['nullable', Rule::in(['private'])],
+            'group_baptism_session_id' => ['prohibited'],
             'additional_notes' => ['nullable', 'string', 'max:2000'],
             'version' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'integer'],
             'change_reason' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'string', 'max:1000'],

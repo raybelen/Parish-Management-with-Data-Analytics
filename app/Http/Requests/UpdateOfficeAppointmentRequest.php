@@ -18,6 +18,7 @@ class UpdateOfficeAppointmentRequest extends FormRequest
     {
         return [
             'version' => ['required', 'integer', 'min:1'],
+            'group_baptism_session_id' => ['prohibited'],
             'starts_at' => ['required', 'date_format:Y-m-d\TH:i'],
             'duration_minutes' => ['required', 'integer', Rule::in([60])],
             'buffer_minutes' => ['required', 'integer', 'between:0,240'],

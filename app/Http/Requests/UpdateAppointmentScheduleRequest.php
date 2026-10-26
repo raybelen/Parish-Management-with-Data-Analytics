@@ -3,8 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Models\Appointment;
+use App\Support\OfficeSettings;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateAppointmentScheduleRequest extends FormRequest
 {
@@ -26,6 +28,8 @@ class UpdateAppointmentScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'group_baptism_session_id' => ['prohibited'],
+            'preferred_church' => [$this->route('appointment')->group_baptism_session_id ? 'sometimes' : 'prohibited', $this->route('appointment')->group_baptism_session_id ? 'required' : 'nullable', Rule::in(OfficeSettings::activeVenues())],
             'preferred_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'preferred_time' => ['required', 'date_format:H:i'],
         ];

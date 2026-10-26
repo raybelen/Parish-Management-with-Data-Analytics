@@ -85,9 +85,33 @@ class ClientPagesTest extends TestCase
             ->assertSee('St. John Nepomucene')
             ->assertSee('images/church-about-natural.png', false)
             ->assertSee('Our parish church and bell tower in natural daylight')
-            ->assertSee('History Photo Placeholder')
+            ->assertSee('images/parish-history.png', false)
+            ->assertSee('Historical photograph of the former parish church and bell tower')
             ->assertSee('images/patron-saint.png', false)
             ->assertSee('Mosaic of Saint John Nepomucene holding a crucifix with a finger to his lips');
+    }
+
+    public function test_gallery_page_displays_all_photos_and_homepage_keeps_three_photo_preview(): void
+    {
+        $this->withoutVite();
+
+        $galleryResponse = $this->get('/gallery');
+        $homeResponse = $this->get('/');
+
+        foreach (range(1, 6) as $photoNumber) {
+            $galleryResponse->assertSee("images/gallery-{$photoNumber}.jpg", false);
+        }
+
+        $galleryDocument = new DOMDocument;
+        @$galleryDocument->loadHTML($galleryResponse->getContent());
+        $gallery = new DOMXPath($galleryDocument);
+
+        $homeDocument = new DOMDocument;
+        @$homeDocument->loadHTML($homeResponse->getContent());
+        $home = new DOMXPath($homeDocument);
+
+        $this->assertSame(6, $gallery->query('//section[@id="gallery"]//button[@data-gallery-index]')->length);
+        $this->assertSame(3, $home->query('//section[@id="gallery"]//button[@data-gallery-index]')->length);
     }
 
     public function test_announcements_show_concise_previews_with_closed_details(): void

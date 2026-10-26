@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 
 class CreateOfficeBackup
 {
-    public const TABLES = ['users', 'service_types', 'personnel', 'parish_settings', 'appointments', 'appointment_participants', 'payments', 'service_records', 'audit_logs', 'forecast_runs', 'office_notifications', 'schedule_blocks', 'schedules', 'monthly_statistics'];
+    public const TABLES = ['users', 'service_types', 'personnel', 'parish_settings', 'schedules', 'appointments', 'appointment_participants', 'payments', 'service_records', 'audit_logs', 'forecast_runs', 'office_notifications', 'schedule_blocks', 'monthly_statistics'];
 
     public function handle(): string
     {

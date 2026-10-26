@@ -1,3 +1,4 @@
+import './group-baptisms';
 import './admin-calendar';
 import './appointment-details';
 
@@ -97,4 +98,12 @@ document.querySelectorAll('[data-walkin-service]').forEach((select) => {
     });
     select.addEventListener('change', update);
     update();
+});
+
+document.querySelectorAll('[data-admin-group-session]').forEach((select) => {
+    select.addEventListener('change', () => {
+        const option = select.selectedOptions[0];
+        select.form.elements.starts_at.value = option.dataset.start;
+        select.form.elements.confirmed_church.value = option.dataset.venue;
+    });
 });

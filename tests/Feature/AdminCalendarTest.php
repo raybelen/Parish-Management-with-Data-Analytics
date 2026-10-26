@@ -12,6 +12,7 @@ use App\Models\ScheduleBlock;
 use App\Models\User;
 use App\Support\OfficeSettings;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -155,12 +156,12 @@ class AdminCalendarTest extends TestCase
         $this->assertSame(0, AuditLog::query()->where('action', 'like', 'schedule.%')->count());
     }
 
-    public function test_conflicts_include_appointment_buffer_blocks_personnel_and_allow_touching_boundaries(): void
+    public function test_conflicts_include_appointments_blocks_personnel_and_allow_touching_boundaries(): void
     {
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $person = Personnel::factory()->create();
         Appointment::factory()->create(['status' => 'confirmed', 'personnel_id' => $person->id, 'starts_at' => '2026-11-02 09:00', 'ends_at' => '2026-11-02 10:00', 'reserved_until' => '2026-11-02 10:30']);
-        $this->postJson('/admin/schedules', [...$this->payload(), 'personnel_id' => $person->id])->assertInvalid('starts_at');
+        $this->postJson('/admin/schedules', [...$this->payload(), 'personnel_id' => $person->id, 'starts_at' => '2026-11-02T09:30'])->assertInvalid('starts_at');
         ScheduleBlock::factory()->create(['church' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-02 10:00', 'ends_at' => '2026-11-02 10:30']);
         $this->postJson('/admin/schedules', [...$this->payload(), 'location' => 'San Isidro Labrador Chapel'])->assertInvalid('starts_at');
 
@@ -311,26 +312,31 @@ class AdminCalendarTest extends TestCase
         $this->travelTo('2026-11-01');
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create([
-            'preferred_date' => '2026-11-07', 'preferred_time' => '17:00',
-            'preferred_church' => 'San Isidro Labrador Chapel',
+            'preferred_date' => '2026-11-07', 'preferred_time' => '15:30',
+            'preferred_church' => 'Nuestra Señora de los Desamparados',
         ]);
 
-        $this->assertFalse(app(ReserveAppointmentSlot::class)->handle($appointment));
+        try {
+            app(ReserveAppointmentSlot::class)->handle($appointment);
+            $this->fail('A regular Mass conflict must reject the request.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('preferred_time', $exception->errors());
+        }
         $this->assertNull($appointment->refresh()->starts_at);
         $this->assertSame('pending', $appointment->status);
 
         $personnel = Personnel::factory()->create();
         $this->putJson('/admin/appointments/'.$appointment->reference_number, [
-            'version' => $appointment->version, 'starts_at' => '2026-11-07T17:00',
+            'version' => $appointment->version, 'starts_at' => '2026-11-07T15:30',
             'duration_minutes' => 60, 'buffer_minutes' => 30,
-            'confirmed_church' => 'San Isidro Labrador Chapel', 'personnel_id' => $personnel->id,
+            'confirmed_church' => 'Nuestra Señora de los Desamparados', 'personnel_id' => $personnel->id,
             'reason' => 'Schedule requested ceremony',
-        ])->assertInvalid(['starts_at' => 'regular Mass']);
+        ])->assertInvalid(['starts_at' => 'Mass']);
         $this->assertNull($appointment->refresh()->starts_at);
 
         $appointment->update(['preferred_church' => 'St. John Nepomucene Parish']);
         $this->assertTrue(app(ReserveAppointmentSlot::class)->handle($appointment));
-        $this->assertSame('2026-11-07 17:00', $appointment->refresh()->starts_at->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-07 15:30', $appointment->refresh()->starts_at->format('Y-m-d H:i'));
         $this->assertSame('pending', $appointment->status);
     }
 

@@ -198,8 +198,8 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame($serviceType, $appointment->service_type);
         $this->assertSame($payload['service'], $appointment->service_details);
         $this->assertSame('pending', $appointment->status);
-        $this->assertSame('2026-10-27 09:30', $appointment->starts_at?->format('Y-m-d H:i'));
-        $this->assertSame('2026-10-27 10:30', $appointment->ends_at?->format('Y-m-d H:i'));
+        $this->assertSame('2026-10-27 '.($serviceType === 'wedding' ? '10:00' : '09:30'), $appointment->starts_at?->format('Y-m-d H:i'));
+        $this->assertSame('2026-10-27 '.($serviceType === 'wedding' ? '11:00' : '10:30'), $appointment->ends_at?->format('Y-m-d H:i'));
         $this->assertSame('St. John Nepomucene Parish', $appointment->confirmed_church);
         $this->assertMatchesRegularExpression('/^APT-260927-[A-Z0-9]{6}$/', $appointment->reference_number);
         $this->assertDatabaseHas('appointments', [
@@ -253,7 +253,51 @@ class AppointmentControllerTest extends TestCase
         $mail->assertSeeInText('pending document and payment verification');
     }
 
-    public function test_conflicting_requested_slot_remains_pending_without_a_reservation(): void
+    #[DataProvider('regularMassConflicts')]
+    public function test_regular_mass_conflicts_reject_requests_without_saving_or_sending_mail(string $date, string $time, string $venue): void
+    {
+        $this->travelTo('2026-09-27 09:00:00');
+        Storage::fake('local');
+        Mail::fake();
+        $payload = [...$this->validPayload('baptism'), 'preferred_date' => $date, 'preferred_time' => $time, 'preferred_church' => $venue];
+
+        $this->post(route('appointments.store'), $payload)
+            ->assertSessionHasErrors('preferred_time');
+
+        $this->assertDatabaseEmpty('appointments');
+        $this->assertSame([], Storage::disk('local')->allFiles());
+        Mail::assertNothingQueued();
+    }
+
+    public static function regularMassConflicts(): array
+    {
+        return [
+            'daily Mass' => ['2026-10-27', '07:00', 'St. John Nepomucene Parish'],
+            'ceremony overlaps Mass start' => ['2026-10-27', '06:30', 'St. John Nepomucene Parish'],
+            'Mass turnaround gap' => ['2026-10-27', '08:00', 'St. John Nepomucene Parish'],
+            'Wednesday evening' => ['2026-10-28', '17:00', 'St. John Nepomucene Parish'],
+            'one-hour gap before Wednesday Mass' => ['2026-10-28', '16:00', 'St. John Nepomucene Parish'],
+            'one-hour gap before Sunday chapel Mass' => ['2026-11-01', '08:00', 'San Fernando Chapel'],
+            'chapel anticipated Mass' => ['2026-10-31', '17:00', 'San Isidro Labrador Chapel'],
+            'Sunday Mass' => ['2026-11-01', '09:00', 'San Fernando Chapel'],
+        ];
+    }
+
+    public function test_available_time_at_another_venue_is_accepted_as_pending(): void
+    {
+        $this->travelTo('2026-09-27 09:00:00');
+        Storage::fake('local');
+        Mail::fake();
+        $payload = [...$this->validPayload('baptism'), 'preferred_date' => '2026-10-27', 'preferred_time' => '08:00', 'preferred_church' => 'San Isidro Labrador Chapel'];
+
+        $this->post(route('appointments.store'), $payload)->assertSessionHasNoErrors();
+
+        $appointment = Appointment::query()->sole();
+        $this->assertSame('pending', $appointment->status);
+        $this->assertSame('2026-10-27 08:00', $appointment->starts_at->format('Y-m-d H:i'));
+    }
+
+    public function test_conflicting_requested_slot_is_rejected_without_creating_another_request(): void
     {
         $this->travelTo('2026-09-27 09:00:00');
         Storage::fake('local');
@@ -265,13 +309,10 @@ class AppointmentControllerTest extends TestCase
             'confirmed_church' => 'St. John Nepomucene Parish',
         ]);
 
-        $this->post(route('appointments.store'), $this->validPayload('baptism'))->assertRedirect();
+        $this->post(route('appointments.store'), $this->validPayload('baptism'))->assertSessionHasErrors('preferred_time');
 
-        $appointment = Appointment::query()->latest('id')->firstOrFail();
-        $this->assertSame('pending', $appointment->status);
-        $this->assertNull($appointment->starts_at);
-        $this->assertNull($appointment->ends_at);
-        $this->assertNull($appointment->confirmed_church);
+        $this->assertDatabaseCount('appointments', 1);
+        $this->assertSame('2026-10-27 09:00', Appointment::query()->sole()->starts_at->format('Y-m-d H:i'));
     }
 
     public function test_request_rejects_missing_service_details_without_creating_record(): void
@@ -519,7 +560,7 @@ class AppointmentControllerTest extends TestCase
             'preferred_contact_method' => 'email',
             'service_type' => $serviceType,
             'preferred_date' => '2026-10-27',
-            'preferred_time' => '09:30',
+            'preferred_time' => $serviceType === 'wedding' ? '10:00' : '09:30',
             'preferred_church' => 'St. John Nepomucene Parish',
             'additional_notes' => 'Please call in the afternoon.',
             'service' => $serviceDetails,

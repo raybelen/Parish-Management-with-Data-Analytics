@@ -80,9 +80,9 @@
 
         <button class="admin-button justify-self-start">Save office settings</button>
     </form>
-    <section id="service-settings" class="admin-card"><h2 class="mb-2 text-2xl">Services, fees & preparation gaps</h2><p class="mb-5 text-sm text-muted">Changes apply to new requests. Current appointments retain their document requirements and fee. Preparation gaps may be extended when scheduling.</p>
-        @foreach($services as $service)<details class="border-b border-navy/10 py-4"><summary class="cursor-pointer font-semibold">{{ $service->name }} · {{ $service->duration_minutes }} min + {{ $service->buffer_minutes }} min preparation · ₱{{ number_format($service->fee_cents / 100, 2) }}</summary>@include('admin.partials.service-form', ['service' => $service])</details>@endforeach
-        <details class="mt-5"><summary class="cursor-pointer font-semibold">Add another service</summary>@include('admin.partials.service-form', ['service' => new \App\Models\ServiceType(['duration_minutes' => 60, 'buffer_minutes' => 30, 'fee_cents' => 0, 'active' => true, 'requirements' => []])])</details>
+    <section id="service-settings" class="admin-card"><h2 class="mb-2 text-2xl">Services, fees & scheduling</h2><p class="mb-5 text-sm text-muted">Changes apply to new requests. Current appointments retain their document requirements and fee. All services last one hour. Wedding and funeral gaps are enforced between consecutive services of the same type at the same venue.</p>
+        @foreach($services as $service)<details class="border-b border-navy/10 py-4"><summary class="cursor-pointer font-semibold">{{ $service->name }} · {{ $service->duration_minutes }} min + service-specific gaps · ₱{{ number_format($service->fee_cents / 100, 2) }}</summary>@include('admin.partials.service-form', ['service' => $service])</details>@endforeach
+        <details class="mt-5"><summary class="cursor-pointer font-semibold">Add another service</summary>@include('admin.partials.service-form', ['service' => new \App\Models\ServiceType(['duration_minutes' => 60, 'buffer_minutes' => 0, 'fee_cents' => 0, 'active' => true, 'requirements' => []])])</details>
     </section>
     <section id="personnel-settings" class="admin-card"><h2 class="mb-5 text-2xl">Priests & authorized personnel</h2>
         @foreach($personnel->push(new \App\Models\Personnel(['active' => true])) as $person)

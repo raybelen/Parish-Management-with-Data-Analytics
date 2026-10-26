@@ -160,10 +160,13 @@
                                 </div>
                             @endif
 
-                            <form method="POST" action="{{ $scheduleUpdateUrl }}" class="mt-7 grid gap-5 sm:grid-cols-2">
+                            <form method="POST" action="{{ $scheduleUpdateUrl }}" data-availability-url="{{ \Illuminate\Support\Facades\URL::temporarySignedRoute('appointments.availability.update', now()->addMinutes(30), ['appointment' => $appointment]) }}" class="mt-7 grid gap-5 sm:grid-cols-2">
                                 @csrf
                                 @method('PATCH')
 
+                                @if($appointment->group_baptism_session_id)
+                                    <input type="hidden" name="preferred_church" value="{{ $appointment->preferred_church }}">
+                                @endif
                                 <x-parish.form-field id="updated_preferred_date" name="preferred_date" label="New preferred date" :required="true">
                                     <input id="updated_preferred_date" name="preferred_date" type="date" value="{{ old('preferred_date', $appointment->preferred_date->format('Y-m-d')) }}" min="{{ now()->toDateString() }}" required class="{{ $inputClass }}">
                                 </x-parish.form-field>
@@ -171,6 +174,8 @@
                                 <x-parish.form-field id="updated_preferred_time" name="preferred_time" label="New preferred time" :required="true">
                                     <input id="updated_preferred_time" name="preferred_time" type="time" value="{{ old('preferred_time', mb_substr($appointment->preferred_time, 0, 5)) }}" step="900" required class="{{ $inputClass }}">
                                 </x-parish.form-field>
+
+                                <p id="schedule-availability" data-availability-status role="status" aria-live="polite" hidden class="sm:col-span-2 border-l-4 border-red-700 bg-red-50 px-5 py-4 text-sm text-red-900"></p>
 
                                 <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-4 bg-gold px-6 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63] sm:col-span-2 sm:justify-self-start">
                                     Update preferred schedule <x-parish.icon name="arrow" class="size-4" />

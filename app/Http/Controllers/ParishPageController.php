@@ -10,9 +10,6 @@ class ParishPageController extends Controller
     public function __invoke(string $page = 'home'): View
     {
         $websiteContent = WebsiteContent::values();
-        $churchImage = 'https://images.unsplash.com/photo-1548625149-d37da68f9a7f?auto=format&fit=crop&w=2200&q=85';
-        $interiorImage = 'https://images.unsplash.com/photo-1519491050282-cf00c82424b4?auto=format&fit=crop&w=1200&q=85';
-        $architectureImage = 'https://images.unsplash.com/photo-1438032005730-c779502df39b?auto=format&fit=crop&w=1000&q=85';
         $ministries = [
             ['icon' => 'cross', 'title' => 'Worship & Liturgy', 'copy' => 'Help our community gather in prayer and celebrate the Eucharist.'],
             ['icon' => 'book', 'title' => 'Faith Formation', 'copy' => 'Learn, reflect, and grow together in our Catholic faith.'],
@@ -48,10 +45,14 @@ class ParishPageController extends Controller
             ],
         ];
         $photos = [
-            ['src' => $churchImage, 'alt' => 'Sunlight illuminating the architecture of a church', 'title' => $websiteContent['gallery_photo_one_title'], 'class' => 'sm:col-span-7 sm:row-span-2'],
-            ['src' => $interiorImage, 'alt' => 'A church interior offering a quiet space for reflection', 'title' => $websiteContent['gallery_photo_two_title'], 'class' => 'sm:col-span-5'],
-            ['src' => $architectureImage, 'alt' => 'Church architecture framed by natural light', 'title' => $websiteContent['gallery_photo_three_title'], 'class' => 'sm:col-span-5'],
+            ['src' => asset('images/gallery-1.jpg'), 'alt' => 'Parishioners holding lighted candles during worship', 'title' => $websiteContent['gallery_photo_one_title']],
+            ['src' => asset('images/gallery-2.jpg'), 'alt' => 'A priest baptizing an infant', 'title' => $websiteContent['gallery_photo_two_title']],
+            ['src' => asset('images/gallery-3.jpg'), 'alt' => 'A Marian image displayed with flowers inside the church', 'title' => $websiteContent['gallery_photo_three_title']],
+            ['src' => asset('images/gallery-4.jpg'), 'alt' => 'A flower-adorned Marian image carried in a parish procession', 'title' => 'Faith in procession'],
+            ['src' => asset('images/gallery-5.jpg'), 'alt' => 'An altar server holding a rosary', 'title' => 'Prayer and devotion'],
+            ['src' => asset('images/gallery-6.jpg'), 'alt' => 'The parish community gathered for Mass', 'title' => 'Gathered in worship'],
         ];
+        $photos = $page === 'home' ? array_slice($photos, 0, 3) : $photos;
 
         $pageTitle = match ($page) {
             'home' => 'Home',
@@ -64,7 +65,6 @@ class ParishPageController extends Controller
         };
 
         return view('client-side.'.$page, compact(
-            'churchImage', 'interiorImage', 'architectureImage',
             'ministries', 'announcements', 'photos', 'pageTitle', 'websiteContent',
         ));
     }

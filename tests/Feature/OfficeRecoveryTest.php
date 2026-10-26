@@ -7,6 +7,7 @@ use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\MonthlyStatistic;
 use App\Models\Payment;
+use App\Models\Schedule;
 use App\Models\ServiceRecord;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
@@ -22,7 +23,8 @@ class OfficeRecoveryTest extends TestCase
     {
         Storage::fake('local');
         $this->app->instance('env', 'recovery');
-        $appointment = Appointment::factory()->create();
+        $session = Schedule::factory()->create(['category' => 'Group Baptism', 'group_capacity' => 10, 'group_fee' => '250.00']);
+        $appointment = Appointment::factory()->create(['group_baptism_session_id' => $session->id]);
         $document = 'appointments/'.$appointment->reference_number.'/certificate.pdf';
         Storage::disk('local')->put($document, 'Private certificate content');
         $appointment->update(['documents' => ['birth_certificate' => [['path' => $document, 'original_name' => 'certificate.pdf']]]]);
@@ -38,6 +40,8 @@ class OfficeRecoveryTest extends TestCase
         $this->artisan('office:restore', ['path' => $path])->assertSuccessful();
 
         $this->assertModelExists($appointment);
+        $this->assertSame($session->id, $appointment->fresh()->group_baptism_session_id);
+        $this->assertSame(10, $session->fresh()->group_capacity);
         $this->assertSame($appointment->id, $payment->fresh()->appointment_id);
         $this->assertSame($record->id, $appointment->fresh()->serviceRecord->id);
         $this->assertSame(168, $statistic->fresh()->count);

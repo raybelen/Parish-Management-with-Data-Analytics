@@ -34,7 +34,7 @@ class Appointment extends Model
         'service_details',
         'documents',
         'source', 'personnel_id', 'confirmed_church', 'starts_at', 'ends_at', 'reserved_until',
-        'buffer_minutes', 'fee_cents', 'completed_at', 'outcome', 'office_notes',
+        'group_baptism_session_id', 'buffer_minutes', 'fee_cents', 'completed_at', 'outcome', 'office_notes',
         'requirements', 'physical_documents', 'online_verification', 'version',
     ];
 
@@ -84,6 +84,7 @@ class Appointment extends Model
             'reserved_until' => 'immutable_datetime',
             'completed_at' => 'immutable_datetime',
             'fee_cents' => 'integer',
+            'group_baptism_session_id' => 'integer',
             'buffer_minutes' => 'integer',
             'version' => 'integer',
         ];

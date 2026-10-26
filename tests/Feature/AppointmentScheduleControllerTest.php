@@ -66,7 +66,7 @@ class AppointmentScheduleControllerTest extends TestCase
             ->assertSeeInOrder(['Year of death', '2026']);
     }
 
-    public function test_conflicting_schedule_change_releases_the_old_reservation(): void
+    public function test_conflicting_schedule_change_preserves_the_old_reservation(): void
     {
         $this->travelTo('2026-09-30 09:00:00');
         Appointment::factory()->create([
@@ -91,14 +91,11 @@ class AppointmentScheduleControllerTest extends TestCase
             'preferred_time' => '14:30',
         ]);
 
-        $response->assertRedirect()->assertSessionHas(
-            'appointment_message',
-            'Your preferred date and time were updated, but that slot could not be reserved. The parish office will review an alternative schedule.',
-        );
+        $response->assertRedirect()->assertSessionHasErrors('preferred_time');
         $appointment->refresh();
-        $this->assertNull($appointment->starts_at);
-        $this->assertNull($appointment->ends_at);
-        $this->assertNull($appointment->confirmed_church);
+        $this->assertSame('2026-10-10 09:00', $appointment->starts_at->format('Y-m-d H:i'));
+        $this->assertSame('2026-10-10 10:00', $appointment->ends_at->format('Y-m-d H:i'));
+        $this->assertSame('St. John Nepomucene Parish', $appointment->confirmed_church);
         $this->assertSame('pending', $appointment->status);
     }
 
@@ -122,13 +119,10 @@ class AppointmentScheduleControllerTest extends TestCase
             'preferred_time' => '14:30',
         ]);
 
-        $response->assertSessionHas(
-            'appointment_message',
-            'Your preferred date and time were updated, but that slot could not be reserved. The parish office will review an alternative schedule.',
-        );
+        $response->assertSessionHasErrors('preferred_time');
         $appointment->refresh();
-        $this->assertNull($appointment->starts_at);
-        $this->assertNull($appointment->confirmed_church);
+        $this->assertSame('2026-10-10 09:00', $appointment->starts_at->format('Y-m-d H:i'));
+        $this->assertSame('San Isidro Labrador Chapel', $appointment->confirmed_church);
     }
 
     public function test_schedule_change_rejects_an_unsigned_request(): void
@@ -197,6 +191,26 @@ class AppointmentScheduleControllerTest extends TestCase
             'confirmed request' => ['confirmed'],
             'cancelled request' => ['cancelled'],
         ];
+    }
+
+    public function test_mass_conflict_preserves_existing_reservation_and_displays_error_on_a_fresh_detail_link(): void
+    {
+        $this->withoutVite();
+        $this->travelTo('2026-09-30 09:00:00');
+        $appointment = Appointment::factory()->create([
+            'preferred_date' => '2026-10-10', 'preferred_time' => '10:00',
+            'starts_at' => '2026-10-10 10:00', 'ends_at' => '2026-10-10 11:00',
+            'reserved_until' => '2026-10-10 11:30', 'confirmed_church' => 'St. John Nepomucene Parish',
+        ]);
+        $before = $appointment->refresh()->getAttributes();
+
+        $response = $this->patch($this->signedScheduleUrl($appointment), [
+            'preferred_date' => '2026-10-14', 'preferred_time' => '08:00',
+        ]);
+
+        $this->assertSame($before, $appointment->refresh()->getAttributes());
+        $this->get($response->headers->get('Location'))
+            ->assertOk()->assertSee('This time overlaps Mass or its reserved time afterward.');
     }
 
     private function signedScheduleUrl(Appointment $appointment): string

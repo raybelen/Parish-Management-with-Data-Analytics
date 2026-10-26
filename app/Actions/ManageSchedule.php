@@ -21,6 +21,10 @@ class ManageSchedule
      */
     public function create(array $data): array
     {
+        if (mb_strtolower(trim($data['category'] ?? '')) === 'group baptism') {
+            throw ValidationException::withMessages(['category' => 'Shared baptism sessions are currently unavailable.']);
+        }
+
         return DB::transaction(function () use ($data): array {
             ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
             $start = CarbonImmutable::parse($data['starts_at'], config('office.timezone'));
@@ -70,6 +74,7 @@ class ManageSchedule
             ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
             $locked = Schedule::query()->lockForUpdate()->findOrFail($schedule->id);
             $this->checkVersion($locked, (int) $data['version']);
+            $this->protectEnrolledSession($locked);
             $before = $locked->toArray();
             $data['starts_at'] = CarbonImmutable::parse($data['starts_at'], config('office.timezone'));
             $data['ends_at'] = CarbonImmutable::parse($data['ends_at'], config('office.timezone'));
@@ -85,6 +90,9 @@ class ManageSchedule
             ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
             $locked = Schedule::query()->lockForUpdate()->findOrFail($schedule->id);
             $this->checkVersion($locked, $version);
+            if (Appointment::query()->where('group_baptism_session_id', $locked->id)->exists()) {
+                throw ValidationException::withMessages(['schedule' => 'A group session with appointment history cannot be deleted.']);
+            }
             OfficeAudit::record('schedule.deleted', $locked, $locked->toArray());
             $locked->delete();
         });
@@ -120,6 +128,9 @@ class ManageSchedule
         if ($data['status'] !== 'scheduled') {
             return;
         }
+        if (mb_strtolower(trim($data['category'] ?? '')) === 'group baptism') {
+            throw ValidationException::withMessages(['category' => 'Shared baptism sessions are currently unavailable.']);
+        }
         $location = $data['location'] ?? null;
         $personnel = isset($data['personnel_id']) ? (int) $data['personnel_id'] : null;
         $resources = function (Builder $query, string $column) use ($location, $personnel): void {
@@ -131,8 +142,8 @@ class ManageSchedule
                 $query->orWhere('personnel_id', $personnel);
             }
         };
-        $appointment = Appointment::query()->where('source', OfficeSettings::source())->where('status', 'confirmed')
-            ->where('starts_at', '<', $end)->where('reserved_until', '>', $start)
+        $appointment = Appointment::query()->where('source', OfficeSettings::source())->whereIn('status', ['pending', 'confirmed'])
+            ->where('starts_at', '<', $end)->where('ends_at', '>', $start)
             ->where(fn (Builder $query) => $resources($query, 'confirmed_church'))->exists();
         $block = ScheduleBlock::query()->where('starts_at', '<', $end)->where('ends_at', '>', $start)
             ->where(fn (Builder $query) => $resources($query, 'church'))->exists();
@@ -157,6 +168,14 @@ class ManageSchedule
                 }
             }
         }
+    }
+
+    private function protectEnrolledSession(Schedule $session): void
+    {
+        if (! Appointment::query()->where('group_baptism_session_id', $session->id)->whereIn('status', ['pending', 'confirmed'])->exists()) {
+            return;
+        }
+        throw ValidationException::withMessages(['schedule' => 'This group session has active family bookings. Cancel or move those requests before changing the session.']);
     }
 
     private function checkVersion(Schedule $schedule, int $version): void

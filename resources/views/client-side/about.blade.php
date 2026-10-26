@@ -20,9 +20,7 @@
 
         <section aria-labelledby="history-heading" class="grid items-center gap-10 border-y border-navy/10 py-16 lg:grid-cols-2 lg:gap-20">
             <div class="lg:order-2">
-                <div class="flex aspect-[4/3] items-center justify-center rounded-xl border border-gold/35 bg-[#eae5da] text-sm text-muted" role="img" aria-label="Parish history photo placeholder">
-                    History Photo Placeholder
-                </div>
+                <img src="{{ asset('images/parish-history.png') }}" alt="Historical photograph of the former parish church and bell tower" loading="lazy" decoding="async" width="2357" height="1213" class="aspect-[2357/1213] w-full rounded-xl border border-gold/35 object-cover">
             </div>
             <div class="lg:order-1">
                 <p class="section-label mb-5 text-muted">{{ $websiteContent['about_history_label'] }}</p>

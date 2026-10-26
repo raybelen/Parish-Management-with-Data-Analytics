@@ -6,9 +6,7 @@ use App\Mail\AppointmentConfirmed;
 use App\Models\Appointment;
 use App\Models\ParishSetting;
 use App\Models\Personnel;
-use App\Models\ScheduleBlock;
 use App\Models\ServiceRecord;
-use App\Models\ServiceType;
 use App\Support\AppointmentParticipants;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
@@ -19,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class ManageAppointment
 {
+    public function __construct(private ReserveAppointmentSlot $slots) {}
+
     /** @param array<string, mixed> $data */
     public function schedule(Appointment $appointment, array $data): void
     {
@@ -28,30 +28,19 @@ class ManageAppointment
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
             $this->checkVersion($locked, (int) $data['version']);
             $this->require(in_array($locked->status, ['pending', 'confirmed'], true), 'status', 'Only pending or confirmed appointments can be scheduled.');
-            $service = ServiceType::query()->where('slug', $locked->service_type)->firstOrFail();
             $start = CarbonImmutable::parse($data['starts_at'], config('office.timezone'));
-            $end = $start->addMinutes((int) $data['duration_minutes']);
-            $buffer = (int) $data['buffer_minutes'];
+            $this->require((int) $data['duration_minutes'] === 60, 'duration_minutes', 'Each service must last one hour.');
+            $end = $start->addHour();
+            $buffer = 0;
             $reservedUntil = $end->addMinutes($buffer);
-            $this->require($buffer >= $service->buffer_minutes, 'buffer_minutes', 'The preparation gap cannot be shorter than the service minimum.');
             $this->require(Personnel::query()->whereKey($data['personnel_id'])->where('active', true)->exists(), 'personnel_id', 'Choose active personnel.');
             $this->require(OfficeSettings::venueIsActive($data['confirmed_church']), 'confirmed_church', 'Choose a church or chapel that is currently available.');
             $this->require($start->isFuture(), 'starts_at', 'Choose a future schedule.');
-            $this->checkOperatingHours($start, $reservedUntil);
-            $conflicts = Appointment::query()->where('source', $locked->source)->whereIn('status', ['pending', 'confirmed'])
-                ->whereKeyNot($locked->id)
-                ->where(function ($query) use ($data): void {
-                    $query->where('confirmed_church', $data['confirmed_church'])->orWhere('personnel_id', $data['personnel_id']);
-                })
-                ->where('starts_at', '<', $reservedUntil)->where('reserved_until', '>', $start)->exists();
-            $blocks = ScheduleBlock::query()->where('starts_at', '<', $reservedUntil)->where('ends_at', '>', $start)
-                ->where(function ($query) use ($data): void {
-                    $query->where('church', $data['confirmed_church'])->orWhere('personnel_id', $data['personnel_id']);
-                })->exists();
-            $events = ManageSchedule::conflicts($start, $reservedUntil, $data['confirmed_church'], (int) $data['personnel_id']);
-            $this->require(! $conflicts && ! $blocks && ! $events, 'starts_at', 'The venue or personnel is unavailable during this ceremony or preparation gap.');
-            $this->checkRegularMass($start, $reservedUntil, $data['confirmed_church']);
-            $before = $locked->only(['starts_at', 'ends_at', 'reserved_until', 'confirmed_church', 'personnel_id', 'fee_cents', 'office_notes']);
+            $before = $locked->only(['starts_at', 'ends_at', 'reserved_until', 'confirmed_church', 'personnel_id', 'fee_cents', 'office_notes', 'group_baptism_session_id']);
+            if (isset($data['group_baptism_session_id'])) {
+                $locked->group_baptism_session_id = (int) $data['group_baptism_session_id'];
+            }
+            $this->validateSchedule($locked, $start, $data['confirmed_church'], (int) $data['personnel_id']);
             $locked->fill([
                 'starts_at' => $start, 'ends_at' => $end, 'reserved_until' => $reservedUntil,
                 'confirmed_church' => $data['confirmed_church'], 'personnel_id' => $data['personnel_id'],
@@ -83,17 +72,8 @@ class ManageAppointment
                 $this->require($locked->ends_at !== null && $locked->reserved_until !== null && $locked->confirmed_church !== null, 'status', 'Save a complete schedule before confirmation.');
                 $this->require(Personnel::query()->whereKey($locked->personnel_id)->where('active', true)->exists(), 'status', 'Assigned personnel must be active.');
                 $this->require(OfficeSettings::venueIsActive($locked->confirmed_church), 'status', 'The assigned venue is currently unavailable. Choose another venue before confirmation.');
-                $minimumGap = ServiceType::query()->where('slug', $locked->service_type)->value('buffer_minutes');
-                $this->require($locked->buffer_minutes >= $minimumGap, 'status', 'The preparation gap has changed. Save the schedule with the current minimum before confirmation.');
-                $this->checkOperatingHours($locked->starts_at, $locked->reserved_until);
-                $conflict = Appointment::query()->where('source', $locked->source)->whereIn('status', ['pending', 'confirmed'])->whereKeyNot($locked->id)
-                    ->where('starts_at', '<', $locked->reserved_until)->where('reserved_until', '>', $locked->starts_at)
-                    ->where(fn ($query) => $query->where('confirmed_church', $locked->confirmed_church)->orWhere('personnel_id', $locked->personnel_id))->exists();
-                $blocked = ScheduleBlock::query()->where('starts_at', '<', $locked->reserved_until)->where('ends_at', '>', $locked->starts_at)
-                    ->where(fn ($query) => $query->where('church', $locked->confirmed_church)->orWhere('personnel_id', $locked->personnel_id))->exists();
-                $events = ManageSchedule::conflicts($locked->starts_at, $locked->reserved_until, $locked->confirmed_church, $locked->personnel_id);
-                $this->require(! $conflict && ! $blocked && ! $events, 'status', 'The schedule is no longer available. Choose another time.');
-                $this->checkRegularMass($locked->starts_at, $locked->reserved_until, $locked->confirmed_church);
+                $this->require($locked->ends_at->equalTo($locked->starts_at->addHour()), 'starts_at', 'Save a one-hour service schedule before confirmation.');
+                $this->validateSchedule($locked, $locked->starts_at, $locked->confirmed_church, $locked->personnel_id);
             }
             $before = $locked->only(['status', 'completed_at', 'outcome']);
             if ($status === 'completed') {
@@ -134,30 +114,13 @@ class ManageAppointment
         $this->require($appointment->version === $version, 'version', 'This appointment changed since you opened it. Refresh before saving.');
     }
 
-    private function checkOperatingHours(CarbonImmutable $start, CarbonImmutable $reservedUntil): void
+    private function validateSchedule(Appointment $appointment, CarbonImmutable $start, string $venue, ?int $personnelId): void
     {
-        $settings = OfficeSettings::all();
-        $this->require(in_array($start->dayOfWeekIso, $settings['operating_days'], true)
-            && $start->format('H:i') >= $settings['opens_at']
-            && $reservedUntil->isSameDay($start)
-            && $reservedUntil->format('H:i') <= $settings['closes_at'], 'starts_at', 'The ceremony and preparation gap must fit within operating hours.');
-    }
-
-    private function checkRegularMass(CarbonImmutable $start, CarbonImmutable $end, string $church): void
-    {
-        foreach (config('parish.regular_schedules', []) as $schedule) {
-            if ($church !== ($schedule['church'] ?? config('parish.churches.0'))) {
-                continue;
-            }
-            if (! in_array($start->dayOfWeekIso, $schedule['days'], true)) {
-                continue;
-            }
-            foreach ($schedule['times'] as $time) {
-                $massStart = $start->setTimeFromTimeString($time['value']);
-                $massEnd = $massStart->addMinutes($schedule['duration_minutes'] ?? 60)->addMinutes($schedule['buffer_minutes'] ?? 30);
-                $this->require(! ($start < $massEnd && $end > $massStart), 'starts_at', 'This schedule overlaps a regular Mass or its preparation gap.');
-            }
-        }
+        $candidate = (clone $appointment)->forceFill([
+            'preferred_date' => $start->toDateString(), 'preferred_time' => $start->format('H:i'), 'preferred_church' => $venue,
+        ]);
+        $message = $this->slots->conflictMessage($candidate, $personnelId);
+        $this->require($message === null, 'starts_at', $message ?? 'This schedule is unavailable.');
     }
 
     private function require(bool $condition, string $field, string $message): void
