@@ -1,4 +1,3 @@
-import './group-baptisms';
 import './appointment-availability';
 import './appointment-details';
 import './psgc-address';
@@ -86,7 +85,7 @@ document.querySelectorAll('dialog').forEach((dialog) => {
 const galleryDialog = document.getElementById('gallery-dialog');
 const galleryPhotos = [...document.querySelectorAll('#gallery [data-gallery-index]')]
     .filter((button) => button.querySelector('img'))
-    .map((button) => ({ src: button.querySelector('img').src, alt: button.querySelector('img').alt, title: button.querySelector('span').textContent }));
+    .map((button) => ({ src: button.querySelector('img').src, alt: button.querySelector('img').alt }));
 let currentPhoto = 0;
 function showPhoto(index) {
     currentPhoto = (index + galleryPhotos.length) % galleryPhotos.length;
@@ -94,7 +93,6 @@ function showPhoto(index) {
     const image = document.getElementById('gallery-image');
     image.src = photo.src;
     image.alt = photo.alt;
-    document.getElementById('gallery-caption').textContent = photo.title;
     document.getElementById('gallery-count').textContent = `${currentPhoto + 1} / ${galleryPhotos.length}`;
 }
 document.querySelectorAll('[data-gallery-index]').forEach((trigger) => {
@@ -309,9 +307,6 @@ function updateAppointmentReview() {
         service: selectedOptionText('service_type'),
         schedule: `${preferredDate?.value ? new Intl.DateTimeFormat('en-PH', { dateStyle: 'long' }).format(new Date(`${preferredDate.value}T12:00:00`)) : 'Not provided'} at ${preferredTime?.value ? new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(`2000-01-01T${preferredTime.value}:00`)) : 'Not provided'}`,
         church: selectedOptionText('preferred_church'),
-        documents: [...appointmentForm.querySelectorAll('input[type="file"]:not(:disabled)')]
-            .flatMap((field) => [...field.files].map((file) => file.name))
-            .join(', ') || 'No optional documents selected',
     };
 
     Object.entries(reviewValues).forEach(([name, value]) => {

@@ -33,7 +33,7 @@
                             @if ($field['type'] === 'textarea')
                                 <textarea name="content[{{ $key }}]" rows="4" maxlength="{{ $field['max'] }}" required class="admin-input min-h-28 resize-y">{{ old($fieldName, $content[$key]) }}</textarea>
                             @else
-                                <input name="content[{{ $key }}]" type="text" value="{{ old($fieldName, $content[$key]) }}" maxlength="{{ $field['max'] }}" required class="admin-input">
+                                <input name="content[{{ $key }}]" type="{{ $field['type'] }}" value="{{ old($fieldName, $content[$key]) }}" maxlength="{{ $field['max'] }}" required class="admin-input">
                             @endif
 
                             @error($fieldName)

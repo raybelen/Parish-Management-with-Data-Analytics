@@ -48,6 +48,7 @@ class ClientPagesTest extends TestCase
         $response = $this->get('/');
 
         $response->assertViewIs('client-side.home');
+        $response->assertSee('rel="icon" type="image/png" href="'.asset('images/logo-modified.png').'"', false);
 
         foreach (['about', 'services', 'announcements', 'ministries', 'gallery', 'contact'] as $page) {
             $response->assertSee('href="'.route($page).'"', false);
@@ -91,6 +92,42 @@ class ClientPagesTest extends TestCase
             ->assertSee('Mosaic of Saint John Nepomucene holding a crucifix with a finger to his lips');
     }
 
+    public function test_services_page_dialogs_show_the_current_appointment_requirements(): void
+    {
+        $this->withoutVite();
+
+        $response = $this->get('/services');
+        $document = new DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new DOMXPath($document);
+
+        $requirementsByDialog = [
+            'baptism-requirements' => [
+                'Photocopy of Birth Certificate with registry number (PSA or Local Civil Registry)',
+                'Marriage Contract, if parents are married',
+            ],
+            'wedding-requirements' => [
+                'PSA Birth Certificate',
+                'Updated Baptismal & Confirmation Certificate (Purpose: For Marriage)',
+                'Marriage License, or, if civilly married, Marriage Contract with registry number',
+                'Pre-Cana Seminar',
+            ],
+            'funeral-requirements' => ['Photocopy of Death Certificate'],
+        ];
+
+        foreach ($requirementsByDialog as $dialogId => $requirements) {
+            $dialog = $xpath->query('//dialog[@id="'.$dialogId.'"]')->item(0);
+
+            $this->assertNotNull($dialog);
+
+            foreach ($requirements as $requirement) {
+                $this->assertStringContainsString($requirement, $dialog->textContent);
+            }
+        }
+
+        $response->assertDontSee('Requirement list placeholder.');
+    }
+
     public function test_gallery_page_displays_all_photos_and_homepage_keeps_three_photo_preview(): void
     {
         $this->withoutVite();
@@ -112,6 +149,46 @@ class ClientPagesTest extends TestCase
 
         $this->assertSame(6, $gallery->query('//section[@id="gallery"]//button[@data-gallery-index]')->length);
         $this->assertSame(3, $home->query('//section[@id="gallery"]//button[@data-gallery-index]')->length);
+        $this->assertSame(0, $gallery->query('//section[@id="gallery"]//button[@data-gallery-index]/*[not(self::img)]')->length);
+        $galleryResponse->assertDontSee('Illustrative church photography')
+            ->assertDontSee('id="gallery-caption"', false);
+    }
+
+    public function test_ministries_page_does_not_show_photo_placeholders_when_photos_are_unavailable(): void
+    {
+        $this->withoutVite();
+
+        $this->get('/ministries-and-organizations')
+            ->assertSee('Liturgical Ministries')
+            ->assertDontSee('Photo Placeholder')
+            ->assertDontSee('Photo placeholder');
+    }
+
+    public function test_contact_page_shows_contact_methods_and_church_location_map(): void
+    {
+        $this->withoutVite();
+
+        $response = $this->get('/contact');
+        $document = new DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new DOMXPath($document);
+
+        $response->assertSee('stjohnnepomucene88@gmail.com')
+            ->assertSee('To be followed')
+            ->assertSee('Purok 5, Bonga, Bacacay, Albay 4509, Philippines')
+            ->assertSee('Visit Facebook Page')
+            ->assertSee('Send Email')
+            ->assertSee('Visit the Parish Church')
+            ->assertSee('href="https://www.facebook.com/profile.php?id=100080696044407"', false)
+            ->assertSee('href="mailto:stjohnnepomucene88@gmail.com"', false)
+            ->assertSee('href="https://www.google.com/maps/search/?api=1&amp;query=13.28137007718145%2C123.7579731871621"', false);
+
+        $map = $xpath->query('//section[@aria-labelledby="contact-location-heading"]//iframe')->item(0);
+
+        $this->assertNotNull($map);
+        $this->assertSame('Map showing the location of St. John Nepomucene Parish', $map->getAttribute('title'));
+        $this->assertSame('lazy', $map->getAttribute('loading'));
+        $this->assertStringContainsString('13.28137007718145%2C123.7579731871621', $map->getAttribute('src'));
     }
 
     public function test_announcements_show_concise_previews_with_closed_details(): void

@@ -22,7 +22,7 @@
                     </span>
                     <span class="mt-10">
                         <span class="block font-display text-3xl leading-tight">Make a new appointment</span>
-                        <span class="mt-3 block text-sm leading-7 text-muted">Choose a service, share the required details, and upload supporting documents.</span>
+                        <span class="mt-3 block text-sm leading-7 text-muted">Choose a service, share the required details, and review the documents you need to prepare.</span>
                         <span class="mt-6 inline-flex items-center gap-3 text-sm font-medium text-[#80662e]">Start a request <x-parish.icon name="arrow" class="size-4 transition-transform group-hover:translate-x-1" /></span>
                     </span>
                 </a>

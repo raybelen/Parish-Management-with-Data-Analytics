@@ -127,7 +127,7 @@ Route::get('/appointments', [AppointmentController::class, 'index'])->name('appo
 Route::post('/appointments/availability', AppointmentAvailabilityController::class)->middleware('throttle:60,1')->name('appointments.availability');
 Route::post('/appointments/{appointment}/availability', AppointmentAvailabilityController::class)->middleware(['signed', 'throttle:60,1'])->name('appointments.availability.update');
 Route::get('/appointments/new', [AppointmentController::class, 'create'])->name('appointments.create');
-Route::post('/appointments', [AppointmentController::class, 'store'])->middleware('throttle:5,1')->name('appointments.store');
+Route::post('/appointments', [AppointmentController::class, 'store'])->middleware('throttle:appointment-submissions')->name('appointments.store');
 Route::get('/appointments/manage', [AppointmentLookupController::class, 'create'])->name('appointments.lookup.create');
 Route::post('/appointments/manage', [AppointmentLookupController::class, 'store'])->middleware('throttle:10,1')->name('appointments.lookup.store');
 Route::post('/appointments/manage/recover', [AppointmentReferenceRecoveryController::class, 'store'])->middleware('throttle:5,1')->name('appointments.reference-recovery.store');

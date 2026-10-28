@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#13233F">
     <meta name="description" content="Welcome to St. John Nepomucene Parish. Find Mass times, discover our community, explore ministries, and plan a visit to the parish office.">
     <title>{{ $pageTitle }} | St. John Nepomucene Parish</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/logo-modified.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo-modified.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -47,7 +49,7 @@
         <div class="section-wrap grid gap-10 py-14 md:grid-cols-[1.3fr_1fr_1fr]">
             <div><a href="{{ route('home') }}" class="font-display text-2xl">St. John Nepomucene Parish</a><p class="mt-4 text-sm text-ivory/60">Faith. Prayer. Community. Service.</p><p class="mt-8 font-display text-xl italic text-[#d4ba80]">You are always welcome here.</p></div>
             <nav aria-label="Footer navigation" class="grid grid-cols-2 content-start gap-x-5 gap-y-2 text-sm text-ivory/65">@foreach ($navigation as $label => $href)<a href="{{ route($href) }}" class="flex min-h-11 items-center hover:text-gold">{{ $label }}</a>@endforeach</nav>
-            <div><h2 class="font-sans text-xs tracking-[0.15em] uppercase text-[#d4ba80]">Office Hours</h2><div class="mt-5 flex flex-col gap-2 text-sm text-ivory/65"><p>Tuesdays to Sundays</p><p>8:00 AM – 11:30 AM</p><p>2:00 PM – 5:00 PM</p><p class="mt-2">Monday — No Office Hours</p></div><a href="{{ route('appointments.index') }}" class="text-link mt-5 text-[#d4ba80]">Set an Appointment <x-parish.icon name="arrow" class="size-4" /></a></div>
+            <div><h2 class="font-sans text-xs tracking-[0.15em] uppercase text-[#d4ba80]">{{ $websiteContent['office_hours_label'] }}</h2><div class="mt-5 flex flex-col gap-2 text-sm text-ivory/65"><p>{{ $websiteContent['office_open_days'] }}</p><p>{{ $websiteContent['office_morning_hours'] }}</p><p>{{ $websiteContent['office_afternoon_hours'] }}</p><p class="mt-2">{{ $websiteContent['office_closed_day'] }} — {{ $websiteContent['office_closed_message'] }}</p></div><a href="{{ route('appointments.index') }}" class="text-link mt-5 text-[#d4ba80]">Set an Appointment <x-parish.icon name="arrow" class="size-4" /></a></div>
         </div>
         <div class="section-wrap flex flex-col justify-between gap-3 border-t border-ivory/10 py-6 text-[11px] text-ivory/65 sm:flex-row"><p>© {{ date('Y') }} St. John Nepomucene Parish. All rights reserved.</p><p>With faith, hope, and love.</p></div>
     </footer>

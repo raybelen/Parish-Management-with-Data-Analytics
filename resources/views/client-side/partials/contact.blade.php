@@ -28,24 +28,36 @@
     </section>
 @else
     @php
+        $mapQuery = rawurlencode($websiteContent['contact_map_query']);
+        $mapUrl = 'https://www.google.com/maps/search/?api=1&query='.$mapQuery;
+        $mapEmbedUrl = 'https://www.google.com/maps?q='.$mapQuery.'&z=17&output=embed';
         $contactMethods = [
             [
                 'icon' => 'facebook',
                 'title' => $websiteContent['contact_facebook_title'],
                 'name' => $websiteContent['contact_facebook_name'],
                 'detail' => $websiteContent['contact_facebook_detail'],
+                'href' => $websiteContent['contact_facebook_url'],
+                'external' => true,
+                'action' => 'Visit Facebook Page',
             ],
             [
                 'icon' => 'phone',
                 'title' => $websiteContent['contact_phone_title'],
                 'name' => $websiteContent['contact_phone_name'],
                 'detail' => $websiteContent['contact_phone_detail'],
+                'href' => null,
+                'external' => false,
+                'action' => null,
             ],
             [
                 'icon' => 'mail',
                 'title' => $websiteContent['contact_email_title'],
                 'name' => $websiteContent['contact_email_name'],
                 'detail' => $websiteContent['contact_email_detail'],
+                'href' => 'mailto:'.$websiteContent['contact_email_name'],
+                'external' => false,
+                'action' => 'Send Email',
             ],
         ];
     @endphp
@@ -64,8 +76,22 @@
                             <x-parish.icon :name="$method['icon']" class="size-5" />
                         </div>
                         <p class="section-label mt-7 text-muted">{{ $method['title'] }}</p>
-                        <h2 class="mt-4 text-2xl leading-tight">{{ $method['name'] }}</h2>
+                        <h2 class="mt-4 break-words text-2xl leading-tight">
+                            @if ($method['href'])
+                                <a href="{{ $method['href'] }}" @if ($method['external']) target="_blank" rel="noopener noreferrer" @endif class="transition-colors hover:text-[#80662e] focus-visible:text-[#80662e] focus-visible:outline-none">
+                                    {{ $method['name'] }}
+                                </a>
+                            @else
+                                {{ $method['name'] }}
+                            @endif
+                        </h2>
                         <p class="mt-3 text-sm leading-7 text-muted">{{ $method['detail'] }}</p>
+                        @if ($method['href'])
+                            <a href="{{ $method['href'] }}" @if ($method['external']) target="_blank" rel="noopener noreferrer" @endif class="mt-5 inline-flex min-h-11 items-center gap-3 text-sm font-medium text-[#80662e] underline decoration-gold/60 underline-offset-4 transition-colors hover:text-navy focus-visible:text-navy focus-visible:outline-none">
+                                {{ $method['action'] }}
+                                <x-parish.icon name="arrow" class="size-4" />
+                            </a>
+                        @endif
                     </article>
                 @endforeach
             </div>
@@ -89,6 +115,29 @@
                 </div>
             </div>
         </div>
+
+        <section aria-labelledby="contact-location-heading" class="border-b border-navy/10 bg-ivory">
+            <div class="section-wrap grid gap-10 py-16 sm:py-20 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:items-center lg:gap-20">
+                <div>
+                    <p class="section-label text-muted">Our Location</p>
+                    <h2 id="contact-location-heading" class="mt-4 text-4xl sm:text-5xl">Visit the Parish Church</h2>
+                    <p class="mt-6 max-w-xl text-base leading-8 text-muted">Use the map to find St. John Nepomucene Parish and plan your visit.</p>
+                    <address class="mt-5 max-w-xl text-base leading-8 not-italic text-navy">{{ $websiteContent['contact_address'] }}</address>
+                    <x-parish.button :href="$mapUrl" target="_blank" rel="noopener noreferrer" class="mt-8 w-full sm:w-auto">Open in Google Maps</x-parish.button>
+                </div>
+
+                <div class="overflow-hidden border border-navy/15 bg-[#eae5da] shadow-[0_24px_60px_rgba(15,39,71,0.12)]">
+                    <iframe
+                        src="{{ $mapEmbedUrl }}"
+                        title="Map showing the location of St. John Nepomucene Parish"
+                        class="h-80 w-full sm:h-[28rem]"
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        allowfullscreen
+                    ></iframe>
+                </div>
+            </div>
+        </section>
 
         <div id="appointment" class="bg-navy text-ivory">
             <div class="section-wrap py-20 text-center sm:py-24">

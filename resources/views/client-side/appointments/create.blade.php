@@ -22,7 +22,7 @@
                 <div class="max-w-3xl">
                     <p class="section-label text-muted">New Request</p>
                     <h1 class="mt-5 text-4xl leading-tight sm:text-6xl">Request a parish appointment</h1>
-                    <p class="mt-5 text-base leading-8 text-muted">Complete the common information first. The form will then show only the details and documents needed for your selected service.</p>
+                    <p class="mt-5 text-base leading-8 text-muted">Complete the common information first. The form will then show the details and requirements for your selected service.</p>
                 </div>
                 <div class="border-l-2 border-gold pl-5 text-sm leading-7 text-muted">
                     <p><span class="font-medium text-navy">Required</span> fields must be completed.</p>
@@ -33,7 +33,7 @@
     </section>
 
     <section class="bg-[#eae5da] py-12 sm:py-16">
-        <form method="POST" action="{{ route('appointments.store') }}" enctype="multipart/form-data" class="section-wrap max-w-6xl" data-appointment-form data-availability-url="{{ route('appointments.availability') }}">
+        <form method="POST" action="{{ route('appointments.store') }}" class="section-wrap max-w-6xl" data-appointment-form data-availability-url="{{ route('appointments.availability') }}">
             @csrf
 
             @if ($errors->any())
@@ -107,7 +107,7 @@
                         </x-parish.form-field>
 
 
-                        <div class="grid items-start gap-6 border-y border-navy/10 py-6 sm:col-span-2 sm:grid-cols-2" data-schedule-fields>
+                           <div class="grid items-start gap-6 border-y border-navy/10 py-6 sm:col-span-2 sm:grid-cols-2" data-schedule-fields>
                             <x-parish.form-field id="preferred_date" name="preferred_date" label="Preferred date" :required="true" help="Choose a date from the calendar." class="self-start">
                                 <input id="preferred_date" name="preferred_date" type="date" value="{{ old('preferred_date') }}" min="{{ now()->toDateString() }}" required data-preferred-date class="{{ $inputClass }}">
                             </x-parish.form-field>
@@ -220,10 +220,6 @@
                 <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
                     <dt class="font-medium text-navy">Church / chapel</dt>
                     <dd data-review-church></dd>
-                </div>
-                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
-                    <dt class="font-medium text-navy">Documents</dt>
-                    <dd data-review-documents></dd>
                 </div>
             </dl>
 

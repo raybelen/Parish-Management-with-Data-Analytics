@@ -7,6 +7,7 @@
     @php
         $serviceName = \Illuminate\Support\Str::before($services[$service], ' (');
         $monthlyService = in_array($service, \App\Support\ParishStatistics::FORECAST_SERVICES, true);
+        $periodChange = $monthlyService ? ($insights['comparison']['percent'] ?? null) : $summary['change'];
     @endphp
     <p class="text-sm text-muted">See parish activity at a glance and explore how it changes over time.</p>
     <form class="admin-card grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_8rem_auto] xl:grid-cols-[minmax(0,1fr)_8rem_auto_auto]" method="GET">
@@ -16,7 +17,7 @@
         <a class="admin-secondary" href="{{ route('admin.statistics.index', ['year' => $year, 'service' => $service, 'export' => 1]) }}">Download totals</a>
     </form>
 
-    <section aria-label="Year at a glance" class="grid gap-4 sm:grid-cols-3">
+    <section aria-label="Year at a glance" @class(['grid gap-4 sm:grid-cols-2', 'xl:grid-cols-4' => $monthlyService, 'lg:grid-cols-3' => !$monthlyService])>
         <div class="admin-card">
             <p class="text-sm text-muted">{{ $serviceName }} in {{ $year }}</p>
             <p class="mt-3 text-3xl font-semibold tabular-nums">{{ $summary['total'] === null ? '—' : number_format($summary['total']) }}</p>
@@ -24,15 +25,25 @@
         </div>
         <div class="admin-card">
             <p class="text-sm text-muted">Compared with {{ $year - 1 }}</p>
-            <p class="mt-3 text-3xl font-semibold tabular-nums">{{ $summary['change'] === null ? '—' : number_format(abs($summary['change']), 1).'%' }}</p>
-            <p class="mt-2 text-xs text-muted">{{ $summary['change'] === null ? 'Available when both years are complete and the earlier total is above zero' : ($summary['change'] > 0 ? 'More than the previous year' : ($summary['change'] < 0 ? 'Fewer than the previous year' : 'Same as the previous year')) }}</p>
+            <p class="mt-3 text-3xl font-semibold tabular-nums">{{ $periodChange === null ? '—' : number_format(abs($periodChange), 1).'%' }}</p>
+            <p class="mt-2 text-xs text-muted">{{ $periodChange === null ? ($monthlyService ? 'Needs matching verified months; a percentage requires the earlier total is above zero' : 'Available when both years are complete and the earlier total is above zero') : ($periodChange > 0 ? 'More than the previous year' : ($periodChange < 0 ? 'Fewer than the previous year' : 'Same as the previous year')) }}</p>
+            @if($monthlyService && $insights['comparison'])
+                <p class="mt-2 text-xs text-muted">{{ $insights['period'] }} in both years: {{ number_format($insights['comparison']['current']) }} vs {{ number_format($insights['comparison']['previous']) }}.</p>
+            @endif
         </div>
+        @if($monthlyService)
+            <div class="admin-card">
+                <p class="text-sm text-muted">Average per recorded month</p>
+                <p class="mt-3 text-3xl font-semibold tabular-nums">{{ $insights['average'] === null ? '—' : number_format($insights['average'], 1) }}</p>
+                <p class="mt-2 text-xs text-muted">{{ $insights['verified'] }} verified months, including {{ $insights['zero_months'] }} with no services.</p>
+            </div>
+        @endif
         <div class="admin-card">
-            <p class="text-sm text-muted">Records available</p>
-            <p class="mt-3 text-3xl font-semibold tabular-nums">{{ $summary['months'] }} <span class="text-base font-normal text-muted">of 12 months</span></p>
-            <p class="mt-2 text-xs text-muted">{{ $summary['months'] === 12 ? 'All monthly totals verified' : 'This year is not yet complete' }}</p>
+            <p class="text-sm text-muted">Record completeness</p>
+            <p class="mt-3 text-3xl font-semibold tabular-nums">{{ $insights['verified'] }} <span class="text-base font-normal text-muted">of {{ $insights['expected'] }} completed months</span></p>
+            <p class="mt-2 text-xs text-muted">{{ $insights['expected'] === 0 ? 'No months have finished yet' : ($insights['missing'] === [] ? 'All completed months verified' : count($insights['missing']).' months need verification') }}. {{ $summary['months'] }}/12 months in the annual total.</p>
             @can('records.manage')
-                @if($summary['months'] < 12)<a class="mt-3 inline-flex text-sm font-semibold underline underline-offset-4" href="#monthly-records">Review missing months</a>@endif
+                @if($insights['missing'] !== [])<a class="mt-3 inline-flex text-sm font-semibold underline underline-offset-4" href="#monthly-records">Review missing months</a>@endif
             @endcan
         </div>
     </section>
@@ -41,7 +52,13 @@
         <section class="admin-card">
             <h2 class="text-2xl">Monthly activity</h2>
             <p class="mt-2 text-sm text-muted">{{ $services[$service] }} · {{ $year }}</p>
-            @include('admin.partials.statistics-chart', ['points' => $monthlyChart, 'chartLabel' => $serviceName.' by month in '.$year])
+            @include('admin.partials.statistics-chart', ['points' => $monthlyChart, 'chartLabel' => $serviceName.' by month in '.$year, 'comparisonYear' => $year - 1])
+            <details class="mt-5 border-t border-navy/10 pt-4">
+                <summary class="cursor-pointer text-sm font-semibold">View monthly comparison table</summary>
+                <div class="mt-3 overflow-x-auto"><table class="admin-table"><caption class="sr-only">Monthly {{ $serviceName }} totals for {{ $year }} and {{ $year - 1 }}</caption><thead><tr><th>Month</th><th>{{ $year }}</th><th>{{ $year - 1 }}</th></tr></thead><tbody>
+                    @foreach($monthlyChart as $point)<tr><td>{{ $point['label'] }}</td><td>{{ $point['value'] === null ? 'Not available' : number_format($point['value']) }}</td><td>{{ $point['previous'] === null ? 'Not available' : number_format($point['previous']) }}</td></tr>@endforeach
+                </tbody></table></div>
+            </details>
         </section>
         <details class="admin-card">
             <summary class="cursor-pointer font-semibold">Compare across the years</summary>
@@ -54,6 +71,8 @@
             @include('admin.partials.statistics-chart', ['points' => $annualChart, 'chartLabel' => $serviceName.' by year'])
         </section>
     @endif
+
+    @include('admin.partials.statistics-insights')
 
     <details id="monthly-records" class="admin-card scroll-mt-24" @if($errors->any()) open @endif>
         <summary class="cursor-pointer font-semibold">Monthly records · {{ $year }}</summary>

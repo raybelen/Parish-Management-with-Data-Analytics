@@ -84,7 +84,7 @@
                 <div class="max-w-3xl">
                     <p class="section-label text-gold">Request Received</p>
                     <h1 class="mt-5 text-4xl leading-tight text-ivory sm:text-6xl">Your appointment request is on file.</h1>
-                    <p class="mt-5 max-w-2xl text-base leading-8 text-ivory/70">Please keep your reference number. Online uploads are optional; submit required physical documents to the church office for verification.</p>
+                    <p class="mt-5 max-w-2xl text-base leading-8 text-ivory/70">Please keep your reference number and bring the required physical documents to the church office for verification.</p>
                 </div>
                 <div class="border border-gold/45 bg-ivory/5 p-6 lg:min-w-72">
                     <p class="text-xs font-medium tracking-[0.16em] uppercase text-ivory/60">Reference number</p>
@@ -194,7 +194,7 @@
                         <x-parish.dialog id="cancel-appointment-dialog" title="Cancel appointment request?" aria-describedby="cancel-appointment-description" class="border-red-700/40">
                             <p id="cancel-appointment-description">This will stop parish review of reference <span class="font-mono font-semibold text-navy">{{ $appointment->reference_number }}</span>.</p>
                             <div class="mt-5 border-l-2 border-red-700 bg-red-50 px-5 py-4 text-sm leading-6 text-red-900">
-                                Your request will be marked as cancelled. Its submitted details and documents will remain on file, but you cannot restore it from the website.
+                                Your request will be marked as cancelled. Its submitted details will remain on file, but you cannot restore it from the website.
                             </div>
                             <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                                 <button type="button" data-close-dialog class="inline-flex min-h-12 items-center justify-center border border-navy/20 px-6 py-3 text-sm font-medium text-navy transition-colors hover:border-gold hover:bg-gold/10">
@@ -265,11 +265,24 @@
                         </dl>
                     </section>
 
-                    <section aria-labelledby="documents-summary-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
-                        <p class="section-label text-muted">Documents</p>
-                        <h2 id="documents-summary-heading" class="mt-4 text-3xl">Uploaded files</h2>
+                    <section aria-labelledby="requirements-summary-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
+                        <p class="section-label text-muted">Requirements</p>
+                        <h2 id="requirements-summary-heading" class="mt-4 text-3xl">Documents to bring</h2>
+                        <p class="mt-3 text-sm leading-7 text-muted">Bring these physical documents to the church office for verification.</p>
+                        <ul class="mt-6 grid gap-3 sm:grid-cols-2">
+                            @forelse ($appointment->documentRequirements() as $requirement)
+                                <li class="flex gap-3 border border-navy/10 bg-white px-4 py-3 text-sm leading-6 text-navy">
+                                    <span aria-hidden="true" class="mt-2 size-1.5 shrink-0 rounded-full bg-gold"></span>
+                                    <span>{{ $requirement['label'] }}</span>
+                                </li>
+                            @empty
+                                <li class="text-sm text-muted">No document requirements are currently listed.</li>
+                            @endforelse
+                        </ul>
+
                         @if (filled($appointment->documents))
-                            <ul class="mt-7 grid gap-3">
+                            <h3 class="mt-8 text-xl">Previously uploaded files</h3>
+                            <ul class="mt-4 grid gap-3">
                                 @foreach ($appointment->documents as $files)
                                     @foreach ($files as $file)
                                         <li class="flex items-start justify-between gap-5 border border-navy/10 bg-white px-5 py-4">
@@ -282,8 +295,6 @@
                                     @endforeach
                                 @endforeach
                             </ul>
-                        @else
-                            <p class="mt-5 text-sm leading-7 text-muted">No documents were uploaded with this request.</p>
                         @endif
                     </section>
                 </div>

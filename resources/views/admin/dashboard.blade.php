@@ -65,7 +65,7 @@
         </section>
         @endcan
         @can('forecasts.manage')
-        <section class="admin-card"><h2 class="text-2xl">Service forecasts</h2><p class="my-3 text-sm text-muted">Explore estimated monthly activity to help plan parish services.</p><div class="flex flex-wrap gap-3">@foreach(\App\Support\ParishStatistics::FORECAST_SERVICES as $code)<a class="admin-secondary" href="{{ route('admin.forecasts.index', ['service' => $code]) }}">{{ \App\Support\ParishStatistics::SERVICES[$code] }}</a>@endforeach</div></section>
+        <section class="admin-card"><h2 class="text-2xl">Service Analytics</h2><p class="my-3 text-sm text-muted">See estimated parish activity for the next six months.</p><div class="flex flex-wrap gap-3">@foreach(\App\Support\ParishStatistics::FORECAST_SERVICES as $code)<a class="admin-secondary" href="{{ route('admin.forecasts.index', ['service' => $code]) }}">{{ \Illuminate\Support\Str::before(\App\Support\ParishStatistics::SERVICES[$code], ' (') }}</a>@endforeach</div></section>
         @endcan
     @endif
     @if($activity->isNotEmpty())<details class="admin-card"><summary class="cursor-pointer text-lg font-semibold">Recent office activity</summary><div class="mt-4">@foreach($activity as $entry)<p class="border-b border-navy/10 py-3 text-sm">{{ \Illuminate\Support\Str::headline($entry->action) }} · {{ $entry->actor?->name ?? 'Client / system' }} · {{ $entry->created_at->format('M j, g:i A') }}</p>@endforeach<a class="text-link mt-4" href="{{ route('admin.audit.index') }}">Open audit trail</a></div></details>@endif

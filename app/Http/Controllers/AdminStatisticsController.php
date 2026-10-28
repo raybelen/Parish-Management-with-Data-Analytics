@@ -9,6 +9,7 @@ use App\Models\ServiceRecord;
 use App\Support\CsvExport;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
+use App\Support\ParishInsights;
 use App\Support\ParishStatistics;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -21,7 +22,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminStatisticsController extends Controller
 {
-    public function index(Request $request, ParishStatistics $statistics): View|StreamedResponse
+    public function index(Request $request, ParishStatistics $statistics, ParishInsights $insights): View|StreamedResponse
     {
         abort_unless(config('office.analytics_enabled'), 404);
         Gate::authorize('reports.view');
@@ -48,6 +49,7 @@ class AdminStatisticsController extends Controller
         }
 
         $indexed = $rows->keyBy(fn ($row) => $row->month->format('Y-m'));
+        $analysis = $insights->forService($service, $year);
         $annualByYear = collect($annual)->keyBy('year');
         $summary = $annualByYear->get($year)['services'][$service] ?? ['total' => null, 'months' => 0];
         $previous = $annualByYear->get($year - 1)['services'][$service] ?? ['total' => null, 'months' => 0];
@@ -57,7 +59,8 @@ class AdminStatisticsController extends Controller
         for ($number = 1; $number <= 12; $number++) {
             $month = CarbonImmutable::create($year, $number, 1);
             $record = $indexed->get($month->format('Y-m'));
-            $monthlyChart[] = ['label' => $month->format('M'), 'value' => $record?->status === 'confirmed' && $month->lt(now()->startOfMonth()) ? $record->count : null, 'partial' => false];
+            $monthlyChart[] = ['label' => $month->format('M'), 'value' => $record?->status === 'confirmed' && $month->lt(now()->startOfMonth()) ? $record->count : null, 'partial' => false,
+                'previous' => $analysis['previous_months'][$number] ?? null];
         }
         $annualChart = array_map(fn ($row) => [
             'label' => (string) $row['year'], 'value' => $row['services'][$service]['total'],
@@ -68,6 +71,7 @@ class AdminStatisticsController extends Controller
             'year' => $year, 'service' => $service, 'services' => ParishStatistics::SERVICES,
             'rows' => $indexed, 'annual' => $annual, 'summary' => $summary,
             'monthlyChart' => $monthlyChart, 'annualChart' => $annualChart,
+            'insights' => $analysis,
             'suggestions' => $suggestions,
             'revisions' => AuditLog::query()->where('entity_type', MonthlyStatistic::class)->whereIn('entity_id', $rows->pluck('id'))->with('actor')->latest('id')->limit(30)->get(),
         ]);

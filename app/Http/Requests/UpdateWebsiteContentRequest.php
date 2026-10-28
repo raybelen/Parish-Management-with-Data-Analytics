@@ -30,6 +30,14 @@ class UpdateWebsiteContentRequest extends FormRequest
 
         foreach (WebsiteContent::fields() as $key => $field) {
             $rules['content.'.$key] = ['required', 'string', 'max:'.$field['max']];
+
+            if ($field['type'] === 'url') {
+                $rules['content.'.$key][] = 'url:http,https';
+            }
+
+            if ($field['type'] === 'email') {
+                $rules['content.'.$key][] = 'email:rfc';
+            }
         }
 
         return $rules;

@@ -1,0 +1,86 @@
+{
+  "reference": "Partial 2026 Statistics.pdf; January-September 2026 parish totals approved by the project owner",
+  "source_sha256": "6f4f95fa078f4f2dcc847c54619a44326919bd8b732b0beb268511eafd0c8f92",
+  "decisions": [
+    "Explicit zero means no event occurred and is a confirmed count.",
+    "January follows the PDF: 2 Weddings and 0 Confirmations, as confirmed by the project owner.",
+    "Baptisms count people; Weddings count couples; Funerals count parish Funeral Masses.",
+    "Confirmations are included in annual historical analytics only.",
+    "First Communicants are not supplied and remain unknown. October-December 2026 are not supplied.",
+    "The report supplies monthly counts only; January-September totals are calculated, not printed annual totals."
+  ],
+  "months": [
+    {
+      "month": "2026-01",
+      "baptism": 11,
+      "wedding": 2,
+      "funeral": 5,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2026-02",
+      "baptism": 23,
+      "wedding": 0,
+      "funeral": 3,
+      "confirmation": 0,
+      "first_communion": null
+    },
+    {
+      "month": "2026-03",
+      "baptism": 3,
+      "wedding": 1,
+      "funeral": 10,
+      "confirmation": 1,
+      "first_communion": null
+    },
+    {
+      "month": "2026-04",
+      "baptism": 3,
+      "wedding": 5,
+      "funeral": 5,
+      "confirmation": 4,
+      "first_communion": null
+    },
+    {
+      "month": "2026-05",
+      "baptism": 66,
+      "wedding": 0,
+      "funeral": 1,
+      "confirmation": 1,
+      "first_communion": null
+    },
+    {
+      "month": "2026-06",
+      "baptism": 2,
+      "wedding": 2,
+      "funeral": 4,
+      "confirmation": 2,
+      "first_communion": null
+    },
+    {
+      "month": "2026-07",
+      "baptism": 0,
+      "wedding": 0,
+      "funeral": 9,
+      "confirmation": 176,
+      "first_communion": null
+    },
+    {
+      "month": "2026-08",
+      "baptism": 3,
+      "wedding": 1,
+      "funeral": 5,
+      "confirmation": 2,
+      "first_communion": null
+    },
+    {
+      "month": "2026-09",
+      "baptism": 22,
+      "wedding": 2,
+      "funeral": 6,
+      "confirmation": 1,
+      "first_communion": null
+    }
+  ]
+}

@@ -10,7 +10,7 @@ class WebsiteContent
 {
     public const SETTING_KEY = 'website_content';
 
-    private const CACHE_KEY = 'parish.website-content.v1';
+    private const CACHE_KEY = 'parish.website-content.v3';
 
     /**
      * @return array<string, array{title: string, description: string, fields: array<string, array{label: string, value: string, type: string, max: int}>}>
@@ -41,7 +41,6 @@ class WebsiteContent
                     'announcements_copy' => self::field('Announcements introduction', 'The latest parish news, celebrations, and opportunities to take part.', 1000),
                     'gallery_label' => self::field('Gallery label', 'Our Community'),
                     'gallery_title' => self::field('Gallery title', 'Moments of Faith'),
-                    'gallery_note' => self::field('Gallery note', 'Illustrative church photography. Parish community photographs will be shared here.', 1000),
                 ],
             ],
             'about' => [
@@ -156,31 +155,25 @@ class WebsiteContent
                     'ministries_cta_copy' => self::field('Closing section message', 'Contact the parish office to learn more about joining a ministry or organization.', 1000),
                 ],
             ],
-            'gallery' => [
-                'title' => 'Gallery',
-                'description' => 'Captions for the three existing gallery images.',
-                'fields' => [
-                    'gallery_photo_one_title' => self::field('First photo caption', 'A sacred place'),
-                    'gallery_photo_two_title' => self::field('Second photo caption', 'In stillness and prayer'),
-                    'gallery_photo_three_title' => self::field('Third photo caption', 'Beauty that lifts the spirit'),
-                ],
-            ],
             'contact' => [
                 'title' => 'Contact page',
-                'description' => 'Contact placeholders, office hours, and appointment call-to-action copy.',
+                'description' => 'Contact details, location, office hours, and appointment call-to-action copy.',
                 'fields' => [
                     'contact_label' => self::field('Contact section label', 'Contact Us'),
                     'contact_title' => self::field('Contact section title', 'Connect With Our Parish'),
                     'contact_copy' => self::field('Contact section introduction', 'Reach the parish office through the contact method most convenient for you. We welcome questions about sacraments, documents, parish activities, and pastoral assistance.', 1500),
                     'contact_facebook_title' => self::field('Facebook label', 'Facebook'),
                     'contact_facebook_name' => self::field('Facebook display name', 'St. John Nepomucene Parish'),
-                    'contact_facebook_detail' => self::field('Facebook detail', 'Facebook page link to be added.', 1000),
+                    'contact_facebook_detail' => self::field('Facebook detail', 'Visit our official Facebook page for parish updates and announcements.', 1000),
+                    'contact_facebook_url' => self::field('Facebook page URL', 'https://www.facebook.com/profile.php?id=100080696044407', 255, 'url'),
                     'contact_phone_title' => self::field('Phone label', 'Phone'),
-                    'contact_phone_name' => self::field('Phone display name', 'Parish Office'),
-                    'contact_phone_detail' => self::field('Phone detail', 'Phone number to be added.', 1000),
+                    'contact_phone_name' => self::field('Phone display name', 'To be followed'),
+                    'contact_phone_detail' => self::field('Phone detail', 'The parish office phone number will be posted here once available.', 1000),
                     'contact_email_title' => self::field('Email label', 'Email'),
-                    'contact_email_name' => self::field('Email display name', 'Parish Office Email'),
-                    'contact_email_detail' => self::field('Email detail', 'Email address to be added.', 1000),
+                    'contact_email_name' => self::field('Email address', 'stjohnnepomucene88@gmail.com', 255, 'email'),
+                    'contact_email_detail' => self::field('Email detail', 'Send us an email for parish inquiries and assistance.', 1000),
+                    'contact_address' => self::field('Parish address', 'Purok 5, Bonga, Bacacay, Albay 4509, Philippines'),
+                    'contact_map_query' => self::field('Map coordinates or search query', '13.28137007718145,123.7579731871621'),
                     'office_hours_label' => self::field('Office hours label', 'Office Hours'),
                     'office_hours_title' => self::field('Office hours title', "We're Here to Help"),
                     'office_open_days' => self::field('Open days', 'Tuesdays to Sundays'),
@@ -256,12 +249,12 @@ class WebsiteContent
     }
 
     /** @return array{label: string, value: string, type: string, max: int} */
-    private static function field(string $label, string $value, int $max = 255): array
+    private static function field(string $label, string $value, int $max = 255, ?string $type = null): array
     {
         return [
             'label' => $label,
             'value' => $value,
-            'type' => $max > 255 ? 'textarea' : 'text',
+            'type' => $type ?? ($max > 255 ? 'textarea' : 'text'),
             'max' => $max,
         ];
     }

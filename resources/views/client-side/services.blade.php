@@ -10,6 +10,7 @@
                 'image' => 'images/service-baptism.png',
                 'image_alt' => 'A Catholic baptism at the baptismal font',
                 'modal_id' => 'baptism-requirements',
+                'service_type' => 'baptism',
             ],
             [
                 'number' => '02',
@@ -18,6 +19,7 @@
                 'image' => 'images/service-wedding.png',
                 'image_alt' => 'A couple holding hands during a Catholic wedding ceremony',
                 'modal_id' => 'wedding-requirements',
+                'service_type' => 'wedding',
             ],
             [
                 'number' => '03',
@@ -26,6 +28,7 @@
                 'image' => 'images/service-funeral.png',
                 'image_alt' => 'A Catholic funeral liturgy inside a parish church',
                 'modal_id' => 'funeral-requirements',
+                'service_type' => 'funeral',
             ],
         ];
 
@@ -129,17 +132,17 @@
     @push('dialogs')
         @foreach ($majorServices as $service)
             <x-parish.dialog :id="$service['modal_id']" :title="$service['title'].' Requirements'">
-                <p>Complete requirements and preparation details will be added here.</p>
-                <div class="mt-7 grid gap-6 border-t border-navy/10 pt-7 sm:grid-cols-2">
-                    <section>
-                        <h3 class="font-sans text-sm font-medium text-navy">Requirements</h3>
-                        <p class="mt-2 text-sm leading-7">Requirement list placeholder.</p>
-                    </section>
-                    <section>
-                        <h3 class="font-sans text-sm font-medium text-navy">Reminders</h3>
-                        <p class="mt-2 text-sm leading-7">Scheduling and preparation reminders placeholder.</p>
-                    </section>
-                </div>
+                <p class="text-sm leading-7 text-muted">Please prepare these documents and bring the physical copies to the church office for verification.</p>
+                <ul class="mt-7 grid gap-3 border-t border-navy/10 pt-7 sm:grid-cols-2">
+                    @forelse ($appointmentServices[$service['service_type']]['documents'] ?? [] as $requirement)
+                        <li class="flex gap-3 border border-navy/10 bg-ivory px-4 py-3 text-sm leading-6 text-navy">
+                            <span aria-hidden="true" class="mt-2 size-1.5 shrink-0 rounded-full bg-gold"></span>
+                            <span>{{ $requirement['label'] }}</span>
+                        </li>
+                    @empty
+                        <li class="text-sm text-muted">No document requirements are currently listed.</li>
+                    @endforelse
+                </ul>
                 <a href="{{ route('contact') }}" class="text-link mt-8">Contact the Parish Office <x-parish.icon name="arrow" class="size-4" /></a>
             </x-parish.dialog>
         @endforeach

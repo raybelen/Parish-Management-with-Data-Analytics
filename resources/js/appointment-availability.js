@@ -6,9 +6,7 @@ document.querySelectorAll('form[data-availability-url]').forEach((form) => {
     const status = form.querySelector('[data-availability-status]');
     if (!date || !time || !status) return;
 
-    const mode = form.elements.namedItem('baptism_mode');
-    const session = form.elements.namedItem('group_baptism_session_id');
-    const fields = [date, time, venue, service, mode, session].filter(Boolean);
+    const fields = [date, time, venue, service].filter(Boolean);
     const alternatives = document.createElement('div');
     alternatives.className = 'sm:col-span-2 flex flex-wrap gap-3';
     status.after(alternatives);
@@ -47,7 +45,7 @@ document.querySelectorAll('form[data-availability-url]').forEach((form) => {
             if (!response.ok || typeof payload.available !== 'boolean') throw new Error('Availability check failed');
             show(payload.available ? '' : payload.message, !payload.available);
             alternatives.replaceChildren();
-            if (!payload.available && (!session || session.disabled || !session.value) && !suggest && (!mode || mode.disabled || mode.value !== 'shared')) {
+            if (!payload.available && !suggest) {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'text-link';

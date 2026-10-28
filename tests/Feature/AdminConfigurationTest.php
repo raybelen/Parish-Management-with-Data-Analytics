@@ -116,13 +116,16 @@ class AdminConfigurationTest extends TestCase
             ->assertSee('Please contact the parish office.');
     }
 
-    public function test_new_service_accepts_optional_uploads_and_creates_recipient_without_registration(): void
+    public function test_new_service_lists_requirements_and_creates_recipient_without_registration(): void
     {
         $this->withoutVite();
         $service = ServiceType::factory()->create(['slug' => 'blessing', 'name' => 'House blessing', 'requirements' => ['letter' => ['label' => 'Request letter', 'required' => true, 'multiple' => false]]]);
         $payload = ['client_full_name' => 'Sample Contact', 'client_contact_number' => '09123456789', 'client_address' => 'Sample Address', 'preferred_contact_method' => 'phone', 'service_type' => $service->slug, 'preferred_date' => now()->addWeek()->toDateString(), 'preferred_time' => '09:00', 'preferred_church' => 'San Isidro Labrador Chapel', 'service' => ['recipient_full_name' => 'Sample Recipient']];
 
-        $this->get('/appointments/new')->assertSee('House blessing')->assertSee('Online uploads are optional');
+        $this->get('/appointments/new')
+            ->assertSee('House blessing')
+            ->assertSee('Request letter')
+            ->assertDontSee('type="file"', false);
         $response = $this->post('/appointments', $payload)->assertSessionHasNoErrors();
 
         $appointment = Appointment::query()->sole();
@@ -248,7 +251,7 @@ class AdminConfigurationTest extends TestCase
         ForecastRun::factory()->create();
         $this->verified($user);
 
-        $this->get('/admin')->assertOk()->assertDontSee('Parish historical statistics')->assertDontSee('Service forecasts');
+        $this->get('/admin')->assertOk()->assertDontSee('Parish historical statistics')->assertDontSee('Service Analytics');
         $this->get('/admin/settings')->assertOk()->assertDontSee('Advanced SARIMA parameters')->assertDontSee('Forecasts Manage');
         $this->get('/admin/reports')->assertOk()->assertDontSee('Monthly completed-service statistics')->assertDontSee('Forecast results and configuration');
         $this->get('/admin/forecasts')->assertNotFound();

@@ -11,10 +11,9 @@
                             'sm:col-span-5' => in_array($loop->index, [1, 2], true),
                             'sm:col-span-4' => $loop->index >= 3,
                         ])
-                        aria-label="Enlarge image: {{ $photo['title'] }}"
-                    ><img src="{{ $photo['src'] }}" alt="{{ $photo['alt'] }}" loading="lazy" decoding="async" width="2048" height="1365" class="gallery-photo"><div class="absolute inset-x-0 bottom-0 flex items-center justify-between bg-navy/80 px-6 py-4 text-ivory"><span class="font-display text-xl">{{ $photo['title'] }}</span><span aria-hidden="true" class="text-gold">↗</span></div></button>
+                        aria-label="Enlarge photo: {{ $photo['alt'] }}"
+                    ><img src="{{ $photo['src'] }}" alt="{{ $photo['alt'] }}" loading="lazy" decoding="async" width="2048" height="1365" class="gallery-photo"></button>
                 @endforeach
             </div>
-            <p class="mt-5 text-xs text-muted">{{ $websiteContent['gallery_note'] }}</p>
             </div>
         </section>

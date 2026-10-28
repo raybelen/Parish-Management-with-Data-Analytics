@@ -66,8 +66,7 @@
                                         <svg class="accordion-chevron size-4 text-[#80662e] transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m5 9 7 7 7-7" /></svg>
                                     </span>
                                 </summary>
-                                <div class="grid gap-7 border-t border-navy/10 px-5 py-7 sm:px-6 md:grid-cols-[minmax(180px,240px)_1fr] md:items-start">
-                                    <div class="flex aspect-4/3 items-center justify-center rounded-xl border border-gold/30 bg-[#eae5da] text-sm text-muted" role="img" aria-label="Photo placeholder for {{ $item['name'] }}">Photo Placeholder</div>
+                                <div class="border-t border-navy/10 px-5 py-7 sm:px-6">
                                     <p class="max-w-2xl text-base leading-8 text-muted">{{ $item['description'] }}</p>
                                 </div>
                             </details>

@@ -37,14 +37,21 @@ class AppointmentControllerTest extends TestCase
 
         $response->assertSee('Client Information')
             ->assertSee('Service Selection')
-            ->assertSee('Birth certificate')
-            ->assertSee('Marriage license')
-            ->assertSee('Death certificate')
+            ->assertSee('Documents to prepare')
+            ->assertSee('Photocopy of Birth Certificate with registry number (PSA or Local Civil Registry)')
+            ->assertSee('Marriage Contract, if parents are married')
+            ->assertSee('PSA Birth Certificate')
+            ->assertSee('Updated Baptismal & Confirmation Certificate (Purpose: For Marriage)')
+            ->assertSee('Marriage License, or, if civilly married, Marriage Contract with registry number')
+            ->assertSee('Pre-Cana Seminar')
+            ->assertSee('Photocopy of Death Certificate')
             ->assertSee('St. John Nepomucene Parish')
             ->assertSee('San Isidro Labrador Chapel')
             ->assertSee('Nuestra Señora de los Desamparados')
             ->assertSee('San Fernando Chapel')
             ->assertSee('Santa Misericordia Chapel');
+        $this->assertSame(0, $xpath->query('//form[@data-appointment-form]//input[@type="file"]')->length);
+        $this->assertSame(0, $xpath->query('//form[@data-appointment-form and @enctype="multipart/form-data"]')->length);
         $this->assertSame(3, $xpath->query('//section[@data-service-fields and @hidden]')->length);
         $this->assertSame(0, $xpath->query('//*[@data-date-offset]')->length);
         $this->assertSame(6, $xpath->query('//*[@data-time-value]')->length);
@@ -98,7 +105,7 @@ class AppointmentControllerTest extends TestCase
             ->assertSee('Go back and edit');
         $this->assertSame(1, $xpath->query('//form[@data-appointment-form]//button[@type="submit" and @data-review-appointment]')->length);
         $this->assertSame(1, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//button[@type="button" and @data-confirm-appointment]')->length);
-        $this->assertSame(7, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//dd[@*[starts-with(name(), "data-review-")]]')->length);
+        $this->assertSame(6, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//dd[@*[starts-with(name(), "data-review-")]]')->length);
     }
 
     #[DataProvider('invalidServiceDetails')]
@@ -183,12 +190,11 @@ class AppointmentControllerTest extends TestCase
      * @param  'baptism'|'wedding'|'funeral'  $serviceType
      */
     #[DataProvider('serviceTypes')]
-    public function test_valid_service_request_creates_pending_appointment_and_stores_documents(string $serviceType): void
+    public function test_valid_service_request_creates_pending_appointment_without_document_uploads(string $serviceType): void
     {
         $this->travelTo('2026-09-27 09:00:00');
-        config()->set('appointments.document_disk', 'supabase');
         Mail::fake();
-        Storage::fake('supabase');
+        Storage::fake('local');
 
         $payload = $this->validPayload($serviceType);
         $response = $this->post(route('appointments.store'), $payload);
@@ -201,6 +207,7 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame('2026-10-27 '.($serviceType === 'wedding' ? '10:00' : '09:30'), $appointment->starts_at?->format('Y-m-d H:i'));
         $this->assertSame('2026-10-27 '.($serviceType === 'wedding' ? '11:00' : '10:30'), $appointment->ends_at?->format('Y-m-d H:i'));
         $this->assertSame('St. John Nepomucene Parish', $appointment->confirmed_church);
+        $this->assertSame([], $appointment->documents);
         $this->assertMatchesRegularExpression('/^APT-260927-[A-Z0-9]{6}$/', $appointment->reference_number);
         $this->assertDatabaseHas('appointments', [
             'id' => $appointment->id,
@@ -211,19 +218,38 @@ class AppointmentControllerTest extends TestCase
             return $mail->appointment->is($appointment) && $mail->hasTo('maria@example.com');
         });
 
-        $documentPaths = collect($appointment->documents)->flatten(1)->pluck('path')->all();
-        Storage::disk('supabase')->assertExists($documentPaths);
+        Storage::disk('local')->assertDirectoryEmpty('/');
 
         $location = $response->headers->get('Location');
         $this->assertNotNull($location);
         $this->get($location)
             ->assertSee($appointment->reference_number)
             ->assertSee('Pending')
+            ->assertSee('Documents to bring')
             ->assertSee(config("appointments.services.{$serviceType}.label").' request');
+    }
+
+    public function test_appointment_request_rejects_document_uploads(): void
+    {
+        $this->travelTo('2026-09-27 09:00:00');
+        Storage::fake('local');
+        $payload = $this->validPayload('baptism');
+        $payload['documents'] = [
+            'birth_certificate' => [UploadedFile::fake()->create('birth-certificate.pdf', 100, 'application/pdf')],
+        ];
+
+        $this->post(route('appointments.store'), $payload)
+            ->assertSessionHasErrors([
+                'documents' => 'Document uploads are not accepted with appointment requests. Please bring the listed requirements to the church office.',
+            ]);
+
+        $this->assertDatabaseEmpty('appointments');
+        Storage::disk('local')->assertDirectoryEmpty('/');
     }
 
     public function test_request_without_an_email_does_not_queue_a_confirmation_email(): void
     {
+        $this->travelTo('2026-09-27 09:00:00');
         Mail::fake();
         Storage::fake('local');
         $payload = $this->validPayload('baptism');
@@ -537,21 +563,6 @@ class AppointmentControllerTest extends TestCase
             ],
         };
 
-        $documents = match ($serviceType) {
-            'baptism' => [
-                'birth_certificate' => [UploadedFile::fake()->create('birth-certificate.pdf', 100, 'application/pdf')],
-            ],
-            'wedding' => [
-                'baptismal_certificates' => [UploadedFile::fake()->create('baptismal-certificates.pdf', 100, 'application/pdf')],
-                'confirmation_certificates' => [UploadedFile::fake()->create('confirmation-certificates.pdf', 100, 'application/pdf')],
-                'marriage_license' => [UploadedFile::fake()->create('marriage-license.pdf', 100, 'application/pdf')],
-                'pre_marriage_seminar_certificate' => [UploadedFile::fake()->create('seminar-certificate.pdf', 100, 'application/pdf')],
-            ],
-            'funeral' => [
-                'death_certificate' => [UploadedFile::fake()->create('death-certificate.pdf', 100, 'application/pdf')],
-            ],
-        };
-
         return [
             'client_full_name' => 'Maria Santos',
             'client_contact_number' => '0912 345 6789',
@@ -564,7 +575,6 @@ class AppointmentControllerTest extends TestCase
             'preferred_church' => 'St. John Nepomucene Parish',
             'additional_notes' => 'Please call in the afternoon.',
             'service' => $serviceDetails,
-            'documents' => $documents,
         ];
     }
 

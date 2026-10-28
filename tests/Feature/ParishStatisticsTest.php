@@ -197,14 +197,27 @@ class ParishStatisticsTest extends TestCase
         $run = ForecastRun::query()->sole();
         $this->assertCount(132, $run->history);
         $this->assertSame('ready', $run->status);
-        $this->get('/admin/forecasts?service=wedding')->assertOk()->assertSee('Historical outlook')->assertSee('January 2026')->assertDontSee('95%');
+        $this->get('/admin/forecasts?service=wedding')->assertOk()
+            ->assertSee('Historical estimates')
+            ->assertSee('Service Analytics')
+            ->assertSee('Refresh analytics')
+            ->assertSee('What to expect')
+            ->assertSee('Possible range')
+            ->assertSee('How dependable are these estimates?')
+            ->assertSee('Interactive activity chart')
+            ->assertSee('data-chart-point', false)
+            ->assertSee('ESTIMATED')
+            ->assertDontSee('OUTLOOK')
+            ->assertSee('January 2026')
+            ->assertDontSee('SARIMA')
+            ->assertDontSee('95%');
         $export = $this->get('/admin/reports?type=forecast&from=2026-10-01&to=2026-10-31&export=1');
         $export->assertDownload();
         $this->assertStringContainsString('data_through', $export->streamedContent());
         $this->assertStringContainsString('2025-12', $export->streamedContent());
         $this->assertStringContainsString('Confirmed monthly parish statistics', $export->streamedContent());
         MonthlyStatistic::query()->where('service_type', 'wedding')->where('month', '2025-12-01')->update(['count' => 99]);
-        $this->get('/admin/forecasts?service=wedding')->assertSee('saved forecast is outdated')->assertDontSee('January 2026');
+        $this->get('/admin/forecasts?service=wedding')->assertSee('saved estimates are outdated')->assertDontSee('January 2026');
     }
 
     public function test_internal_gap_stops_forecasting_and_annual_only_services_cannot_forecast(): void

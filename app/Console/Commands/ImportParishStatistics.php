@@ -13,9 +13,9 @@ use RuntimeException;
 
 class ImportParishStatistics extends Command
 {
-    protected $signature = 'analytics:import-history';
+    protected $signature = 'analytics:import-history {--dataset=2015-2025 : Verified report set: 2015-2025 or 2026-partial}';
 
-    protected $description = 'Import the verified 2015–2025 parish totals without overwriting existing statistics';
+    protected $description = 'Import verified parish reports without overwriting existing statistics';
 
     public function handle(): int
     {
@@ -24,12 +24,25 @@ class ImportParishStatistics extends Command
 
             return self::FAILURE;
         }
-        $payload = json_decode(file_get_contents(database_path('seeders/parish-statistics-2015-2025.json')), true, 512, JSON_THROW_ON_ERROR);
+        $dataset = $this->option('dataset');
+        if (! in_array($dataset, ['2015-2025', '2026-partial'], true)) {
+            $this->error('Choose the 2015-2025 or 2026-partial report set.');
+
+            return self::FAILURE;
+        }
+        $path = database_path('seeders/parish-statistics-'.$dataset.'.json');
+        $payload = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+        $months = array_column($payload['months'], 'month');
+        if (max($months) >= now()->format('Y-m')) {
+            $this->error('Only completed months can be imported as verified statistics.');
+
+            return self::FAILURE;
+        }
         try {
-            $imported = Cache::lock('statistics:historical-import', 120)->block(3, function () use ($payload): int {
-                return DB::transaction(function () use ($payload): int {
+            $imported = Cache::lock('statistics:historical-import', 120)->block(3, function () use ($payload, $months, $path): int {
+                return DB::transaction(function () use ($payload, $months, $path): int {
                     $existingRows = MonthlyStatistic::query()->where('source', 'operational')
-                        ->whereBetween('month', ['2015-01-01', '2025-12-01'])->lockForUpdate()->get()
+                        ->whereIn('month', array_map(fn ($month) => $month.'-01', $months))->lockForUpdate()->get()
                         ->keyBy(fn ($record) => $record->month->format('Y-m').':'.$record->service_type);
                     $inserts = [];
                     $timestamp = now();
@@ -61,7 +74,7 @@ class ImportParishStatistics extends Command
                     }
                     $imported = count($inserts);
                     if ($imported > 0) {
-                        OfficeAudit::record('statistics.imported', null, [], ['rows' => $imported, 'reference' => $payload['reference'], 'sha256' => hash_file('sha256', database_path('seeders/parish-statistics-2015-2025.json'))], 'Import of user-approved monthly sums.');
+                        OfficeAudit::record('statistics.imported', null, [], ['rows' => $imported, 'reference' => $payload['reference'], 'sha256' => hash_file('sha256', $path), 'source_sha256' => $payload['source_sha256'] ?? null], 'Import of user-approved monthly totals.');
                     }
 
                     return $imported;

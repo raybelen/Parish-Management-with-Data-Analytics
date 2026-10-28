@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\OfficeSettings;
 use App\Support\WebsiteContent;
 use Illuminate\Contracts\View\View;
 
@@ -45,14 +46,15 @@ class ParishPageController extends Controller
             ],
         ];
         $photos = [
-            ['src' => asset('images/gallery-1.jpg'), 'alt' => 'Parishioners holding lighted candles during worship', 'title' => $websiteContent['gallery_photo_one_title']],
-            ['src' => asset('images/gallery-2.jpg'), 'alt' => 'A priest baptizing an infant', 'title' => $websiteContent['gallery_photo_two_title']],
-            ['src' => asset('images/gallery-3.jpg'), 'alt' => 'A Marian image displayed with flowers inside the church', 'title' => $websiteContent['gallery_photo_three_title']],
-            ['src' => asset('images/gallery-4.jpg'), 'alt' => 'A flower-adorned Marian image carried in a parish procession', 'title' => 'Faith in procession'],
-            ['src' => asset('images/gallery-5.jpg'), 'alt' => 'An altar server holding a rosary', 'title' => 'Prayer and devotion'],
-            ['src' => asset('images/gallery-6.jpg'), 'alt' => 'The parish community gathered for Mass', 'title' => 'Gathered in worship'],
+            ['src' => asset('images/gallery-1.jpg'), 'alt' => 'Parishioners holding lighted candles during worship'],
+            ['src' => asset('images/gallery-2.jpg'), 'alt' => 'A priest baptizing an infant'],
+            ['src' => asset('images/gallery-3.jpg'), 'alt' => 'A Marian image displayed with flowers inside the church'],
+            ['src' => asset('images/gallery-4.jpg'), 'alt' => 'A flower-adorned Marian image carried in a parish procession'],
+            ['src' => asset('images/gallery-5.jpg'), 'alt' => 'An altar server holding a rosary'],
+            ['src' => asset('images/gallery-6.jpg'), 'alt' => 'The parish community gathered for Mass'],
         ];
         $photos = $page === 'home' ? array_slice($photos, 0, 3) : $photos;
+        $appointmentServices = $page === 'services' ? OfficeSettings::services() : [];
 
         $pageTitle = match ($page) {
             'home' => 'Home',
@@ -65,7 +67,7 @@ class ParishPageController extends Controller
         };
 
         return view('client-side.'.$page, compact(
-            'ministries', 'announcements', 'photos', 'pageTitle', 'websiteContent',
+            'ministries', 'announcements', 'photos', 'pageTitle', 'websiteContent', 'appointmentServices',
         ));
     }
 }

@@ -11,7 +11,7 @@
         'Insights' => [
             ['route' => 'admin.statistics.index', 'label' => 'Parish statistics', 'ability' => 'reports.view', 'icon' => 'chart', 'active' => ['admin.statistics.*']],
             ['route' => 'admin.reports.index', 'label' => 'Reports & exports', 'ability' => 'reports.view', 'icon' => 'report', 'active' => ['admin.reports.*']],
-            ['route' => 'admin.forecasts.index', 'label' => 'Forecasts', 'ability' => 'forecasts.manage', 'icon' => 'chart', 'active' => ['admin.forecasts.*']],
+            ['route' => 'admin.forecasts.index', 'label' => 'Service Analytics', 'ability' => 'forecasts.manage', 'icon' => 'chart', 'active' => ['admin.forecasts.*']],
         ],
         'Administration' => [
             ['route' => 'admin.website-content.index', 'label' => 'Website content', 'ability' => 'content.manage', 'icon' => 'book', 'active' => ['admin.website-content.*']],

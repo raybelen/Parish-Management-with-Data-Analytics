@@ -36,9 +36,6 @@ class StoreAppointmentRequest extends FormRequest
         if ($this->routeIs('admin.appointments.details')) {
             $allowedServices = [$this->route('appointment')->service_type];
         }
-        $documentDefinitions = $services[$serviceType]['documents'] ?? [];
-        $documentKeys = array_keys($documentDefinitions);
-
         $rules = [
             'client_full_name' => ['required', 'string', 'max:255'],
             'client_contact_number' => $this->phoneRules(),
@@ -57,6 +54,7 @@ class StoreAppointmentRequest extends FormRequest
             'baptism_mode' => ['nullable', Rule::in(['private'])],
             'group_baptism_session_id' => ['prohibited'],
             'additional_notes' => ['nullable', 'string', 'max:2000'],
+            'documents' => ['prohibited'],
             'version' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'integer'],
             'change_reason' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'string', 'max:1000'],
             'service' => $serviceRules === []
@@ -64,26 +62,6 @@ class StoreAppointmentRequest extends FormRequest
                 : ['required', 'array:'.implode(',', $serviceKeys)],
             ...$serviceRules,
         ];
-
-        if ($documentKeys !== []) {
-            $rules['documents'] = [
-                'nullable',
-                'array:'.implode(',', $documentKeys),
-            ];
-
-            foreach ($documentDefinitions as $documentKey => $definition) {
-                $rules["documents.{$documentKey}"] = [
-                    'nullable',
-                    'array',
-                    'max:5',
-                ];
-                $rules["documents.{$documentKey}.*"] = [
-                    'file',
-                    'mimes:pdf,jpg,jpeg,png',
-                    'max:5120',
-                ];
-            }
-        }
 
         return $rules;
     }
@@ -151,9 +129,7 @@ class StoreAppointmentRequest extends FormRequest
             'service.contact_number.regex' => 'Please enter a valid contact number with 7 to 15 digits.',
             'preferred_date.after_or_equal' => 'The preferred date must be today or a future date.',
             'preferred_church.in' => 'The selected church or chapel is currently unavailable.',
-            'documents.*.required' => 'Please upload the required :attribute.',
-            'documents.*.*.mimes' => 'Each document must be a PDF, JPG, or PNG file.',
-            'documents.*.*.max' => 'Each document must not be larger than 5 MB.',
+            'documents.prohibited' => 'Document uploads are not accepted with appointment requests. Please bring the listed requirements to the church office.',
         ];
     }
 
@@ -176,11 +152,6 @@ class StoreAppointmentRequest extends FormRequest
 
         foreach (config('appointments.details.'.$this->string('service_type')->toString(), []) as $key => $definition) {
             $attributes["service.{$key}"] = mb_strtolower($definition['label']);
-        }
-
-        foreach (config('appointments.services.'.$this->string('service_type')->toString().'.documents', []) as $key => $definition) {
-            $attributes["documents.{$key}"] = mb_strtolower($definition['label']);
-            $attributes["documents.{$key}.*"] = mb_strtolower($definition['label']);
         }
 
         return $attributes;
