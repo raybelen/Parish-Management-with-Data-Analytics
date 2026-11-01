@@ -12,12 +12,14 @@ use Illuminate\Support\Collection;
 
 class AdminCalendar
 {
+    public function __construct(private PriestRotation $priestRotation) {}
+
     /** @return Collection<int, array<string, mixed>> */
     public function events(User $user, CarbonImmutable $from, ?CarbonImmutable $to): Collection
     {
         $schedules = $this->range(OfficeAccess::schedules($user), $from, $to)->with('personnel')->get()
             ->map(fn (Schedule $schedule): array => [
-                ...$schedule->only(['title', 'description', 'notes', 'location', 'department', 'category', 'personnel_id', 'status', 'version', 'recurrence', 'series_id', 'group_capacity', 'group_fee']),
+                ...$schedule->only(['title', 'description', 'notes', 'location', 'department', 'category', 'personnel_id', 'priest_required', 'status', 'version', 'recurrence', 'series_id', 'group_capacity', 'group_fee']),
                 'id' => 'schedule-'.$schedule->id,
                 'starts_at' => $schedule->starts_at->format('Y-m-d\TH:i'),
                 'ends_at' => $schedule->ends_at->format('Y-m-d\TH:i'),
@@ -26,19 +28,24 @@ class AdminCalendar
                 'edit_url' => $user->can('schedules.manage') ? route('admin.schedules.update', $schedule) : null,
                 'detail_url' => null,
                 'kind' => 'Schedule',
+                'assignment_status' => $schedule->priest_required && $schedule->personnel_id === null ? 'needs_reassignment' : 'assigned',
             ]);
         $appointments = collect();
         if ($user->can('appointments.view')) {
             $appointments = $this->range(OfficeAccess::appointments($user), $from, $to)
-                ->whereIn('status', ['confirmed', 'completed', 'cancelled'])->whereNotNull('ends_at')->with('personnel')->get()
+                ->whereIn('status', ['pending', 'confirmed', 'completed', 'cancelled'])->whereNotNull('ends_at')->with('personnel')->get()
                 ->map(fn (Appointment $appointment): array => [
                     'id' => 'appointment-'.$appointment->id, 'title' => ucfirst($appointment->service_type).' · '.$appointment->reference_number,
                     'starts_at' => $appointment->starts_at->format('Y-m-d\TH:i'), 'ends_at' => $appointment->ends_at->format('Y-m-d\TH:i'),
-                    'status' => $appointment->status === 'confirmed' ? 'scheduled' : $appointment->status,
+                    'status' => in_array($appointment->status, ['pending', 'confirmed'], true) ? 'scheduled' : $appointment->status,
                     'location' => $appointment->confirmed_church, 'personnel_id' => $appointment->personnel_id,
                     'personnel' => $appointment->personnel?->name, 'department' => null, 'category' => ucfirst($appointment->service_type),
-                    'description' => 'Manage this appointment through its existing office workflow.', 'notes' => null,
+                    'description' => $appointment->status === 'pending'
+                        ? 'Awaiting physical document verification before public confirmation.'
+                        : 'Manage this appointment through its existing office workflow.',
+                    'notes' => $appointment->status === 'pending' ? 'Awaiting documents' : null,
                     'edit_url' => null, 'detail_url' => route('admin.appointments.show', $appointment), 'kind' => 'Appointment',
+                    'priest_required' => true, 'assignment_status' => $appointment->personnel_id === null ? 'needs_reassignment' : 'assigned',
                 ]);
         }
         $blocks = $this->range(ScheduleBlock::query(), $from, $to)
@@ -89,30 +96,27 @@ class AdminCalendar
     /** @return list<array<string, mixed>> */
     private function regularMasses(CarbonImmutable $from, CarbonImmutable $to): array
     {
+        $this->priestRotation->warmPeriod($from, $to);
         $events = [];
         for ($date = $from->startOfDay(); $date < $to; $date = $date->addDay()) {
-            foreach (config('parish.regular_schedules', []) as $index => $schedule) {
-                if (! in_array($date->dayOfWeekIso, $schedule['days'], true)) {
+            foreach ($this->priestRotation->regularMassAssignments($date) as $mass) {
+                $start = $mass['starts_at'];
+                $end = $mass['ends_at'];
+                if ($end <= $from || $start >= $to) {
                     continue;
                 }
-                foreach ($schedule['times'] as $time) {
-                    $start = $date->setTimeFromTimeString($time['value']);
-                    $end = $start->addMinutes($schedule['duration_minutes'] ?? 60);
-                    if ($end <= $from || $start >= $to) {
-                        continue;
-                    }
-                    $events[] = [
-                        'id' => 'mass-'.$index.'-'.$start->format('YmdHi'),
-                        'title' => $schedule['service'],
-                        'starts_at' => $start->format('Y-m-d\TH:i'),
-                        'ends_at' => $end->format('Y-m-d\TH:i'),
-                        'location' => $schedule['church'] ?? config('parish.churches.0'),
-                        'status' => 'scheduled', 'category' => 'Mass', 'kind' => 'Regular Mass',
-                        'personnel_id' => null, 'personnel' => null, 'department' => null,
-                        'description' => 'Regular weekly Mass. The venue remains reserved for '.($schedule['buffer_minutes'] ?? 30).' minutes after Mass.',
-                        'notes' => null, 'edit_url' => null, 'detail_url' => null,
-                    ];
-                }
+                $events[] = [
+                    'id' => 'mass-'.$mass['key'],
+                    'title' => $mass['title'],
+                    'starts_at' => $start->format('Y-m-d\TH:i'),
+                    'ends_at' => $end->format('Y-m-d\TH:i'),
+                    'location' => $mass['location'],
+                    'status' => 'scheduled', 'category' => 'Mass', 'kind' => 'Regular Mass',
+                    'personnel_id' => $mass['personnel_id'], 'personnel' => $mass['personnel'], 'department' => null,
+                    'priest_required' => true, 'assignment_status' => $mass['assignment_status'],
+                    'description' => 'Regular weekly Mass. The venue remains reserved after Mass.',
+                    'notes' => null, 'edit_url' => null, 'detail_url' => null,
+                ];
             }
         }
 

@@ -103,8 +103,9 @@ class AdminConfigurationTest extends TestCase
         $this->get('/admin/appointments/create')
             ->assertSee('San Fernando Chapel')
             ->assertDontSee('San Isidro Labrador Chapel');
-        $this->get('/admin/appointments/'.$existingAppointment->reference_number.'/edit')
-            ->assertSee('San Isidro Labrador Chapel (currently unavailable)');
+        $this->get('/admin/appointments/'.$existingAppointment->reference_number)
+            ->assertSee('San Isidro Labrador Chapel')
+            ->assertDontSee('name="confirmed_church"', false);
         $this->assertSame('San Isidro Labrador Chapel', $existingAppointment->refresh()->preferred_church);
         $this->assertDatabaseHas('audit_logs', ['action' => 'settings.updated']);
 
@@ -120,7 +121,7 @@ class AdminConfigurationTest extends TestCase
     {
         $this->withoutVite();
         $service = ServiceType::factory()->create(['slug' => 'blessing', 'name' => 'House blessing', 'requirements' => ['letter' => ['label' => 'Request letter', 'required' => true, 'multiple' => false]]]);
-        $payload = ['client_full_name' => 'Sample Contact', 'client_contact_number' => '09123456789', 'client_address' => 'Sample Address', 'preferred_contact_method' => 'phone', 'service_type' => $service->slug, 'preferred_date' => now()->addWeek()->toDateString(), 'preferred_time' => '09:00', 'preferred_church' => 'San Isidro Labrador Chapel', 'service' => ['recipient_full_name' => 'Sample Recipient']];
+        $payload = ['client_full_name' => 'Sample Contact', 'client_contact_number' => '09123456789', 'client_address' => 'Sample Address', 'preferred_contact_method' => 'phone', 'service_type' => $service->slug, 'preferred_date' => now()->addWeek()->toDateString(), 'preferred_time' => '09:00', 'preferred_church' => 'San Isidro Labrador Chapel', 'payment_option' => 'walk_in', 'service' => ['recipient_full_name' => 'Sample Recipient']];
 
         $this->get('/appointments/new')
             ->assertSee('House blessing')
@@ -187,19 +188,52 @@ class AdminConfigurationTest extends TestCase
         $this->assertDatabaseCount('office_notifications', 2);
     }
 
-    public function test_office_forms_use_the_updated_service_fields_and_preserve_saved_values(): void
+    public function test_expiry_command_releases_only_overdue_unverified_reservations(): void
+    {
+        $this->travelTo('2026-10-04 09:00:00');
+        $overdue = Appointment::factory()->create([
+            'source' => OfficeSettings::source(),
+            'status' => 'pending',
+            'documents_due_at' => '2026-10-04 08:59:00',
+        ]);
+        $future = Appointment::factory()->create([
+            'source' => OfficeSettings::source(),
+            'status' => 'pending',
+            'documents_due_at' => '2026-10-04 09:01:00',
+            'starts_at' => '2026-10-04 09:01:00',
+        ]);
+        $pastAppointment = Appointment::factory()->create([
+            'source' => OfficeSettings::source(),
+            'status' => 'pending',
+            'documents_due_at' => '2026-10-04 12:00:00',
+            'starts_at' => '2026-10-04 08:59:00',
+        ]);
+        $confirmed = Appointment::factory()->create([
+            'source' => OfficeSettings::source(),
+            'status' => 'confirmed',
+            'documents_due_at' => '2026-10-04 08:59:00',
+        ]);
+
+        $this->artisan('appointments:expire-unverified')
+            ->expectsOutput('2 unverified appointment reservation(s) expired.')
+            ->assertSuccessful();
+
+        $this->assertSame('expired', $overdue->refresh()->status);
+        $this->assertSame('pending', $future->refresh()->status);
+        $this->assertSame('expired', $pastAppointment->refresh()->status);
+        $this->assertSame(
+            'The scheduled appointment time passed before physical document verification was completed.',
+            $pastAppointment->outcome,
+        );
+        $this->assertSame('confirmed', $confirmed->refresh()->status);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'appointment.expired', 'entity_id' => $overdue->id]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'appointment.expired', 'entity_id' => $pastAppointment->id]);
+    }
+
+    public function test_office_creation_form_uses_the_updated_service_fields(): void
     {
         $this->withoutVite();
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
-        $appointment = Appointment::factory()->create([
-            'service_type' => 'wedding',
-            'service_details' => [
-                'groom_mother_maiden_name' => 'Ana Cruz',
-                'bride_mother_maiden_name' => 'Luz Santos',
-                'godfather_address' => '123 Parish Road',
-            ],
-        ]);
-
         $this->get('/admin/appointments/create')
             ->assertSee('name="service[father_origin_address]"', false)
             ->assertSee('name="service[mother_origin_address]"', false)
@@ -213,31 +247,21 @@ class AdminConfigurationTest extends TestCase
             ->assertSee('name="service[anointing_of_sick]"', false)
             ->assertDontSee('name="service[minister_name]"', false)
             ->assertDontSee('name="service[bride_contact_number]"', false);
-
-        $this->get('/admin/appointments/'.$appointment->reference_number.'/edit')
-            ->assertSee('Ana Cruz')
-            ->assertSee('Luz Santos')
-            ->assertSee('123 Parish Road')
-            ->assertDontSee('name="service[minister_name]"', false);
     }
 
-    public function test_contact_corrections_update_participants_and_are_audited(): void
+    public function test_staff_cannot_edit_client_or_participant_details_after_creation(): void
     {
         $this->withoutVite();
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create();
-        $appointment->update(['service_details' => [...$appointment->service_details, 'special_requests' => 'Retain this request']]);
-        ServiceType::query()->where('slug', 'baptism')->update(['active' => false]);
-        $payload = $appointment->only(['client_full_name', 'client_contact_number', 'client_address', 'preferred_contact_method', 'client_email', 'service_type', 'preferred_church']);
-        $payload = [...$payload, 'preferred_date' => $appointment->preferred_date->toDateString(), 'preferred_time' => '09:00', 'service' => [...$appointment->service_details, 'child_full_name' => 'Correct Child'], 'change_reason' => 'Original certificate checked', 'version' => 1];
-        unset($payload['service']['special_requests']);
-        $this->get('/admin/appointments/'.$appointment->reference_number.'/edit')->assertSee($appointment->client_full_name);
+        $before = $appointment->refresh()->getAttributes();
 
-        $this->patch('/admin/appointments/'.$appointment->reference_number.'/details', $payload)->assertSessionHasNoErrors();
+        $this->get('/admin/appointments/'.$appointment->reference_number.'/edit')->assertNotFound();
+        $this->patch('/admin/appointments/'.$appointment->reference_number.'/details', [
+            'client_full_name' => 'Changed by staff',
+        ])->assertNotFound();
 
-        $this->assertDatabaseHas('appointment_participants', ['appointment_id' => $appointment->id, 'role' => 'child', 'full_name' => 'Correct Child']);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'appointment.details_corrected', 'entity_id' => $appointment->id]);
-        $this->assertSame('Retain this request', $appointment->refresh()->service_details['special_requests']);
+        $this->assertSame($before, $appointment->refresh()->getAttributes());
     }
 
     public function test_disabled_analytics_are_hidden_without_removing_configuration_or_results(): void

@@ -31,6 +31,8 @@ class AppointmentFactory extends Factory
             'preferred_time' => '09:00',
             'preferred_church' => 'St. John Nepomucene Parish',
             'additional_notes' => null,
+            'payment_option' => 'walk_in',
+            'payment_status' => 'not_required',
             'service_details' => [
                 'child_full_name' => fake()->name(),
                 'child_date_of_birth' => fake()->dateTimeBetween('-1 year', '-1 month')->format('Y-m-d'),

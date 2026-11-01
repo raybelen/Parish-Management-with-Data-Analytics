@@ -16,6 +16,7 @@ class OfficeSettings
     {
         return ServiceType::query()->orderBy('id')->get()->mapWithKeys(fn ($service) => [$service->slug => [
             'label' => $service->name, 'documents' => $service->requirements, 'active' => $service->active,
+            'fee_cents' => $service->fee_cents,
         ]])->all();
     }
 

@@ -15,7 +15,8 @@ class AppointmentAvailabilityController extends Controller
     public function __invoke(Request $request, ReserveAppointmentSlot $slots, ?Appointment $appointment = null): JsonResponse
     {
         if ($appointment !== null) {
-            abort_unless($appointment->status === 'pending', 403);
+            abort_unless(in_array($appointment->status, ['pending', 'confirmed'], true)
+                && ($appointment->status === 'pending' || $appointment->starts_at?->isFuture()), 403);
         }
         $data = $request->validate([
             'group_baptism_session_id' => ['prohibited'],
@@ -31,12 +32,12 @@ class AppointmentAvailabilityController extends Controller
             : (clone $appointment)->fill(array_intersect_key($data, array_flip(['preferred_date', 'preferred_time', ...($appointment->group_baptism_session_id ? ['group_baptism_session_id', 'preferred_church'] : [])])));
         $message = $request->input('baptism_mode') === 'shared' && ! $candidate->group_baptism_session_id
             ? 'Please choose an authorized Sunday group baptism session.'
-            : $slots->conflictMessage($candidate);
+            : $slots->conflictMessage($candidate, memoize: true);
         $alternatives = [];
         if ($message !== null && $request->boolean('suggest') && ! $candidate->group_baptism_session_id) {
             foreach (['08:00', '08:30', '09:00', '09:30', '10:00', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30'] as $time) {
                 $alternative = (clone $candidate)->forceFill(['preferred_time' => $time]);
-                if ($slots->conflictMessage($alternative) === null) {
+                if ($slots->conflictMessage($alternative, memoize: true) === null) {
                     $alternatives[] = ['time' => $time, 'label' => CarbonImmutable::parse($time)->format('g:i A')];
                 }
             }

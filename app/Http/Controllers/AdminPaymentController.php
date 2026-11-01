@@ -32,6 +32,13 @@ class AdminPaymentController extends Controller
             abort_unless($locked->version === (int) $data['version'], 409);
             $before = $locked->fee_cents;
             $locked->fee_cents = RecordPayment::cents($data['fee']);
+            $locked->load('payments');
+            $locked->payment_status = match (true) {
+                $locked->fee_cents === 0 => 'not_required',
+                $locked->netPaidCents() <= 0 => 'unpaid',
+                $locked->balanceCents() === 0 => 'paid',
+                default => 'partial',
+            };
             $locked->version++;
             $locked->save();
             OfficeAudit::record('appointment.fee_changed', $locked, ['fee_cents' => $before], ['fee_cents' => $locked->fee_cents], $data['reason']);

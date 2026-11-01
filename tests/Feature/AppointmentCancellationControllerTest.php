@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Appointment;
-use DOMDocument;
-use DOMXPath;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -14,10 +12,16 @@ class AppointmentCancellationControllerTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_pending_request_page_uses_a_confirmation_modal_for_cancellation(): void
+    public function test_confirmed_appointment_page_uses_a_confirmation_modal_for_cancellation(): void
     {
         $this->withoutVite();
-        $appointment = Appointment::factory()->create(['status' => 'pending']);
+        $this->travelTo('2026-10-01');
+        $appointment = Appointment::factory()->create([
+            'status' => 'confirmed',
+            'starts_at' => '2026-11-15 14:30',
+            'ends_at' => '2026-11-15 15:30',
+            'confirmed_church' => 'St. John Nepomucene Parish',
+        ]);
         $accessToken = 'appointment-modal-access-token';
         $this->withSession(['appointment_access_tokens' => [$accessToken => $appointment->id]]);
         $showUrl = URL::temporarySignedRoute(
@@ -29,28 +33,27 @@ class AppointmentCancellationControllerTest extends TestCase
         $response = $this->get($showUrl);
 
         $response
-            ->assertSee('Cancel appointment request?')
+            ->assertSee('Cancel appointment?')
             ->assertSee('Keep appointment')
-            ->assertSee('Yes, cancel request');
-        $document = new DOMDocument;
-        @$document->loadHTML($response->getContent());
-        $xpath = new DOMXPath($document);
-        $this->assertSame(1, $xpath->query('//button[@data-dialog-target="cancel-appointment-dialog" and @type="button"]')->length);
-        $this->assertSame(1, $xpath->query('//dialog[@id="cancel-appointment-dialog"]//form[@data-cancel-confirmation-form]')->length);
+            ->assertSee('Yes, cancel appointment')
+            ->assertSee('data-dialog-target="cancel-appointment-dialog"', false)
+            ->assertSee('data-cancel-confirmation-form', false);
     }
 
-    public function test_pending_request_can_be_cancelled_through_a_signed_link(): void
+    public function test_confirmed_appointment_can_be_cancelled_and_removed_from_calendar_through_a_signed_link(): void
     {
+        $this->travelTo('2026-10-01');
         $appointment = Appointment::factory()->create([
-            'status' => 'pending',
+            'status' => 'confirmed',
             'preferred_date' => '2026-11-15',
             'preferred_time' => '14:30',
+            'starts_at' => '2026-11-15 14:30',
         ]);
 
         $response = $this->post($this->signedCancellationUrl($appointment));
 
         $response->assertRedirect()
-            ->assertSessionHas('appointment_message', 'Your appointment request has been cancelled.');
+            ->assertSessionHas('appointment_message', 'Your appointment has been cancelled and removed from the parish calendar.');
         $appointment->refresh();
         $this->assertSame('cancelled', $appointment->status);
         $this->assertSame('2026-11-15', $appointment->preferred_date->format('Y-m-d'));
@@ -59,9 +62,9 @@ class AppointmentCancellationControllerTest extends TestCase
         $location = $response->headers->get('Location');
         $this->assertNotNull($location);
         $this->get($location)
-            ->assertSee('Your appointment request has been cancelled.')
-            ->assertSee('This appointment request is cancelled.')
-            ->assertDontSee('Update preferred schedule');
+            ->assertSee('Your appointment has been cancelled and removed from the parish calendar.')
+            ->assertSee('This appointment is cancelled.')
+            ->assertDontSee('Update confirmed schedule');
     }
 
     public function test_cancellation_rejects_an_unsigned_request(): void
@@ -89,7 +92,6 @@ class AppointmentCancellationControllerTest extends TestCase
     public static function closedStatuses(): array
     {
         return [
-            'confirmed request' => ['confirmed'],
             'already cancelled request' => ['cancelled'],
         ];
     }

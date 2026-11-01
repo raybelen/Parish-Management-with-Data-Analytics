@@ -18,6 +18,8 @@ return [
         'minimum_months' => 36,
         'order' => [1, 1, 1],
         'seasonal_order' => [0, 1, 1, 12],
+        'priest_rotation_anchor_date' => null,
+        'priest_rotation_anchor_position' => null,
     ],
     'permissions' => [
         'admin' => ['schedules.view', 'schedules.manage', 'appointments.view', 'appointments.manage', 'documents.manage', 'payments.manage', 'records.view', 'records.manage', 'reports.view', 'finance.view', 'forecasts.manage', 'settings.manage', 'content.manage', 'audit.view', 'notifications.manage'],

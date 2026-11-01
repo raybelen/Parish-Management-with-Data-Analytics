@@ -4,16 +4,33 @@ namespace App\Actions;
 
 use App\Models\Appointment;
 use App\Models\ParishSetting;
+use App\Models\Personnel;
 use App\Models\Schedule;
 use App\Models\ScheduleBlock;
 use App\Models\ServiceType;
 use App\Support\OfficeSettings;
+use App\Support\PriestRotation;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ReserveAppointmentSlot
 {
+    /** @var array<string, bool> */
+    private array $activeServiceCache = [];
+
+    /** @var array<string, Collection<int, Appointment>> */
+    private array $appointmentCache = [];
+
+    /** @var array<string, Collection<int, Schedule>> */
+    private array $scheduleCache = [];
+
+    /** @var array<string, Collection<int, ScheduleBlock>> */
+    private array $scheduleBlockCache = [];
+
+    public function __construct(private PriestRotation $priestRotation) {}
+
     public function handle(Appointment $appointment): bool
     {
         return DB::transaction(function () use ($appointment): bool {
@@ -25,10 +42,15 @@ class ReserveAppointmentSlot
                 throw ValidationException::withMessages(['preferred_time' => $conflict]);
             }
             $start = $this->start($locked);
+            $documentsComplete = $locked->status === 'confirmed' || $locked->physicalDocumentsComplete();
             $locked->forceFill([
                 'starts_at' => $start, 'ends_at' => $start->addHour(), 'reserved_until' => $start->addHour(),
-                'confirmed_church' => $locked->preferred_church, 'buffer_minutes' => 0, 'personnel_id' => null,
+                'confirmed_church' => $locked->preferred_church, 'buffer_minutes' => 0,
+                'status' => $documentsComplete ? 'confirmed' : 'pending',
+                'documents_due_at' => $documentsComplete ? null : now(config('office.timezone'))->addDays(3),
             ])->save();
+            $this->priestRotation->warmPeriod($start->startOfDay(), $start->endOfDay());
+            $this->priestRotation->assignAppointment($locked);
 
             return true;
         });
@@ -39,7 +61,7 @@ class ReserveAppointmentSlot
         return CarbonImmutable::parse($appointment->preferred_date->toDateString().' '.$appointment->preferred_time, config('office.timezone'));
     }
 
-    public function conflictMessage(Appointment $appointment, ?int $personnelId = null, ?int $exceptSchedule = null): ?string
+    public function conflictMessage(Appointment $appointment, ?int $personnelId = null, ?int $exceptSchedule = null, bool $memoize = false): ?string
     {
         $start = $this->start($appointment);
         $end = $start->addHour();
@@ -65,8 +87,17 @@ class ReserveAppointmentSlot
         if ($type === 'wedding' && ! in_array($start->format('H:i'), ['08:00', '08:30', '09:00', '09:30', '10:00', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30'], true)) {
             return 'Weddings start every 30 minutes from 8:00-10:00 AM or 1:00-3:30 PM. Please choose one of these times.';
         }
-        if (! ServiceType::query()->where('slug', $type)->where('active', true)->exists()) {
+        $serviceIsActive = $memoize
+            ? ($this->activeServiceCache[$type] ??= ServiceType::query()->where('slug', $type)->where('active', true)->exists())
+            : ServiceType::query()->where('slug', $type)->where('active', true)->exists();
+        if (! $serviceIsActive) {
             return 'This service is unavailable. Please contact the parish office.';
+        }
+        if ($personnelId !== null) {
+            $personnel = Personnel::query()->find($personnelId);
+            if ($personnel !== null && $this->priestRotation->isUnavailable($personnel, $start)) {
+                return 'This priest is unavailable on the selected date. Choose another priest.';
+            }
         }
 
         $session = $sessionId ? Schedule::query()->find($sessionId) : null;
@@ -83,12 +114,7 @@ class ReserveAppointmentSlot
             }
         }
 
-        $others = Appointment::query()->where('source', $source)->whereIn('status', ['pending', 'confirmed', 'completed'])
-            ->when($appointment->exists, fn ($query) => $query->whereKeyNot($appointment->id))
-            ->where(function ($query) use ($start): void {
-                $query->whereBetween('starts_at', [$start->startOfDay(), $start->endOfDay()])
-                    ->orWhere(fn ($legacy) => $legacy->whereNull('starts_at')->where('status', 'confirmed')->whereDate('preferred_date', $start->toDateString()));
-            })->get();
+        $others = $this->appointmentsForDate($appointment, $source, $start, $memoize);
         foreach ($others as $other) {
             $otherStart = $other->starts_at ?? $this->start($other);
             $otherEnd = $other->ends_at ?? $otherStart->addHour();
@@ -105,9 +131,7 @@ class ReserveAppointmentSlot
             }
         }
 
-        $schedules = Schedule::query()->where('source', $source)->where('status', 'scheduled')
-            ->when($exceptSchedule, fn ($query) => $query->whereKeyNot($exceptSchedule))
-            ->where('starts_at', '<', $start->addDay()->startOfDay())->where('ends_at', '>', $start->startOfDay())->get();
+        $schedules = $this->schedulesForDate($source, $start, $exceptSchedule, $memoize);
         foreach ($schedules as $schedule) {
             if ($schedule->category === 'Group Baptism' && $schedule->starts_at->isSameDay($start)
                 && ($message = $this->periodConflict($type, $start, 'baptism', $schedule->starts_at))) {
@@ -121,13 +145,9 @@ class ReserveAppointmentSlot
                 return 'This time conflicts with a parish activity. Please choose another available time or venue.';
             }
         }
-        $blocked = ScheduleBlock::query()->where('starts_at', '<', $end)->where('ends_at', '>', $start)
-            ->where(function ($query) use ($venue, $personnelId): void {
-                $query->where('church', $venue);
-                if ($personnelId) {
-                    $query->orWhere('personnel_id', $personnelId);
-                }
-            })->exists();
+        $blocked = $this->scheduleBlocksForDate($start, $memoize)->contains(fn (ScheduleBlock $block): bool => $block->starts_at < $end
+            && $block->ends_at > $start
+            && ($block->church === $venue || ($personnelId !== null && $block->personnel_id === $personnelId)));
         if ($blocked) {
             return 'This time is blocked. Please choose another available time or venue.';
         }
@@ -148,6 +168,56 @@ class ReserveAppointmentSlot
         }
 
         return null;
+    }
+
+    /** @return Collection<int, Appointment> */
+    private function appointmentsForDate(Appointment $appointment, string $source, CarbonImmutable $start, bool $memoize): Collection
+    {
+        $load = fn (): Collection => Appointment::query()->where('source', $source)->whereIn('status', ['pending', 'confirmed', 'completed'])
+            ->when($appointment->exists, fn ($query) => $query->whereKeyNot($appointment->id))
+            ->where(function ($query) use ($start): void {
+                $query->whereBetween('starts_at', [$start->startOfDay(), $start->endOfDay()])
+                    ->orWhere(fn ($legacy) => $legacy->whereNull('starts_at')->where('status', 'confirmed')->whereDate('preferred_date', $start->toDateString()));
+            })->get();
+
+        if (! $memoize) {
+            return $load();
+        }
+
+        $key = implode(':', [$source, $start->toDateString(), $appointment->exists ? $appointment->id : 'new']);
+
+        return $this->appointmentCache[$key] ??= $load();
+    }
+
+    /** @return Collection<int, Schedule> */
+    private function schedulesForDate(string $source, CarbonImmutable $start, ?int $exceptSchedule, bool $memoize): Collection
+    {
+        $load = fn (): Collection => Schedule::query()->where('source', $source)->where('status', 'scheduled')
+            ->when($exceptSchedule, fn ($query) => $query->whereKeyNot($exceptSchedule))
+            ->where('starts_at', '<', $start->addDay()->startOfDay())->where('ends_at', '>', $start->startOfDay())->get();
+
+        if (! $memoize) {
+            return $load();
+        }
+
+        $key = implode(':', [$source, $start->toDateString(), $exceptSchedule ?? 'none']);
+
+        return $this->scheduleCache[$key] ??= $load();
+    }
+
+    /** @return Collection<int, ScheduleBlock> */
+    private function scheduleBlocksForDate(CarbonImmutable $start, bool $memoize): Collection
+    {
+        $load = fn (): Collection => ScheduleBlock::query()
+            ->where('starts_at', '<', $start->addDay()->startOfDay())
+            ->where('ends_at', '>', $start->startOfDay())
+            ->get();
+
+        if (! $memoize) {
+            return $load();
+        }
+
+        return $this->scheduleBlockCache[$start->toDateString()] ??= $load();
     }
 
     private function periodConflict(string $type, CarbonImmutable $start, string $otherType, CarbonImmutable $otherStart): ?string

@@ -12,6 +12,7 @@ use App\Models\ScheduleBlock;
 use App\Models\User;
 use App\Support\OfficeSettings;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -64,12 +65,34 @@ class AdminCalendarTest extends TestCase
         Appointment::factory()->create(['status' => 'pending', 'starts_at' => '2026-11-04 10:00', 'ends_at' => '2026-11-04 11:00']);
         ScheduleBlock::factory()->create(['starts_at' => '2026-11-05 10:00', 'ends_at' => '2026-11-05 11:00']);
 
-        $response = $this->getJson($this->feed())->assertOk()->assertJsonCount(6, 'events')
-            ->assertJsonPath('summary', ['month' => 6, 'upcoming' => 3, 'today' => 1, 'completed' => 1])
+        $response = $this->getJson($this->feed())->assertOk()->assertJsonCount(7, 'events')
+            ->assertJsonPath('summary', ['month' => 7, 'upcoming' => 4, 'today' => 1, 'completed' => 1])
             ->assertJsonPath('upcoming.0.title', 'Ongoing')->assertJsonPath('upcoming.1.title', 'Later')
-            ->assertJsonPath('upcoming_total', 4)->assertJsonMissing(['title' => 'Private demo']);
+            ->assertJsonPath('upcoming_total', 5)->assertJsonMissing(['title' => 'Private demo']);
         $this->assertSame('ongoing', collect($response->json('events'))->firstWhere('title', 'Ongoing')['display_status']);
         $this->assertSame('cancelled', collect($response->json('events'))->firstWhere('title', 'Cancelled')['display_status']);
+    }
+
+    public function test_year_feed_bulk_loads_priest_rotation_data(): void
+    {
+        $this->travelTo('2026-11-02 10:30:00');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        Personnel::factory()->rotationPosition(1)->create();
+        Personnel::factory()->rotationPosition(2)->create();
+        Personnel::factory()->rotationPosition(3)->create();
+        ParishSetting::query()->where('key', 'office')->update(['value' => [
+            'priest_rotation_anchor_date' => '2026-11-02',
+            'priest_rotation_anchor_position' => 1,
+        ]]);
+        OfficeSettings::forgetMemoizedValues();
+        $queryCount = 0;
+        DB::listen(function () use (&$queryCount): void {
+            $queryCount++;
+        });
+
+        $this->getJson($this->feed())->assertOk();
+
+        $this->assertLessThanOrEqual(50, $queryCount);
     }
 
     public function test_filters_match_search_category_status_personnel_and_overlapping_dates(): void
@@ -197,14 +220,18 @@ class AdminCalendarTest extends TestCase
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $person = Personnel::factory()->create();
         Schedule::factory()->create(['location' => 'San Isidro Labrador Chapel', 'personnel_id' => $person->id]);
-        $appointment = Appointment::factory()->create();
+        $appointment = Appointment::factory()->create([
+            'status' => 'confirmed',
+            'preferred_date' => '2026-11-02', 'preferred_time' => '10:00',
+            'starts_at' => '2026-11-02 10:00', 'ends_at' => '2026-11-02 11:00',
+            'reserved_until' => '2026-11-02 11:00', 'confirmed_church' => 'San Isidro Labrador Chapel',
+        ]);
 
         $this->put('/admin/appointments/'.$appointment->reference_number, [
-            'starts_at' => '2026-11-02T10:00', 'confirmed_church' => 'San Isidro Labrador Chapel', 'personnel_id' => $person->id,
-            'duration_minutes' => 60, 'buffer_minutes' => 30, 'reason' => 'Schedule ceremony', 'version' => 1,
+            'personnel_id' => $person->id, 'version' => 1,
         ])->assertSessionHasErrors('starts_at');
         $this->post('/admin/schedule-blocks', ['title' => 'Closed', 'church' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-02T10:00', 'ends_at' => '2026-11-02T11:00'])->assertSessionHasErrors('starts_at');
-        $this->assertNull($appointment->refresh()->starts_at);
+        $this->assertNull($appointment->refresh()->personnel_id);
         $this->assertDatabaseEmpty('schedule_blocks');
     }
 
@@ -326,15 +353,19 @@ class AdminCalendarTest extends TestCase
         $this->assertSame('pending', $appointment->status);
 
         $personnel = Personnel::factory()->create();
+        $appointment->forceFill([
+            'starts_at' => '2026-11-07 15:30', 'ends_at' => '2026-11-07 16:30',
+            'reserved_until' => '2026-11-07 16:30', 'confirmed_church' => 'Nuestra Señora de los Desamparados',
+        ])->save();
         $this->putJson('/admin/appointments/'.$appointment->reference_number, [
-            'version' => $appointment->version, 'starts_at' => '2026-11-07T15:30',
-            'duration_minutes' => 60, 'buffer_minutes' => 30,
-            'confirmed_church' => 'Nuestra Señora de los Desamparados', 'personnel_id' => $personnel->id,
-            'reason' => 'Schedule requested ceremony',
+            'version' => $appointment->version, 'personnel_id' => $personnel->id,
         ])->assertInvalid(['starts_at' => 'Mass']);
-        $this->assertNull($appointment->refresh()->starts_at);
+        $this->assertNull($appointment->refresh()->personnel_id);
 
-        $appointment->update(['preferred_church' => 'St. John Nepomucene Parish']);
+        $appointment->update([
+            'preferred_church' => 'St. John Nepomucene Parish',
+            'starts_at' => null, 'ends_at' => null, 'reserved_until' => null, 'confirmed_church' => null,
+        ]);
         $this->assertTrue(app(ReserveAppointmentSlot::class)->handle($appointment));
         $this->assertSame('2026-11-07 15:30', $appointment->refresh()->starts_at->format('Y-m-d H:i'));
         $this->assertSame('pending', $appointment->status);

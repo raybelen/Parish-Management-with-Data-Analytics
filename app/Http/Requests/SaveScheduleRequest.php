@@ -27,6 +27,7 @@ class SaveScheduleRequest extends FormRequest
             'group_fee' => ['nullable', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
             'category' => ['required', 'string', 'max:80'],
             'personnel_id' => ['nullable', 'integer', Rule::exists('personnel', 'id')->where('active', true)],
+            'priest_required' => ['sometimes', 'boolean'],
             'starts_at' => ['required', 'date_format:Y-m-d\TH:i', 'after_or_equal:1900-01-01', 'before:2101-01-01'],
             'ends_at' => ['required', 'date_format:Y-m-d\TH:i', Rule::when(is_string($start), 'after:starts_at'), 'before:2102-01-01'],
             'status' => ['required', Rule::in(['scheduled', 'completed', 'cancelled'])],

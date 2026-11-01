@@ -11,7 +11,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class AppointmentRequestReceived extends Mailable implements ShouldQueue
+class AppointmentReserved extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
@@ -23,7 +23,7 @@ class AppointmentRequestReceived extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Appointment request received: '.$this->appointment->reference_number,
+            subject: 'Appointment reserved: '.$this->appointment->reference_number,
         );
     }
 
@@ -33,7 +33,7 @@ class AppointmentRequestReceived extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            markdown: 'mail.appointments.request-received',
+            markdown: 'mail.appointments.reserved',
             with: [
                 'manageUrl' => route('appointments.lookup.create'),
             ],

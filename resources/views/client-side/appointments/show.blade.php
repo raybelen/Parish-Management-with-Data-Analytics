@@ -60,14 +60,24 @@
         $inputClass = 'min-h-12 w-full border border-navy/20 bg-white px-4 py-3 text-sm text-navy outline-none transition-colors focus:border-gold focus:ring-1 focus:ring-gold user-invalid:border-red-700';
         $statusClasses = match ($appointment->status) {
             'confirmed' => 'bg-emerald-100 text-emerald-900',
-            'cancelled' => 'bg-red-100 text-red-900',
+            'cancelled', 'declined', 'expired' => 'bg-red-100 text-red-900',
             default => 'bg-amber-100 text-amber-900',
         };
         $statusDotClass = match ($appointment->status) {
             'confirmed' => 'bg-emerald-600',
-            'cancelled' => 'bg-red-600',
+            'cancelled', 'declined', 'expired' => 'bg-red-600',
             default => 'bg-amber-600',
         };
+        $paymentStatusLabel = match ($appointment->payment_status) {
+            'not_required' => 'No payment due',
+            'pending' => 'Waiting for sandbox confirmation',
+            'partial' => 'Partially paid',
+            'paid' => 'Paid',
+            'failed' => 'Sandbox checkout failed',
+            'expired' => 'Sandbox checkout expired',
+            default => 'Unpaid',
+        };
+        $latestPaymentTransaction = $appointment->paymentTransactions->first();
     @endphp
 
     <section class="border-b border-navy/10 bg-navy py-14 text-ivory sm:py-20">
@@ -82,14 +92,14 @@
 
             <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
                 <div class="max-w-3xl">
-                    <p class="section-label text-gold">Request Received</p>
-                    <h1 class="mt-5 text-4xl leading-tight text-ivory sm:text-6xl">Your appointment request is on file.</h1>
-                    <p class="mt-5 max-w-2xl text-base leading-8 text-ivory/70">Please keep your reference number and bring the required physical documents to the church office for verification.</p>
+                    <p class="section-label text-gold">{{ $appointment->status === 'pending' ? 'Slot Reserved' : 'Appointment Update' }}</p>
+                    <h1 class="mt-5 text-4xl leading-tight text-ivory sm:text-6xl">{{ $appointment->status === 'pending' ? 'Your schedule is held for three days.' : 'Your appointment details.' }}</h1>
+                    <p class="mt-5 max-w-2xl text-base leading-8 text-ivory/70">{{ $appointment->status === 'pending' ? 'Bring the required physical documents to the church office before the deadline. The appointment will appear on the public calendar after verification.' : 'Keep your reference number to review or manage this appointment.' }}</p>
                 </div>
                 <div class="border border-gold/45 bg-ivory/5 p-6 lg:min-w-72">
                     <p class="text-xs font-medium tracking-[0.16em] uppercase text-ivory/60">Reference number</p>
                     <p class="mt-3 font-mono text-xl font-semibold tracking-wide text-gold sm:text-2xl">{{ $appointment->reference_number }}</p>
-                    <p class="mt-4 text-xs leading-5 text-ivory/60">Use this with your saved email address or phone number to find the request later.</p>
+                    <p class="mt-4 text-xs leading-5 text-ivory/60">Use this with your saved email address or phone number to find the appointment later.</p>
                 </div>
             </div>
         </div>
@@ -102,38 +112,50 @@
                     {{ session('appointment_message') }}
                 </div>
             @endif
+            @if (session('payment_error'))
+                <div class="mb-7 border-l-4 border-amber-700 bg-amber-50 px-6 py-5 text-sm text-amber-950" role="alert">
+                    {{ session('payment_error') }}
+                </div>
+            @endif
 
             <div class="grid gap-7 lg:grid-cols-[0.7fr_1.3fr]">
                 <aside class="h-fit border border-navy/15 bg-ivory p-6 sm:p-8">
                     <p class="section-label text-muted">Current Status</p>
                     <div class="mt-5 inline-flex items-center gap-3 px-4 py-2 text-sm font-medium {{ $statusClasses }}">
                         <span class="size-2 rounded-full {{ $statusDotClass }}" aria-hidden="true"></span>
-                        {{ str($appointment->status)->replace('_', ' ')->title() }}
+                        {{ $appointment->status === 'pending' ? 'Awaiting Documents' : str($appointment->status)->replace('_', ' ')->title() }}
                     </div>
                     @if ($appointment->status === 'cancelled')
-                        <p class="mt-5 text-sm leading-7 text-muted">This request has been cancelled. Its details remain on file, but it is no longer being considered for scheduling.</p>
+                        <p class="mt-5 text-sm leading-7 text-muted">This appointment has been cancelled. Its details remain on file, but it is no longer shown on the parish calendar.</p>
                     @elseif ($appointment->status === 'confirmed')
-                        <p class="mt-5 text-sm leading-7 text-muted">This appointment has been confirmed by the parish office. Contact the office directly if you need further assistance.</p>
+                        <p class="mt-5 text-sm leading-7 text-muted">The parish office verified all required physical documents. Your appointment now appears on the public parish calendar. Payment may be made later and is not required to keep this schedule.</p>
+                        @if($appointment->starts_at)<p class="mt-4 text-sm leading-7"><strong>Confirmed schedule:</strong><br>{{ $appointment->starts_at->format('F j, Y · g:i A') }} – {{ $appointment->ends_at->format('g:i A') }}<br>{{ $appointment->confirmed_church }}</p>@endif
+                    @elseif ($appointment->status === 'declined')
+                        <p class="mt-5 text-sm leading-7 text-muted">The parish office declined a submitted document, so the reserved slot was released. Please contact the office for guidance.</p>
+                    @elseif ($appointment->status === 'expired')
+                        <p class="mt-5 text-sm leading-7 text-muted">The three-day physical document deadline passed before verification was completed, so the reserved slot was released. You may submit a new appointment request.</p>
                     @else
                         @if($appointment->status === 'pending')
                             @if($appointment->starts_at)
-                                <p class="mt-5 text-sm leading-7 text-muted">Your requested date, time, and venue are reserved because no conflict was found. The appointment remains pending until the parish verifies the required documents and payment.</p>
+                                <p class="mt-5 text-sm leading-7 text-muted">This slot is reserved for staff while the parish office checks every required physical document. It is not yet shown on the public calendar. Payment is optional and does not affect verification.</p>
                                 <p class="mt-4 text-sm leading-7"><strong>Reserved schedule:</strong><br>{{ $appointment->starts_at->format('F j, Y · g:i A') }} – {{ $appointment->ends_at->format('g:i A') }}<br>{{ $appointment->confirmed_church }}</p>
+                                @if($appointment->documents_due_at)<p class="mt-4 border-l-4 border-amber-600 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"><strong>Submit documents by:</strong><br>{{ $appointment->documents_due_at->timezone(config('office.timezone'))->format('F j, Y \a\t g:i A') }}</p>@endif
                             @else
                                 <p class="mt-5 text-sm leading-7 text-muted">The requested slot could not be reserved automatically. The parish office will review an alternative date, time, or venue.</p>
                             @endif
                         @endif
                         @if($appointment->starts_at && in_array($appointment->status, ['confirmed', 'completed']))<p class="mt-5 text-sm leading-7"><strong>Confirmed schedule:</strong><br>{{ $appointment->starts_at->format('F j, Y · g:i A') }}<br>{{ $appointment->confirmed_church }}</p>@endif
                     @endif
-                    <a href="{{ route('appointments.lookup.create') }}" class="text-link mt-7">Find this request again <x-parish.icon name="arrow" class="size-4" /></a>
+                    <a href="{{ route('appointments.lookup.create') }}" class="text-link mt-7">Find this appointment again <x-parish.icon name="arrow" class="size-4" /></a>
                 </aside>
 
                 <div class="grid gap-7">
                     <section aria-labelledby="summary-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
                         <p class="section-label text-muted">Appointment Summary</p>
-                        <h2 id="summary-heading" class="mt-4 text-3xl">{{ $service['label'] }} request</h2>
+                        <h2 id="summary-heading" class="mt-4 text-3xl">{{ $service['label'] }} appointment</h2>
 
                         <dl class="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+                            <div class="sm:col-span-2"><dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">Appointment created</dt><dd class="mt-2 text-sm leading-6">{{ $appointment->created_at->timezone(config('office.timezone'))->format('F j, Y · g:i A') }}</dd></div>
                             <div><dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">Preferred date</dt><dd class="mt-2 text-sm leading-6">{{ $appointment->preferred_date->format('F j, Y') }}</dd></div>
                             <div><dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">Preferred time</dt><dd class="mt-2 text-sm leading-6">{{ \Carbon\Carbon::parse($appointment->preferred_time)->format('g:i A') }}</dd></div>
                             <div class="sm:col-span-2"><dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">Preferred church / chapel</dt><dd class="mt-2 text-sm leading-6">{{ $appointment->preferred_church }}</dd></div>
@@ -143,11 +165,50 @@
                         </dl>
                     </section>
 
+                    <section aria-labelledby="payment-summary-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
+                        <p class="section-label text-muted">Optional Payment</p>
+                        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 id="payment-summary-heading" class="text-3xl">{{ $appointment->payment_option === 'online' ? 'Xendit Sandbox' : 'Walk-in payment' }}</h2>
+                                <p class="mt-3 max-w-2xl text-sm leading-7 text-muted">Payment is separate from document verification and never blocks appointment confirmation.</p>
+                            </div>
+                            <span class="inline-flex w-fit items-center rounded-full bg-navy px-4 py-2 text-xs font-semibold text-ivory">{{ $paymentStatusLabel }}</span>
+                        </div>
+
+                        <dl class="mt-7 grid gap-3 sm:grid-cols-3">
+                            @foreach(['Fee' => $appointment->fee_cents, 'Paid' => $appointment->netPaidCents(), 'Balance' => $appointment->balanceCents()] as $label => $cents)
+                                <div class="rounded-lg border border-navy/10 bg-white p-4">
+                                    <dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">{{ $label }}</dt>
+                                    <dd class="mt-2 text-xl font-semibold text-navy">₱{{ number_format($cents / 100, 2) }}</dd>
+                                </div>
+                            @endforeach
+                        </dl>
+
+                        @if($appointment->payment_option === 'online')
+                            <p class="mt-5 border-l-4 border-sky-700 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950"><strong>Test environment only:</strong> Xendit Sandbox may offer GCash, Maya, cards, and other methods enabled for the sandbox account. No live transaction is possible.</p>
+                            @if($latestPaymentTransaction?->status === 'paid')
+                                <p class="mt-5 text-sm leading-6 text-muted">Sandbox transaction {{ $latestPaymentTransaction->provider_payment_id }} was confirmed by a verified webhook.</p>
+                            @elseif($paymentUrl)
+                                <form method="POST" action="{{ $paymentUrl }}" class="mt-5">
+                                    @csrf
+                                    <button type="submit" class="inline-flex min-h-12 w-full items-center justify-center gap-3 bg-gold px-6 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63] sm:w-auto">
+                                        {{ $latestPaymentTransaction?->status === 'pending' ? 'Continue sandbox checkout' : 'Open Xendit Sandbox' }}
+                                        <x-parish.icon name="arrow" class="size-4" />
+                                    </button>
+                                </form>
+                            @elseif($appointment->balanceCents() > 0 && $appointment->payment_status !== 'paid')
+                                <p class="mt-5 text-sm leading-7 text-muted">Online sandbox checkout is currently unavailable. You may pay at the parish office instead.</p>
+                            @endif
+                        @else
+                            <p class="mt-5 text-sm leading-7 text-muted">Bring your appointment reference when paying at the parish office. Staff will add the receipt to the payment ledger.</p>
+                        @endif
+                    </section>
+
                     @if ($canManageRequest)
                         <section aria-labelledby="manage-request-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
                             <p class="section-label text-muted">Manage Request</p>
-                            <h2 id="manage-request-heading" class="mt-4 text-3xl">Change or cancel your request</h2>
-                            <p class="mt-3 max-w-2xl text-sm leading-7 text-muted">You may update the preferred schedule while parish review is still pending. Changes remain subject to parish availability.</p>
+                            <h2 id="manage-request-heading" class="mt-4 text-3xl">Change or cancel your appointment</h2>
+                            <p class="mt-3 max-w-2xl text-sm leading-7 text-muted">You may change this schedule while it is still active. The new schedule is checked for availability before it replaces the current one. A pending reservation receives a new three-day document deadline.</p>
 
                             @if ($errors->any())
                                 <div class="mt-6 border-l-4 border-red-700 bg-red-50 px-5 py-4 text-sm text-red-900" role="alert">
@@ -178,23 +239,23 @@
                                 <p id="schedule-availability" data-availability-status role="status" aria-live="polite" hidden class="sm:col-span-2 border-l-4 border-red-700 bg-red-50 px-5 py-4 text-sm text-red-900"></p>
 
                                 <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-4 bg-gold px-6 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63] sm:col-span-2 sm:justify-self-start">
-                                    Update preferred schedule <x-parish.icon name="arrow" class="size-4" />
+                                    Update schedule <x-parish.icon name="arrow" class="size-4" />
                                 </button>
                             </form>
 
                             <div class="mt-9 border-t border-navy/10 pt-7">
-                                <h3 class="text-2xl">Cancel this request</h3>
-                                <p class="mt-2 max-w-2xl text-sm leading-7 text-muted">Cancellation stops parish review of this request. The record will remain available for reference.</p>
+                                <h3 class="text-2xl">Cancel this appointment</h3>
+                                <p class="mt-2 max-w-2xl text-sm leading-7 text-muted">Cancellation removes this schedule from the parish calendar. The record will remain available for reference.</p>
                                 <button type="button" data-dialog-target="cancel-appointment-dialog" class="mt-5 inline-flex min-h-12 items-center justify-center border border-red-700 px-6 py-3 text-sm font-medium text-red-800 transition-colors hover:bg-red-50">
-                                    Cancel appointment request
+                                    Cancel appointment
                                 </button>
                             </div>
                         </section>
 
-                        <x-parish.dialog id="cancel-appointment-dialog" title="Cancel appointment request?" aria-describedby="cancel-appointment-description" class="border-red-700/40">
-                            <p id="cancel-appointment-description">This will stop parish review of reference <span class="font-mono font-semibold text-navy">{{ $appointment->reference_number }}</span>.</p>
+                        <x-parish.dialog id="cancel-appointment-dialog" title="Cancel appointment?" aria-describedby="cancel-appointment-description" class="border-red-700/40">
+                            <p id="cancel-appointment-description">This will remove reference <span class="font-mono font-semibold text-navy">{{ $appointment->reference_number }}</span> from the parish calendar.</p>
                             <div class="mt-5 border-l-2 border-red-700 bg-red-50 px-5 py-4 text-sm leading-6 text-red-900">
-                                Your request will be marked as cancelled. Its submitted details will remain on file, but you cannot restore it from the website.
+                                Your appointment will be marked as cancelled. Its submitted details will remain on file, but you cannot restore it from the website.
                             </div>
                             <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                                 <button type="button" data-close-dialog class="inline-flex min-h-12 items-center justify-center border border-navy/20 px-6 py-3 text-sm font-medium text-navy transition-colors hover:border-gold hover:bg-gold/10">
@@ -203,16 +264,16 @@
                                 <form method="POST" action="{{ $cancellationUrl }}" data-cancel-confirmation-form>
                                     @csrf
                                     <button type="submit" class="inline-flex min-h-12 w-full items-center justify-center bg-red-800 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-red-900 sm:w-auto">
-                                        Yes, cancel request
+                                        Yes, cancel appointment
                                     </button>
                                 </form>
                             </div>
                         </x-parish.dialog>
-                    @elseif ($appointment->status === 'cancelled')
+                    @elseif (in_array($appointment->status, ['cancelled', 'declined', 'expired'], true))
                         <section class="border border-red-200 bg-red-50 p-6 sm:p-9" aria-labelledby="cancelled-request-heading">
-                            <p class="section-label text-red-700">Request Closed</p>
-                            <h2 id="cancelled-request-heading" class="mt-4 text-3xl text-navy">This appointment request is cancelled.</h2>
-                            <p class="mt-3 text-sm leading-7 text-muted">If you need another appointment, please submit a new request with your current preferred schedule.</p>
+                            <p class="section-label text-red-700">Appointment Closed</p>
+                            <h2 id="cancelled-request-heading" class="mt-4 text-3xl text-navy">This appointment is {{ $appointment->status }}.</h2>
+                            <p class="mt-3 text-sm leading-7 text-muted">If you need another appointment, please submit a new appointment with your current preferred schedule.</p>
                             <a href="{{ route('appointments.create') }}" class="text-link mt-6">Make a new appointment <x-parish.icon name="arrow" class="size-4" /></a>
                         </section>
                     @endif
@@ -268,7 +329,12 @@
                     <section aria-labelledby="requirements-summary-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
                         <p class="section-label text-muted">Requirements</p>
                         <h2 id="requirements-summary-heading" class="mt-4 text-3xl">Documents to bring</h2>
-                        <p class="mt-3 text-sm leading-7 text-muted">Bring these physical documents to the church office for verification.</p>
+                        <p class="mt-3 text-sm leading-7 text-muted">
+                            Bring these physical documents to the church office for verification
+                            @if($appointment->status === 'pending' && $appointment->documents_due_at)
+                                by {{ $appointment->documents_due_at->timezone(config('office.timezone'))->format('F j, Y \a\t g:i A') }}
+                            @endif.
+                        </p>
                         <ul class="mt-6 grid gap-3 sm:grid-cols-2">
                             @forelse ($appointment->documentRequirements() as $requirement)
                                 <li class="flex gap-3 border border-navy/10 bg-white px-4 py-3 text-sm leading-6 text-navy">

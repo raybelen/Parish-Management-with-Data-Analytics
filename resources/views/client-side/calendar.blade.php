@@ -23,7 +23,7 @@
             <div class="flex flex-col justify-between gap-5 border-b border-navy/10 pb-7 sm:flex-row sm:items-end">
                 <div>
                     <h2 id="calendar-heading" class="text-3xl sm:text-4xl">Calendar</h2>
-                    <p class="mt-3 text-sm leading-7 text-muted">Times shown are parish local time. Confirmed activities list only the service type and time.</p>
+                    <p class="mt-3 text-sm leading-7 text-muted">Times shown are parish local time. Select any date to view its complete schedule details.</p>
                 </div>
                 <div class="flex flex-wrap gap-x-6 gap-y-3 text-xs font-medium text-muted" aria-label="Calendar legend">
                     <span class="inline-flex items-center gap-2"><span class="size-2.5 rounded-full bg-gold" aria-hidden="true"></span>Regular schedule</span>
@@ -59,7 +59,21 @@
                                                 @else
                                                     <td data-date="{{ $day['date'] }}" @class(['border-r border-b border-navy/10 p-2 align-top last:border-r-0', 'bg-gold/8' => $day['is_today']])>
                                                         <div class="min-h-36">
-                                                            <time datetime="{{ $day['date'] }}" @class(['flex size-7 items-center justify-center rounded-full text-sm font-semibold', 'bg-navy text-ivory' => $day['is_today'], 'text-navy' => ! $day['is_today']])>{{ $day['day'] }}</time>
+                                                            <button
+                                                                type="button"
+                                                                data-calendar-date
+                                                                data-calendar-template="calendar-details-{{ $day['date'] }}"
+                                                                data-calendar-label="{{ $day['date_label'] }}"
+                                                                data-dialog-target="calendar-schedule-dialog"
+                                                                aria-label="View schedule for {{ $day['date_label'] }}"
+                                                                @class([
+                                                                    'flex size-8 items-center justify-center rounded-full text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy',
+                                                                    'bg-navy text-ivory hover:bg-gold hover:text-navy' => $day['is_today'],
+                                                                    'text-navy hover:bg-navy hover:text-ivory' => ! $day['is_today'],
+                                                                ])
+                                                            >
+                                                                <time datetime="{{ $day['date'] }}">{{ $day['day'] }}</time>
+                                                            </button>
                                                             @if ($day['events'] !== [])
                                                                 <ul class="mt-2 grid gap-1.5">
                                                                     @foreach ($day['events'] as $event)
@@ -86,6 +100,58 @@
                 @endforeach
             </div>
 
+            @foreach ($calendarMonths as $month)
+                @foreach ($month['weeks'] as $week)
+                    @foreach ($week as $day)
+                        @if ($day !== null)
+                            <template id="calendar-details-{{ $day['date'] }}">
+                                @if ($day['events'] === [])
+                                    <div class="border border-navy/10 bg-white p-5">
+                                        <p class="font-medium text-navy">No Masses or parish services are scheduled for this date.</p>
+                                    </div>
+                                @else
+                                    <div class="grid gap-4">
+                                        @foreach ($day['events'] as $event)
+                                            <article class="border border-navy/10 bg-white p-5 sm:p-6">
+                                                <div class="flex flex-wrap items-start justify-between gap-3 border-b border-navy/10 pb-4">
+                                                    <div>
+                                                        <p class="text-[11px] font-semibold tracking-[0.14em] text-muted uppercase">{{ $event['type'] }}</p>
+                                                        <h3 class="mt-1 text-2xl text-navy">{{ $event['name'] }}</h3>
+                                                    </div>
+                                                    <span @class([
+                                                        'inline-flex min-h-7 items-center rounded-full px-3 py-1 text-[11px] font-semibold',
+                                                        'bg-gold/15 text-[#705824]' => $event['kind'] === 'regular',
+                                                        'bg-navy/8 text-navy' => $event['kind'] === 'scheduled',
+                                                    ])>{{ $event['status'] }}</span>
+                                                </div>
+                                                <dl class="mt-4 grid gap-4 text-sm sm:grid-cols-2">
+                                                    <div>
+                                                        <dt class="text-[10px] font-semibold tracking-[0.13em] text-muted uppercase">Date</dt>
+                                                        <dd class="mt-1 font-medium text-navy">{{ $day['date_label'] }}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt class="text-[10px] font-semibold tracking-[0.13em] text-muted uppercase">Time</dt>
+                                                        <dd class="mt-1 font-medium text-navy">{{ $event['time'] }}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt class="text-[10px] font-semibold tracking-[0.13em] text-muted uppercase">Venue</dt>
+                                                        <dd class="mt-1 font-medium text-navy">{{ $event['location'] }}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt class="text-[10px] font-semibold tracking-[0.13em] text-muted uppercase">Assigned priest</dt>
+                                                        <dd class="mt-1 font-medium text-navy">{{ $event['personnel'] ?? 'To be assigned' }}</dd>
+                                                    </div>
+                                                </dl>
+                                            </article>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </template>
+                        @endif
+                    @endforeach
+                @endforeach
+            @endforeach
+
             <div class="mt-10 grid gap-6 border border-navy/15 bg-[#eae5da] p-6 sm:p-8 lg:grid-cols-[1fr_auto] lg:items-center lg:gap-12">
                 <div>
                     <p class="section-label mb-4 text-muted">Schedule a Service</p>
@@ -97,3 +163,23 @@
         </div>
     </section>
 @endsection
+
+@push('dialogs')
+    <x-parish.dialog id="calendar-schedule-dialog" title="Schedule details" aria-describedby="calendar-schedule-content">
+        <div id="calendar-schedule-content"></div>
+    </x-parish.dialog>
+    <script>
+        document.querySelectorAll('[data-calendar-date]').forEach((trigger) => {
+            trigger.addEventListener('click', () => {
+                const template = document.getElementById(trigger.dataset.calendarTemplate);
+                const dialogTitle = document.getElementById('calendar-schedule-dialog-title');
+                const dialogContent = document.getElementById('calendar-schedule-content');
+
+                if (!template || !dialogTitle || !dialogContent) return;
+
+                dialogTitle.textContent = trigger.dataset.calendarLabel;
+                dialogContent.replaceChildren(template.content.cloneNode(true));
+            });
+        });
+    </script>
+@endpush

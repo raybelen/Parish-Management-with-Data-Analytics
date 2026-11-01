@@ -241,6 +241,10 @@ function initializeCalendar(root) {
         details.replaceChildren();
         find('#schedule-dialog-title').textContent = event.title;
         details.append(element('p', `calendar-status calendar-status-${event.display_status}`, `${titleCase(event.display_status)} · ${event.kind}`));
+        if (event.priest_required) {
+            const assignment = event.assignment_status === 'needs_reassignment' ? 'Needs priest reassignment' : event.assignment_status === 'substitute' ? 'Substitute priest assigned' : 'Priest assigned';
+            details.append(element('p', event.assignment_status === 'needs_reassignment' ? 'calendar-errors' : 'text-sm font-semibold', assignment));
+        }
         [
             ['Date & time', `${readableDate(event.starts_at)}, ${time(event.starts_at)} – ${readableDate(event.ends_at)}, ${time(event.ends_at)}`],
             ['Location', event.location || 'Not set'], ['Assigned personnel', event.personnel || 'Unassigned'],
@@ -273,6 +277,7 @@ function initializeCalendar(root) {
         form.hidden = false;
         find('#schedule-dialog-title').textContent = 'Edit schedule';
         ['title', 'starts_at', 'ends_at', 'location', 'department', 'category', 'description', 'notes', 'personnel_id', 'status'].forEach((name) => { form.elements[name].value = currentEvent[name] ?? ''; });
+        form.querySelector('input[type="checkbox"][name="priest_required"]').checked = Boolean(currentEvent.priest_required);
         find('[data-recurrence-fields]').hidden = true;
         find('[data-recurrence-fields]').disabled = true;
         find('[data-occurrence-notice]').hidden = !currentEvent.series_id;

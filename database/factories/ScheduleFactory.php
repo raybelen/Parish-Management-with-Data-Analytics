@@ -11,6 +11,6 @@ class ScheduleFactory extends Factory
     /** @return array<string, mixed> */
     public function definition(): array
     {
-        return ['source' => 'operational', 'title' => fake()->sentence(3), 'category' => 'Meeting', 'starts_at' => '2026-11-02 10:00:00', 'ends_at' => '2026-11-02 11:00:00', 'status' => 'scheduled', 'recurrence' => 'none', 'version' => 1];
+        return ['source' => 'operational', 'title' => fake()->sentence(3), 'category' => 'Meeting', 'priest_required' => false, 'starts_at' => '2026-11-02 10:00:00', 'ends_at' => '2026-11-02 11:00:00', 'status' => 'scheduled', 'recurrence' => 'none', 'version' => 1];
     }
 }

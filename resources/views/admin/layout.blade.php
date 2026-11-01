@@ -4,6 +4,7 @@
         'Workspace' => [
             ['route' => 'admin.dashboard', 'label' => 'Overview', 'ability' => null, 'icon' => 'dashboard', 'active' => ['admin.dashboard']],
             ['route' => 'admin.calendar.index', 'label' => 'Calendar & schedules', 'ability' => 'schedules.view', 'icon' => 'calendar', 'active' => ['admin.calendar.*']],
+            ['route' => 'admin.priests.index', 'label' => 'Priest management', 'ability' => 'schedules.manage', 'icon' => 'people', 'active' => ['admin.priests.*']],
             ['route' => 'admin.appointments.index', 'label' => 'Appointments', 'ability' => 'appointments.view', 'icon' => 'calendar', 'active' => ['admin.appointments.*']],
             ['route' => 'admin.records.index', 'label' => 'Service records', 'ability' => 'records.view', 'icon' => 'book', 'active' => ['admin.records.*']],
             ['route' => 'admin.notifications.index', 'label' => 'Office inbox', 'ability' => 'notifications.manage', 'icon' => 'inbox', 'active' => ['admin.notifications.*']],

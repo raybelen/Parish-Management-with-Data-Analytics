@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Actions\CreateAppointment;
+use App\Actions\StartXenditPayment;
 use App\Http\Requests\StoreAppointmentRequest;
-use App\Mail\AppointmentRequestReceived;
+use App\Mail\AppointmentReserved;
 use App\Models\Appointment;
+use App\Services\XenditPaymentGateway;
 use App\Support\AppointmentAccess;
 use App\Support\OfficeSettings;
 use Illuminate\Contracts\View\View;
@@ -31,18 +33,39 @@ class AppointmentController extends Controller
             'pageTitle' => 'Request an Appointment',
             'services' => OfficeSettings::services(),
             'churches' => OfficeSettings::activeVenues(),
+            'xenditSandboxAvailable' => XenditPaymentGateway::isConfigured(),
         ]);
     }
 
-    public function store(StoreAppointmentRequest $request, CreateAppointment $createAppointment, AppointmentAccess $access): RedirectResponse
-    {
+    public function store(
+        StoreAppointmentRequest $request,
+        CreateAppointment $createAppointment,
+        AppointmentAccess $access,
+        StartXenditPayment $startXenditPayment,
+    ): RedirectResponse {
         $appointment = $createAppointment->handle($request->validated());
 
         if ($appointment->client_email !== null) {
-            Mail::to($appointment->client_email)->queue(new AppointmentRequestReceived($appointment));
+            Mail::to($appointment->client_email)->queue(new AppointmentReserved($appointment));
         }
 
-        return redirect()->to($access->issue($request, $appointment));
+        $appointmentUrl = $access->issue($request, $appointment);
+        if ($appointment->canStartOnlinePayment()) {
+            try {
+                $transaction = $startXenditPayment->handle($appointment);
+
+                return redirect()->away((string) $transaction->checkout_url);
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return redirect()->to($appointmentUrl)->with(
+                    'payment_error',
+                    'Xendit Sandbox checkout could not be started. Your appointment is still reserved, and you may pay at the parish office.',
+                );
+            }
+        }
+
+        return redirect()->to($appointmentUrl);
     }
 
     public function show(Request $request, Appointment $appointment, AppointmentAccess $access): Response|RedirectResponse
@@ -54,13 +77,23 @@ class AppointmentController extends Controller
             );
         }
 
-        $canManageRequest = $appointment->status === 'pending';
+        $canManageRequest = in_array($appointment->status, ['pending', 'confirmed'], true)
+            && ($appointment->status === 'pending' || $appointment->starts_at?->isFuture());
+        $appointment->load(['payments', 'paymentTransactions' => fn ($query) => $query->latest('id')]);
+        $paymentUrl = $appointment->canStartOnlinePayment() && XenditPaymentGateway::isConfigured()
+            ? URL::temporarySignedRoute(
+                'appointments.payments.xendit',
+                now()->addMinutes(30),
+                ['appointment' => $appointment],
+            )
+            : null;
 
         return response()->view('client-side.appointments.show', [
-            'pageTitle' => 'Appointment Confirmation',
+            'pageTitle' => 'Appointment Reservation',
             'appointment' => $appointment,
             'service' => OfficeSettings::services()[$appointment->service_type] ?? ['label' => Str::headline($appointment->service_type)],
             'canManageRequest' => $canManageRequest,
+            'paymentUrl' => $paymentUrl,
             'scheduleUpdateUrl' => $canManageRequest ? URL::temporarySignedRoute(
                 'appointments.schedule.update',
                 now()->addMinutes(30),

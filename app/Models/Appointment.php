@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 
 class Appointment extends Model
 {
-    public const STATUSES = ['pending', 'confirmed', 'completed', 'cancelled', 'declined', 'no_show'];
+    public const STATUSES = ['pending', 'confirmed', 'completed', 'cancelled', 'declined', 'expired', 'no_show'];
 
     /** @use HasFactory<AppointmentFactory> */
     use HasFactory;
@@ -35,7 +35,8 @@ class Appointment extends Model
         'documents',
         'source', 'personnel_id', 'confirmed_church', 'starts_at', 'ends_at', 'reserved_until',
         'group_baptism_session_id', 'buffer_minutes', 'fee_cents', 'completed_at', 'outcome', 'office_notes',
-        'requirements', 'physical_documents', 'online_verification', 'version',
+        'requirements', 'physical_documents', 'documents_due_at', 'online_verification', 'version',
+        'payment_option', 'payment_status',
     ];
 
     protected $hidden = [
@@ -44,6 +45,8 @@ class Appointment extends Model
 
     protected $attributes = [
         'status' => 'pending',
+        'payment_option' => 'walk_in',
+        'payment_status' => 'unpaid',
     ];
 
     protected static function booted(): void
@@ -78,6 +81,7 @@ class Appointment extends Model
             'documents' => 'array',
             'requirements' => 'array',
             'physical_documents' => 'array',
+            'documents_due_at' => 'immutable_datetime',
             'online_verification' => 'array',
             'starts_at' => 'immutable_datetime',
             'ends_at' => 'immutable_datetime',
@@ -103,6 +107,11 @@ class Appointment extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function paymentTransactions(): HasMany
+    {
+        return $this->hasMany(PaymentTransaction::class);
     }
 
     public function serviceRecord(): HasOne
@@ -135,5 +144,12 @@ class Appointment extends Model
     public function balanceCents(): int
     {
         return max(0, $this->fee_cents - $this->netPaidCents());
+    }
+
+    public function canStartOnlinePayment(): bool
+    {
+        return $this->payment_option === 'online'
+            && in_array($this->status, ['pending', 'confirmed', 'completed'], true)
+            && $this->balanceCents() > 0;
     }
 }

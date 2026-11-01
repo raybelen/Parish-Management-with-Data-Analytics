@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'xendit' => [
+        'sandbox_enabled' => env('XENDIT_SANDBOX_ENABLED', false),
+        'sandbox_secret_key' => env('XENDIT_SANDBOX_SECRET_KEY'),
+        'sandbox_webhook_token' => env('XENDIT_SANDBOX_WEBHOOK_TOKEN'),
+        'sandbox_business_id' => env('XENDIT_SANDBOX_BUSINESS_ID'),
+        'api_url' => 'https://api.xendit.co',
+        'sandbox_checkout_hosts' => ['checkout-staging.xendit.co', 'dev.xen.to'],
+    ],
+
 ];

@@ -26,6 +26,8 @@ class CreateAppointment
         }
 
         return DB::transaction(function () use ($validated): Appointment {
+            $serviceType = ServiceType::query()->where('slug', $validated['service_type'])->first(['requirements', 'fee_cents']);
+            $feeCents = $serviceType?->fee_cents ?? 0;
             $appointment = Appointment::create([
                 ...Arr::only($validated, [
                     'client_full_name',
@@ -44,8 +46,10 @@ class CreateAppointment
                 'service_details' => $validated['service'],
                 'documents' => [],
                 'source' => OfficeSettings::source(),
-                'requirements' => ServiceType::query()->where('slug', $validated['service_type'])->value('requirements') ?? config('appointments.services.'.$validated['service_type'].'.documents', []),
-                'fee_cents' => ServiceType::query()->where('slug', $validated['service_type'])->value('fee_cents') ?? 0,
+                'requirements' => $serviceType?->requirements ?? config('appointments.services.'.$validated['service_type'].'.documents', []),
+                'fee_cents' => $feeCents,
+                'payment_option' => $validated['payment_option'] ?? 'walk_in',
+                'payment_status' => $feeCents > 0 ? 'unpaid' : 'not_required',
             ]);
 
             AppointmentParticipants::sync($appointment);
@@ -57,7 +61,7 @@ class CreateAppointment
                 }
             }
             OfficeAudit::record('appointment.created', $appointment, [], ['reference_number' => $appointment->reference_number, 'service_type' => $appointment->service_type]);
-            OfficeAudit::notify($appointment, 'new', 'New appointment request: '.$appointment->reference_number);
+            OfficeAudit::notify($appointment, 'new', 'New appointment awaiting documents: '.$appointment->reference_number);
 
             return $appointment->refresh();
         });

@@ -7,6 +7,7 @@ use App\Models\Schedule;
 use App\Models\ScheduleBlock;
 use App\Models\ServiceType;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
@@ -41,6 +42,29 @@ class AppointmentAvailabilityTest extends TestCase
             ->assertJsonPath('available', true)->assertHeader('Cache-Control', 'no-store, private');
     }
 
+    public function test_suggested_times_reuse_daily_conflict_queries(): void
+    {
+        $this->travelTo('2026-10-01');
+        Appointment::factory()->create([
+            'status' => 'pending',
+            'starts_at' => '2026-11-02 10:00',
+            'ends_at' => '2026-11-02 11:00',
+            'reserved_until' => '2026-11-02 11:00',
+            'confirmed_church' => 'St. John Nepomucene Parish',
+        ]);
+        $queryCount = 0;
+        DB::listen(function () use (&$queryCount): void {
+            $queryCount++;
+        });
+
+        $this->postJson(route('appointments.availability'), [...$this->payload(), 'suggest' => true])
+            ->assertOk()
+            ->assertJsonPath('available', false)
+            ->assertJsonStructure(['alternatives' => [['time', 'label']]]);
+
+        $this->assertLessThanOrEqual(20, $queryCount);
+    }
+
     public function test_invalid_input_and_closed_hours_are_rejected(): void
     {
         $this->travelTo('2026-10-01');
@@ -60,7 +84,7 @@ class AppointmentAvailabilityTest extends TestCase
         $this->postJson($url, [...$this->payload(), 'preferred_time' => '07:00', 'preferred_church' => 'San Isidro Labrador Chapel'])->assertJsonPath('available', false);
         $this->assertSame('10:00', substr($appointment->refresh()->preferred_time, 0, 5));
         $appointment->update(['status' => 'confirmed']);
-        $this->postJson($url, $this->payload())->assertForbidden();
+        $this->postJson($url, $this->payload())->assertJsonPath('available', true);
     }
 
     public function test_all_services_require_thirty_minutes_before_mass_at_the_selected_venue(): void

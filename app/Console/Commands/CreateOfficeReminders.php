@@ -20,10 +20,10 @@ class CreateOfficeReminders extends Command
                 $events['upcoming'] = 'Upcoming service';
             }
             if ($appointment->status === 'pending' && ! $appointment->physicalDocumentsComplete()) {
-                $events['documents'] = 'Physical documents awaiting verification';
+                $events['documents'] = 'Physical documents awaiting verification'.($appointment->documents_due_at ? ' by '.$appointment->documents_due_at->format('M j, Y g:i A') : '');
             }
             if ($appointment->balanceCents() > 0) {
-                $events['balance'] = 'Outstanding payment balance';
+                $events['balance'] = 'Optional payment balance';
             }
             foreach ($events as $event => $message) {
                 OfficeAudit::notify($appointment, $event, $message.': '.$appointment->reference_number, $appointment->id.':'.$event.':'.now()->toDateString());

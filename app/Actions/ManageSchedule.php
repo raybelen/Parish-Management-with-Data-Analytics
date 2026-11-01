@@ -4,10 +4,12 @@ namespace App\Actions;
 
 use App\Models\Appointment;
 use App\Models\ParishSetting;
+use App\Models\Personnel;
 use App\Models\Schedule;
 use App\Models\ScheduleBlock;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
+use App\Support\PriestRotation;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -16,11 +18,14 @@ use Illuminate\Validation\ValidationException;
 
 class ManageSchedule
 {
+    public function __construct(private PriestRotation $priestRotation) {}
+
     /** @param array<string, mixed> $data
      * @return list<Schedule>
      */
     public function create(array $data): array
     {
+        $data['priest_required'] = (bool) ($data['priest_required'] ?? false);
         if (mb_strtolower(trim($data['category'] ?? '')) === 'group baptism') {
             throw ValidationException::withMessages(['category' => 'Shared baptism sessions are currently unavailable.']);
         }
@@ -57,8 +62,12 @@ class ManageSchedule
                     throw ValidationException::withMessages(['recurrence_until' => 'A series can contain at most 366 occurrences. Choose an earlier end date.']);
                 }
                 $attributes = [...$data, 'source' => OfficeSettings::source(), 'series_id' => $series, 'starts_at' => $next, 'ends_at' => $next->addSeconds($start->diffInSeconds($end)), 'version' => 1];
+                if ($attributes['priest_required']) {
+                    $attributes['personnel_id'] = null;
+                }
                 $this->validateTimes($attributes);
                 $schedule = Schedule::create($attributes);
+                $this->priestRotation->assignSchedule($schedule);
                 OfficeAudit::record('schedule.created', $schedule, [], $schedule->toArray());
                 $created[] = $schedule;
             }
@@ -76,10 +85,12 @@ class ManageSchedule
             $this->checkVersion($locked, (int) $data['version']);
             $this->protectEnrolledSession($locked);
             $before = $locked->toArray();
+            $data['priest_required'] = (bool) ($data['priest_required'] ?? $locked->priest_required);
             $data['starts_at'] = CarbonImmutable::parse($data['starts_at'], config('office.timezone'));
             $data['ends_at'] = CarbonImmutable::parse($data['ends_at'], config('office.timezone'));
             $this->validateTimes([...$locked->only(['location', 'personnel_id']), ...$data], $locked->id);
             $locked->fill([...$data, 'version' => $locked->version + 1])->save();
+            $this->priestRotation->assignSchedule($locked);
             OfficeAudit::record($locked->status === 'cancelled' ? 'schedule.cancelled' : 'schedule.updated', $locked, $before, $locked->toArray());
         });
     }
@@ -125,6 +136,9 @@ class ManageSchedule
         if ($data['status'] === 'completed' && $end > CarbonImmutable::now(config('office.timezone'))) {
             throw ValidationException::withMessages(['status' => 'A future schedule cannot be marked completed.']);
         }
+        if (($data['priest_required'] ?? false) && ! $end->equalTo($start->addHour())) {
+            throw ValidationException::withMessages(['ends_at' => 'Activities requiring a priest must last exactly one hour.']);
+        }
         if ($data['status'] !== 'scheduled') {
             return;
         }
@@ -133,6 +147,12 @@ class ManageSchedule
         }
         $location = $data['location'] ?? null;
         $personnel = isset($data['personnel_id']) ? (int) $data['personnel_id'] : null;
+        if ($personnel !== null) {
+            $assigned = Personnel::query()->find($personnel);
+            if ($assigned !== null && $this->priestRotation->isUnavailable($assigned, $start)) {
+                throw ValidationException::withMessages(['personnel_id' => 'This priest is unavailable on the selected date.']);
+            }
+        }
         $resources = function (Builder $query, string $column) use ($location, $personnel): void {
             $query->whereRaw('1 = 0');
             if ($location) {

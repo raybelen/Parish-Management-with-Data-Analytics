@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
-use App\Mail\AppointmentRequestReceived;
+use App\Mail\AppointmentConfirmed;
+use App\Mail\AppointmentReserved;
 use App\Models\Appointment;
 use App\Models\ParishSetting;
+use App\Models\PaymentTransaction;
+use App\Models\ServiceType;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -45,16 +49,24 @@ class AppointmentControllerTest extends TestCase
             ->assertSee('Marriage License, or, if civilly married, Marriage Contract with registry number')
             ->assertSee('Pre-Cana Seminar')
             ->assertSee('Photocopy of Death Certificate')
+            ->assertSee('Online via Xendit Sandbox')
+            ->assertSee('Walk-in at the parish office')
+            ->assertSee('No live charge can be created')
             ->assertSee('St. John Nepomucene Parish')
             ->assertSee('San Isidro Labrador Chapel')
             ->assertSee('Nuestra Señora de los Desamparados')
             ->assertSee('San Fernando Chapel')
             ->assertSee('Santa Misericordia Chapel');
+        $this->assertSame(0, $xpath->query('//dialog[@id="appointment-form-dialog"]')->length);
+        $this->assertSame(0, $xpath->query('//form[@data-appointment-form]//label//span[normalize-space(.)="Required"]')->length);
+        $this->assertSame(1, $xpath->query('//label[@for="client_full_name"]//span[normalize-space(.)="*" and contains(@class, "text-red-700")]')->length);
         $this->assertSame(0, $xpath->query('//form[@data-appointment-form]//input[@type="file"]')->length);
         $this->assertSame(0, $xpath->query('//form[@data-appointment-form and @enctype="multipart/form-data"]')->length);
         $this->assertSame(3, $xpath->query('//section[@data-service-fields and @hidden]')->length);
         $this->assertSame(0, $xpath->query('//*[@data-date-offset]')->length);
         $this->assertSame(6, $xpath->query('//*[@data-time-value]')->length);
+        $this->assertSame(2, $xpath->query('//input[@name="payment_option" and @type="radio"]')->length);
+        $this->assertSame('walk_in', $xpath->query('//input[@name="payment_option" and @checked]')->item(0)?->getAttribute('value'));
         $this->assertSame('900', $xpath->query('//*[@data-preferred-time]')->item(0)?->getAttribute('step'));
         $this->assertSame(1, $xpath->query('//*[@data-required-alert and @role="alert"]')->length);
         $this->assertSame(1, $xpath->query('//*[@data-schedule-fields]')->length);
@@ -105,7 +117,7 @@ class AppointmentControllerTest extends TestCase
             ->assertSee('Go back and edit');
         $this->assertSame(1, $xpath->query('//form[@data-appointment-form]//button[@type="submit" and @data-review-appointment]')->length);
         $this->assertSame(1, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//button[@type="button" and @data-confirm-appointment]')->length);
-        $this->assertSame(6, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//dd[@*[starts-with(name(), "data-review-")]]')->length);
+        $this->assertSame(7, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//dd[@*[starts-with(name(), "data-review-")]]')->length);
     }
 
     #[DataProvider('invalidServiceDetails')]
@@ -190,7 +202,7 @@ class AppointmentControllerTest extends TestCase
      * @param  'baptism'|'wedding'|'funeral'  $serviceType
      */
     #[DataProvider('serviceTypes')]
-    public function test_valid_service_request_creates_pending_appointment_without_document_uploads(string $serviceType): void
+    public function test_valid_service_request_creates_three_day_document_hold_without_public_calendar_entry(string $serviceType): void
     {
         $this->travelTo('2026-09-27 09:00:00');
         Mail::fake();
@@ -204,9 +216,12 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame($serviceType, $appointment->service_type);
         $this->assertSame($payload['service'], $appointment->service_details);
         $this->assertSame('pending', $appointment->status);
+        $this->assertSame('2026-09-30 09:00', $appointment->documents_due_at?->format('Y-m-d H:i'));
         $this->assertSame('2026-10-27 '.($serviceType === 'wedding' ? '10:00' : '09:30'), $appointment->starts_at?->format('Y-m-d H:i'));
         $this->assertSame('2026-10-27 '.($serviceType === 'wedding' ? '11:00' : '10:30'), $appointment->ends_at?->format('Y-m-d H:i'));
         $this->assertSame('St. John Nepomucene Parish', $appointment->confirmed_church);
+        $this->assertSame('walk_in', $appointment->payment_option);
+        $this->assertSame('not_required', $appointment->payment_status);
         $this->assertSame([], $appointment->documents);
         $this->assertMatchesRegularExpression('/^APT-260927-[A-Z0-9]{6}$/', $appointment->reference_number);
         $this->assertDatabaseHas('appointments', [
@@ -214,9 +229,10 @@ class AppointmentControllerTest extends TestCase
             'client_email' => 'maria@example.com',
             'client_contact_key' => '09123456789',
         ]);
-        Mail::assertQueued(AppointmentRequestReceived::class, function (AppointmentRequestReceived $mail) use ($appointment): bool {
+        Mail::assertQueued(AppointmentReserved::class, function (AppointmentReserved $mail) use ($appointment): bool {
             return $mail->appointment->is($appointment) && $mail->hasTo('maria@example.com');
         });
+        Mail::assertNotQueued(AppointmentConfirmed::class);
 
         Storage::disk('local')->assertDirectoryEmpty('/');
 
@@ -224,9 +240,10 @@ class AppointmentControllerTest extends TestCase
         $this->assertNotNull($location);
         $this->get($location)
             ->assertSee($appointment->reference_number)
-            ->assertSee('Pending')
+            ->assertSee('Awaiting Documents')
+            ->assertSee('held for three days')
             ->assertSee('Documents to bring')
-            ->assertSee(config("appointments.services.{$serviceType}.label").' request');
+            ->assertSee(config("appointments.services.{$serviceType}.label").' appointment');
     }
 
     public function test_appointment_request_rejects_document_uploads(): void
@@ -247,6 +264,57 @@ class AppointmentControllerTest extends TestCase
         Storage::disk('local')->assertDirectoryEmpty('/');
     }
 
+    public function test_appointment_request_requires_a_valid_payment_option(): void
+    {
+        $this->travelTo('2026-09-27 09:00:00');
+        $payload = $this->validPayload('baptism');
+        unset($payload['payment_option']);
+
+        $this->post(route('appointments.store'), $payload)
+            ->assertInvalid(['payment_option' => 'Please choose online payment or walk-in payment.']);
+
+        $this->assertDatabaseCount('appointments', 0);
+    }
+
+    public function test_online_payment_choice_starts_sandbox_checkout_after_reservation(): void
+    {
+        $this->travelTo('2026-09-27 09:00:00');
+        config([
+            'app.url' => 'https://parish.test',
+            'services.xendit.sandbox_enabled' => true,
+            'services.xendit.sandbox_secret_key' => 'xnd_development_test_secret',
+            'services.xendit.sandbox_webhook_token' => 'sandbox-webhook-token',
+            'services.xendit.sandbox_business_id' => 'business-sandbox',
+        ]);
+        URL::forceRootUrl('https://parish.test');
+        URL::forceScheme('https');
+        ServiceType::query()->where('slug', 'baptism')->update(['fee_cents' => 10000]);
+        Mail::fake();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://api.xendit.co/sessions' => Http::response([
+                'payment_session_id' => 'ps-sandbox-booking-123',
+                'payment_link_url' => 'https://checkout-staging.xendit.co/sessions/ps-sandbox-booking-123',
+                'business_id' => 'business-sandbox',
+                'expires_at' => now()->addMinutes(30)->toIso8601String(),
+            ], 201),
+        ]);
+
+        $response = $this->post(route('appointments.store'), [
+            ...$this->validPayload('baptism'),
+            'payment_option' => 'online',
+        ]);
+
+        $response->assertRedirect('https://checkout-staging.xendit.co/sessions/ps-sandbox-booking-123');
+        $appointment = Appointment::query()->sole();
+        $this->assertSame('online', $appointment->payment_option);
+        $this->assertSame('pending', $appointment->payment_status);
+        $transaction = PaymentTransaction::query()->sole();
+        $this->assertSame($appointment->id, $transaction->appointment_id);
+        $this->assertSame(10000, $transaction->amount_cents);
+        Mail::assertQueued(AppointmentReserved::class);
+    }
+
     public function test_request_without_an_email_does_not_queue_a_confirmation_email(): void
     {
         $this->travelTo('2026-09-27 09:00:00');
@@ -262,21 +330,40 @@ class AppointmentControllerTest extends TestCase
         Mail::assertNothingQueued();
     }
 
-    public function test_request_received_email_contains_the_reference_and_requested_schedule(): void
+    public function test_confirmation_email_explains_verified_documents_and_optional_payment(): void
     {
         $appointment = Appointment::factory()->make([
             'reference_number' => 'APT-261014-ABC123',
             'client_full_name' => 'Maria Dela Cruz',
-            'preferred_date' => '2026-11-20',
-            'preferred_time' => '09:00',
+            'starts_at' => '2026-11-20 09:00',
+            'confirmed_church' => 'St. John Nepomucene Parish',
         ]);
 
-        $mail = new AppointmentRequestReceived($appointment);
+        $mail = new AppointmentConfirmed($appointment);
 
-        $mail->assertHasSubject('Appointment request received: APT-261014-ABC123');
+        $mail->assertHasSubject('Appointment confirmed: APT-261014-ABC123');
         $mail->assertSeeInHtml('APT-261014-ABC123');
         $mail->assertSeeInHtml('November 20, 2026');
-        $mail->assertSeeInText('pending document and payment verification');
+        $mail->assertSeeInText('verified all required physical documents');
+        $mail->assertSeeInText('not required to keep this appointment confirmed');
+    }
+
+    public function test_reservation_email_explains_deadline_publication_and_optional_payment(): void
+    {
+        $appointment = Appointment::factory()->make([
+            'reference_number' => 'APT-261014-ABC123',
+            'client_full_name' => 'Maria Dela Cruz',
+            'starts_at' => '2026-11-20 09:00',
+            'confirmed_church' => 'St. John Nepomucene Parish',
+            'documents_due_at' => '2026-10-17 09:00',
+        ]);
+
+        $mail = new AppointmentReserved($appointment);
+
+        $mail->assertHasSubject('Appointment reserved: APT-261014-ABC123');
+        $mail->assertSeeInText('within three days');
+        $mail->assertSeeInText('public parish calendar after all required documents are verified');
+        $mail->assertSeeInText('Payment is optional');
     }
 
     #[DataProvider('regularMassConflicts')]
@@ -309,7 +396,7 @@ class AppointmentControllerTest extends TestCase
         ];
     }
 
-    public function test_available_time_at_another_venue_is_accepted_as_pending(): void
+    public function test_available_time_at_another_venue_is_reserved(): void
     {
         $this->travelTo('2026-09-27 09:00:00');
         Storage::fake('local');
@@ -457,6 +544,7 @@ class AppointmentControllerTest extends TestCase
         $this->withoutVite();
         $appointment = Appointment::factory()->create([
             'client_email' => 'maria@example.com',
+            'created_at' => '2026-09-28 07:45:00',
         ]);
         $lookup = $this->post(route('appointments.lookup.store'), [
             'reference_number' => $appointment->reference_number,
@@ -469,6 +557,8 @@ class AppointmentControllerTest extends TestCase
 
         $firstVisit
             ->assertSee($appointment->reference_number)
+            ->assertSee('Appointment created')
+            ->assertSee('September 28, 2026 · 7:45 AM')
             ->assertSee('data-one-time-appointment-access', false)
             ->assertHeader('Pragma', 'no-cache');
         $this->assertStringContainsString('no-store', (string) $firstVisit->headers->get('Cache-Control'));
@@ -574,6 +664,7 @@ class AppointmentControllerTest extends TestCase
             'preferred_time' => $serviceType === 'wedding' ? '10:00' : '09:30',
             'preferred_church' => 'St. John Nepomucene Parish',
             'additional_notes' => 'Please call in the afternoon.',
+            'payment_option' => 'walk_in',
             'service' => $serviceDetails,
         ];
     }

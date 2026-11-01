@@ -15,7 +15,9 @@ class CancelAppointmentRequest extends FormRequest
     {
         $appointment = $this->route('appointment');
 
-        return $appointment instanceof Appointment && $appointment->status === 'pending';
+        return $appointment instanceof Appointment
+            && in_array($appointment->status, ['pending', 'confirmed'], true)
+            && ($appointment->status === 'pending' || $appointment->starts_at?->isFuture());
     }
 
     /**

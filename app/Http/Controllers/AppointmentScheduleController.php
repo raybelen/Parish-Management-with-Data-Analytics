@@ -20,8 +20,9 @@ class AppointmentScheduleController extends Controller
             DB::transaction(function () use ($request, $appointment, $reserveAppointmentSlot): void {
                 ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
                 $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
-                abort_unless($locked->status === 'pending', 409, 'This appointment request can no longer be changed.');
-                $before = $locked->only(['preferred_date', 'preferred_time', 'preferred_church', 'group_baptism_session_id', 'starts_at', 'ends_at', 'reserved_until', 'confirmed_church']);
+                abort_unless(in_array($locked->status, ['pending', 'confirmed'], true)
+                    && ($locked->status === 'pending' || $locked->starts_at?->isFuture()), 409, 'This appointment can no longer be changed.');
+                $before = $locked->only(['preferred_date', 'preferred_time', 'preferred_church', 'group_baptism_session_id', 'starts_at', 'ends_at', 'reserved_until', 'confirmed_church', 'personnel_id']);
                 $locked->fill($request->safe()->only(['preferred_date', 'preferred_time', 'preferred_church', 'group_baptism_session_id']));
                 $locked->version++;
                 $locked->save();
@@ -39,7 +40,9 @@ class AppointmentScheduleController extends Controller
 
         return redirect()->to($access->issue($request, $appointment))->with(
             'appointment_message',
-            'Your new date, time, and venue have been reserved. The appointment remains pending document and payment verification.',
+            $appointment->refresh()->status === 'confirmed'
+                ? 'Your new date, time, and venue are confirmed and shown on the parish calendar.'
+                : 'Your new date, time, and venue are reserved. Please submit the required physical documents within three days.',
         );
     }
 }

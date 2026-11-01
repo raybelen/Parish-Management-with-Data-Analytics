@@ -15,7 +15,7 @@ RUN npm run build
 FROM php:8.4-apache-bookworm
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libcurl4-openssl-dev libonig-dev libpq-dev unzip python3 python3-venv \
+    && apt-get install -y --no-install-recommends libcurl4-openssl-dev libonig-dev libpq-dev supervisor unzip python3 python3-venv \
     && docker-php-ext-install -j"$(nproc)" curl mbstring opcache pdo_pgsql \
     && a2enmod headers rewrite \
     && rm -rf /var/lib/apt/lists/*
@@ -32,6 +32,7 @@ COPY --from=frontend /app/public/build ./public/build
 COPY apache-vhost.conf /etc/apache2/sites-available/000-default.conf
 COPY php-production.ini /usr/local/etc/php/conf.d/production.ini
 COPY render-start.sh /usr/local/bin/render-start
+COPY supervisord.conf /etc/supervisor/conf.d/parish-management.conf
 
 RUN composer install \
         --classmap-authoritative \

@@ -134,7 +134,15 @@ if (serviceSelect) updateServiceFields();
 const preferredContactMethod = document.querySelector('[data-contact-method]');
 const contactEmail = document.querySelector('[data-contact-email]');
 function updateContactEmailRequirement() {
-    if (contactEmail) contactEmail.required = preferredContactMethod?.value === 'email';
+    if (contactEmail) {
+        contactEmail.required = preferredContactMethod?.value === 'email';
+        const marker = document.querySelector('label[for="client_email"] span:last-child');
+        if (marker) {
+            marker.textContent = contactEmail.required ? '*' : 'Optional';
+            marker.className = contactEmail.required ? 'font-semibold text-red-700' : 'text-[10px] font-medium tracking-[0.12em] uppercase text-muted';
+            marker.setAttribute('aria-hidden', String(contactEmail.required));
+        }
+    }
 }
 preferredContactMethod?.addEventListener('change', updateContactEmailRequirement);
 if (preferredContactMethod) updateContactEmailRequirement();
@@ -307,6 +315,7 @@ function updateAppointmentReview() {
         service: selectedOptionText('service_type'),
         schedule: `${preferredDate?.value ? new Intl.DateTimeFormat('en-PH', { dateStyle: 'long' }).format(new Date(`${preferredDate.value}T12:00:00`)) : 'Not provided'} at ${preferredTime?.value ? new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(`2000-01-01T${preferredTime.value}:00`)) : 'Not provided'}`,
         church: selectedOptionText('preferred_church'),
+        payment: appointmentForm?.querySelector('[name="payment_option"]:checked')?.dataset.paymentLabel ?? 'Not provided',
     };
 
     Object.entries(reviewValues).forEach(([name, value]) => {

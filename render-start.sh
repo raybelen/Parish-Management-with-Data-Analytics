@@ -10,5 +10,6 @@ sed -ri "s/<VirtualHost \*:[0-9]+>/<VirtualHost *:${render_port}>/" /etc/apache2
 php artisan migrate --force --no-interaction
 php artisan config:cache --no-interaction
 php artisan view:cache --no-interaction
+php artisan appointments:expire-unverified --no-interaction
 
-exec apache2-foreground
+exec /usr/bin/supervisord --configuration=/etc/supervisor/supervisord.conf

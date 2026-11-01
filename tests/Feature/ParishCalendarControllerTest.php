@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Appointment;
+use App\Models\ParishSetting;
+use App\Models\Personnel;
+use App\Support\OfficeSettings;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -16,11 +19,14 @@ class ParishCalendarControllerTest extends TestCase
     {
         $this->withoutVite();
         $this->travelTo('2026-09-15 10:00:00');
+        $assignedPriest = Personnel::factory()->create(['name' => 'Fr. Mateo Santos']);
         Appointment::factory()->create([
             'status' => 'confirmed',
             'service_type' => 'wedding',
             'preferred_date' => '2026-09-17',
             'preferred_time' => '09:30',
+            'confirmed_church' => 'San Fernando Chapel',
+            'personnel_id' => $assignedPriest->id,
             'client_full_name' => 'Private Parishioner',
         ]);
         Appointment::factory()->create([
@@ -49,6 +55,9 @@ class ParishCalendarControllerTest extends TestCase
             ->assertSee('Sunday Mass')
             ->assertSee('Wedding')
             ->assertSee('9:30 AM')
+            ->assertSee('San Fernando Chapel')
+            ->assertSee('Fr. Mateo Santos')
+            ->assertSee('Assigned priest')
             ->assertDontSee('Baptism')
             ->assertDontSee('Funeral')
             ->assertDontSee('Private Parishioner');
@@ -61,6 +70,11 @@ class ParishCalendarControllerTest extends TestCase
         $this->assertNotNull($septemberWednesday);
         $this->assertStringContainsString('Daily Mass', $septemberWednesday->textContent);
         $this->assertStringContainsString('5:00 PM', $septemberWednesday->textContent);
+
+        $weddingDateButton = $xpath->query('//td[@data-date="2026-09-17"]//button[@data-dialog-target="calendar-schedule-dialog"]')->item(0);
+        $this->assertNotNull($weddingDateButton);
+        $this->assertSame('calendar-details-2026-09-17', $weddingDateButton->getAttribute('data-calendar-template'));
+        $this->assertSame('View schedule for Thursday, September 17, 2026', $weddingDateButton->getAttribute('aria-label'));
     }
 
     public function test_navigation_places_calendar_link_beside_the_appointment_action(): void
@@ -92,6 +106,27 @@ class ParishCalendarControllerTest extends TestCase
         $this->assertSame(['Santa Misericordia Chapel', 'St. John Nepomucene Parish', 'San Fernando Chapel', 'St. John Nepomucene Parish'], array_column($days['2026-11-08']['events'], 'location'));
         $this->assertSame(['07:00', '17:00'], array_column($days['2026-11-04']['events'], 'time_value'));
         $response->assertSee('Nuestra Señora de los Desamparados')->assertSee('San Isidro Labrador Chapel');
+    }
+
+    public function test_calendar_shows_the_priest_assigned_to_a_regular_mass(): void
+    {
+        $this->withoutVite();
+        $this->travelTo('2026-11-01');
+        Personnel::factory()->rotationPosition(1)->create(['name' => 'Fr. Andres Cruz']);
+        Personnel::factory()->rotationPosition(2)->create(['name' => 'Fr. Bruno Reyes']);
+        Personnel::factory()->rotationPosition(3)->create(['name' => 'Fr. Carlos Lim']);
+        ParishSetting::query()->where('key', 'office')->update(['value' => [
+            'priest_rotation_anchor_date' => '2026-11-02',
+            'priest_rotation_anchor_position' => 1,
+        ]]);
+        OfficeSettings::forgetMemoizedValues();
+
+        $response = $this->get(route('calendar'));
+        $days = collect($response->viewData('calendarMonths')[0]['weeks'])->flatten(1)->filter()->keyBy('date');
+
+        $this->assertSame('Mass', $days['2026-11-02']['events'][0]['type']);
+        $this->assertSame('Fr. Andres Cruz', $days['2026-11-02']['events'][0]['personnel']);
+        $response->assertSee('Fr. Andres Cruz')->assertSee('Regular schedule');
     }
 
     public function test_calendar_range_handles_the_turn_of_the_year(): void

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Appointment;
 use App\Models\ParishSetting;
+use App\Models\Personnel;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -13,13 +14,17 @@ class AppointmentScheduleControllerTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_pending_request_schedule_can_be_changed_through_a_signed_link(): void
+    public function test_upcoming_schedule_can_be_changed_and_remains_confirmed_through_a_signed_link(): void
     {
         $this->travelTo('2026-09-30 09:00:00');
         $appointment = Appointment::factory()->create([
-            'status' => 'pending',
+            'status' => 'confirmed',
             'preferred_date' => '2026-10-10',
             'preferred_time' => '09:00',
+            'starts_at' => '2026-10-10 09:00',
+            'ends_at' => '2026-10-10 10:00',
+            'reserved_until' => '2026-10-10 10:00',
+            'confirmed_church' => 'St. John Nepomucene Parish',
         ]);
 
         $response = $this->patch($this->signedScheduleUrl($appointment), [
@@ -28,11 +33,11 @@ class AppointmentScheduleControllerTest extends TestCase
         ]);
 
         $response->assertRedirect()
-            ->assertSessionHas('appointment_message', 'Your new date, time, and venue have been reserved. The appointment remains pending document and payment verification.');
+            ->assertSessionHas('appointment_message', 'Your new date, time, and venue are confirmed and shown on the parish calendar.');
         $appointment->refresh();
         $this->assertSame('2026-11-15', $appointment->preferred_date->format('Y-m-d'));
         $this->assertSame('14:30', mb_substr($appointment->preferred_time, 0, 5));
-        $this->assertSame('pending', $appointment->status);
+        $this->assertSame('confirmed', $appointment->status);
         $this->assertSame('2026-11-15 14:30', $appointment->starts_at?->format('Y-m-d H:i'));
         $this->assertSame('2026-11-15 15:30', $appointment->ends_at?->format('Y-m-d H:i'));
         $this->assertSame($appointment->preferred_church, $appointment->confirmed_church);
@@ -42,8 +47,8 @@ class AppointmentScheduleControllerTest extends TestCase
         $this->get($location)
             ->assertSee('November 15, 2026')
             ->assertSee('2:30 PM')
-            ->assertSee('Update preferred schedule')
-            ->assertSee('Reserved schedule');
+            ->assertSee('Update schedule')
+            ->assertSee('Confirmed schedule');
     }
 
     public function test_funeral_burial_date_follows_a_changed_mass_schedule(): void
@@ -97,6 +102,36 @@ class AppointmentScheduleControllerTest extends TestCase
         $this->assertSame('2026-10-10 10:00', $appointment->ends_at->format('Y-m-d H:i'));
         $this->assertSame('St. John Nepomucene Parish', $appointment->confirmed_church);
         $this->assertSame('pending', $appointment->status);
+    }
+
+    public function test_confirmed_schedule_change_flags_reassignment_when_no_priest_is_available(): void
+    {
+        $this->travelTo('2026-09-30 09:00:00');
+        $personnel = Personnel::factory()->create();
+        Appointment::factory()->create([
+            'status' => 'confirmed', 'personnel_id' => $personnel->id,
+            'preferred_date' => '2026-11-15', 'preferred_time' => '14:30',
+            'preferred_church' => 'San Isidro Labrador Chapel',
+            'starts_at' => '2026-11-15 14:30', 'ends_at' => '2026-11-15 15:30',
+            'reserved_until' => '2026-11-15 15:30', 'confirmed_church' => 'San Isidro Labrador Chapel',
+        ]);
+        $appointment = Appointment::factory()->create([
+            'status' => 'confirmed', 'personnel_id' => $personnel->id,
+            'preferred_date' => '2026-10-10', 'preferred_time' => '09:00',
+            'starts_at' => '2026-10-10 09:00', 'ends_at' => '2026-10-10 10:00',
+            'reserved_until' => '2026-10-10 10:00', 'confirmed_church' => 'St. John Nepomucene Parish',
+        ]);
+
+        $response = $this->patch($this->signedScheduleUrl($appointment), [
+            'preferred_date' => '2026-11-15',
+            'preferred_time' => '14:30',
+        ]);
+
+        $response->assertRedirect()->assertSessionHasNoErrors();
+        $appointment->refresh();
+        $this->assertSame('2026-11-15 14:30', $appointment->starts_at->format('Y-m-d H:i'));
+        $this->assertNull($appointment->personnel_id);
+        $this->assertSame('confirmed', $appointment->status);
     }
 
     public function test_schedule_change_does_not_reserve_a_disabled_venue(): void
@@ -188,7 +223,6 @@ class AppointmentScheduleControllerTest extends TestCase
     public static function closedStatuses(): array
     {
         return [
-            'confirmed request' => ['confirmed'],
             'cancelled request' => ['cancelled'],
         ];
     }

@@ -54,6 +54,9 @@ class StoreAppointmentRequest extends FormRequest
             'baptism_mode' => ['nullable', Rule::in(['private'])],
             'group_baptism_session_id' => ['prohibited'],
             'additional_notes' => ['nullable', 'string', 'max:2000'],
+            'payment_option' => $this->routeIs('admin.*')
+                ? ['prohibited']
+                : ['required', Rule::in(['online', 'walk_in'])],
             'documents' => ['prohibited'],
             'version' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'integer'],
             'change_reason' => [$this->routeIs('admin.appointments.details') ? 'required' : 'nullable', 'string', 'max:1000'],
@@ -129,6 +132,8 @@ class StoreAppointmentRequest extends FormRequest
             'service.contact_number.regex' => 'Please enter a valid contact number with 7 to 15 digits.',
             'preferred_date.after_or_equal' => 'The preferred date must be today or a future date.',
             'preferred_church.in' => 'The selected church or chapel is currently unavailable.',
+            'payment_option.required' => 'Please choose online payment or walk-in payment.',
+            'payment_option.in' => 'Please choose a valid payment option.',
             'documents.prohibited' => 'Document uploads are not accepted with appointment requests. Please bring the listed requirements to the church office.',
         ];
     }

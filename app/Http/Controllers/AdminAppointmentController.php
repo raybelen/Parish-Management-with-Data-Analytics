@@ -11,15 +11,12 @@ use App\Models\AuditLog;
 use App\Models\Personnel;
 use App\Models\ScheduleBlock;
 use App\Models\ServiceType;
-use App\Support\AppointmentParticipants;
 use App\Support\OfficeAccess;
-use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
@@ -42,7 +39,7 @@ class AdminAppointmentController extends Controller
 
         $month = CarbonImmutable::parse(($filters['month'] ?? now()->format('Y-m')).'-01');
         if ($request->input('view') === 'calendar') {
-            $query->where('status', 'confirmed')->whereBetween('starts_at', [$month, $month->endOfMonth()]);
+            $query->whereIn('status', ['pending', 'confirmed'])->whereBetween('starts_at', [$month, $month->endOfMonth()]);
         }
         $calendarAppointments = $request->input('view') === 'calendar'
             ? (clone $query)->orderBy('starts_at')->get()->groupBy(fn ($appointment) => $appointment->starts_at->toDateString()) : collect();
@@ -72,40 +69,7 @@ class AdminAppointmentController extends Controller
         Gate::authorize('appointments.manage');
         $appointment = $create->handle($request->validated());
 
-        return redirect()->route('admin.appointments.show', $appointment)->with('status', 'Walk-in appointment created. Verify physical documents and confirm the schedule.');
-    }
-
-    public function edit(Request $request, Appointment $appointment): View
-    {
-        Gate::authorize('appointments.manage');
-        OfficeAccess::appointment($request->user(), $appointment);
-        abort_unless(in_array($appointment->status, ['pending', 'confirmed'], true), 409);
-
-        return view('admin.appointments.create', [
-            'appointment' => $appointment,
-            'services' => ServiceType::query()->where('slug', $appointment->service_type)->get(),
-            'churches' => OfficeSettings::activeVenues(),
-        ]);
-    }
-
-    public function details(StoreAppointmentRequest $request, Appointment $appointment): RedirectResponse
-    {
-        OfficeAccess::appointment($request->user(), $appointment);
-        DB::transaction(function () use ($request, $appointment): void {
-            $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
-            abort_unless(in_array($locked->status, ['pending', 'confirmed'], true) && $locked->version === (int) $request->validated('version'), 409);
-            abort_unless($locked->service_type === $request->validated('service_type'), 422);
-            $before = $locked->only(['client_full_name', 'client_contact_number', 'client_email', 'client_address', 'preferred_date', 'preferred_time', 'preferred_church', 'additional_notes', 'service_details']);
-            $locked->fill($request->safe()->only(array_diff(array_keys($before), ['service_details'])));
-            $locked->client_contact_key = preg_replace('/\D+/', '', $locked->client_contact_number);
-            $locked->service_details = array_replace($locked->service_details ?? [], $request->validated('service'));
-            $locked->version++;
-            $locked->save();
-            AppointmentParticipants::sync($locked);
-            OfficeAudit::record('appointment.details_corrected', $locked, $before, $locked->only(array_keys($before)), $request->validated('change_reason'));
-        });
-
-        return redirect()->route('admin.appointments.show', $appointment)->with('status', 'Appointment details corrected and audited.');
+        return redirect()->route('admin.appointments.show', $appointment)->with('status', 'Appointment reserved for three days while its physical documents are verified. Payment remains optional.');
     }
 
     public function show(Request $request, Appointment $appointment): View
@@ -114,13 +78,13 @@ class AdminAppointmentController extends Controller
         OfficeAccess::appointment($request->user(), $appointment);
         $appointment->load(['participants', 'personnel', 'serviceRecord']);
         if ($request->user()->can('finance.view')) {
-            $appointment->load('payments');
+            $appointment->load(['payments', 'paymentTransactions' => fn ($query) => $query->latest('id')]);
         }
 
         return view('admin.appointments.show', [
             'appointment' => $appointment,
             'service' => ServiceType::query()->where('slug', $appointment->service_type)->firstOrFail(),
-            'personnel' => Personnel::query()->where('active', true)->orderBy('name')->get(),
+            'personnel' => Personnel::query()->where('active', true)->whereNotNull('rotation_position')->orderBy('rotation_position')->get(),
             'churches' => OfficeSettings::activeVenues(),
             'history' => AuditLog::query()->with('actor')->where('entity_type', Appointment::class)->where('entity_id', $appointment->id)
                 ->when(! $request->user()->can('finance.view'), fn ($query) => $query->where('action', '!=', 'appointment.fee_changed'))->latest('id')->limit(50)->get(),
@@ -130,8 +94,8 @@ class AdminAppointmentController extends Controller
     public function update(UpdateOfficeAppointmentRequest $request, Appointment $appointment, ManageAppointment $manage): RedirectResponse
     {
         OfficeAccess::appointment($request->user(), $appointment);
-        $manage->schedule($appointment, $request->validated());
+        $manage->assignPersonnel($appointment, $request->validated());
 
-        return back()->with('status', 'One-hour schedule saved. Applicable service gaps and period restrictions have been checked.');
+        return back()->with('status', 'Assigned priest or staff member saved.');
     }
 }

@@ -15,16 +15,18 @@ class AppointmentCancellationController extends Controller
     {
         DB::transaction(function () use ($appointment): void {
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
-            abort_unless($locked->status === 'pending', 409, 'This appointment request can no longer be cancelled.');
+            abort_unless(in_array($locked->status, ['pending', 'confirmed'], true)
+                && ($locked->status === 'pending' || $locked->starts_at?->isFuture()), 409, 'This appointment can no longer be cancelled.');
+            $previousStatus = $locked->status;
             $locked->status = 'cancelled';
             $locked->outcome = 'Cancelled by booking contact';
             $locked->version++;
             $locked->save();
-            OfficeAudit::record('appointment.cancelled', $locked, ['status' => 'pending'], ['status' => 'cancelled'], $locked->outcome);
+            OfficeAudit::record('appointment.cancelled', $locked, ['status' => $previousStatus], ['status' => 'cancelled'], $locked->outcome);
             OfficeAudit::notify($locked, 'cancelled', 'Client cancelled: '.$locked->reference_number);
         });
 
         return redirect()->to($access->issue($request, $appointment))
-            ->with('appointment_message', 'Your appointment request has been cancelled.');
+            ->with('appointment_message', 'Your appointment has been cancelled and removed from the parish calendar.');
     }
 }

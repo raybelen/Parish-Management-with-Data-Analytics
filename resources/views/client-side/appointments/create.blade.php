@@ -4,7 +4,7 @@
     @php
         $selectedService = old('service_type', '');
 
-        $inputClass = 'min-h-12 w-full border border-navy/20 bg-white px-4 py-3 text-sm text-navy outline-none transition-colors placeholder:text-muted/55 focus:border-gold focus:ring-1 focus:ring-gold disabled:bg-navy/5 disabled:text-muted';
+        $inputClass = 'min-h-12 w-full rounded-lg border border-navy/20 bg-white px-4 py-3 text-sm text-navy outline-none transition-colors placeholder:text-muted/55 focus:border-gold focus:ring-1 focus:ring-gold disabled:bg-navy/5 disabled:text-muted';
         $selectClass = $inputClass.' parish-select appearance-none pr-10 forced-colors:appearance-auto';
     @endphp
 
@@ -22,10 +22,10 @@
                 <div class="max-w-3xl">
                     <p class="section-label text-muted">New Request</p>
                     <h1 class="mt-5 text-4xl leading-tight sm:text-6xl">Request a parish appointment</h1>
-                    <p class="mt-5 text-base leading-8 text-muted">Complete the common information first. The form will then show the details and requirements for your selected service.</p>
+                    <p class="mt-5 text-base leading-8 text-muted">Add your contact details, choose a service and time, then review your request before sending it.</p>
                 </div>
                 <div class="border-l-2 border-gold pl-5 text-sm leading-7 text-muted">
-                    <p><span class="font-medium text-navy">Required</span> fields must be completed.</p>
+                    <p><span class="font-semibold text-red-700">*</span> indicates a required field.</p>
                     <p>Optional details can be provided if available.</p>
                 </div>
             </div>
@@ -53,11 +53,18 @@
                 <ul class="mt-3 list-disc space-y-1 pl-5 text-sm" data-required-alert-list></ul>
             </div>
 
+            <nav aria-label="Booking form sections" class="mb-6 flex flex-wrap gap-2">
+                <a href="#client-information-heading" class="inline-flex min-h-11 items-center rounded-full border border-navy/15 bg-white px-4 text-sm font-medium text-navy hover:border-gold focus-visible:outline-2 focus-visible:outline-navy">1. Contact details</a>
+                <a href="#service-selection-heading" class="inline-flex min-h-11 items-center rounded-full border border-navy/15 bg-white px-4 text-sm font-medium text-navy hover:border-gold focus-visible:outline-2 focus-visible:outline-navy">2. Service & schedule</a>
+                <a href="#payment-option-heading" class="inline-flex min-h-11 items-center rounded-full border border-navy/15 bg-white px-4 text-sm font-medium text-navy hover:border-gold focus-visible:outline-2 focus-visible:outline-navy">3. Payment option</a>
+                <a href="{{ route('appointments.lookup.create') }}" class="inline-flex min-h-11 items-center px-4 text-sm text-navy underline decoration-gold underline-offset-4">Already have an appointment?</a>
+            </nav>
+
             <div class="grid gap-8">
-                <section aria-labelledby="client-information-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
+                <section aria-labelledby="client-information-heading" class="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-9">
                     <div class="max-w-2xl">
                         <p class="section-label text-muted">01 · Client Information</p>
-                        <h2 id="client-information-heading" class="mt-4 text-3xl">How may we contact you?</h2>
+                        <h2 id="client-information-heading" class="mt-4 scroll-mt-32 text-3xl">How may we contact you?</h2>
                     </div>
 
                     <div class="mt-8 grid gap-6 sm:grid-cols-2">
@@ -82,16 +89,16 @@
                             </select>
                         </x-parish.form-field>
 
-                        <x-parish.form-field id="client_address" name="client_address" label="Address" :required="true" help="Select the location details to build the complete address." class="sm:col-span-2">
+                        <x-parish.form-field id="client_address" name="client_address" label="Address" :required="true" help="Choose your location, then add your street or house number." class="sm:col-span-2">
                             <x-parish.address-field id="client_address" name="client_address" label="Address" :value="old('client_address')" :required="true" :input-class="$inputClass" :select-class="$selectClass" />
                         </x-parish.form-field>
                     </div>
                 </section>
 
-                <section aria-labelledby="service-selection-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
+                <section aria-labelledby="service-selection-heading" class="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-9">
                     <div class="max-w-2xl">
                         <p class="section-label text-muted">02 · Service Selection</p>
-                        <h2 id="service-selection-heading" class="mt-4 text-3xl">Choose a service and preferred schedule</h2>
+                        <h2 id="service-selection-heading" class="mt-4 scroll-mt-32 text-3xl">Choose a service and preferred schedule</h2>
                     </div>
 
                     <div class="mt-8 grid gap-6 sm:grid-cols-2">
@@ -156,7 +163,7 @@
                             Choose a preferred date and time.
                         </div>
 
-                        <x-parish.form-field id="additional_notes" name="additional_notes" label="General additional notes / special requests" :optional="true" class="sm:col-span-2">
+                        <x-parish.form-field id="additional_notes" name="additional_notes" label="Notes or special requests" :optional="true" class="sm:col-span-2">
                             <textarea id="additional_notes" name="additional_notes" rows="4" class="{{ $inputClass }}">{{ old('additional_notes') }}</textarea>
                         </x-parish.form-field>
                     </div>
@@ -164,10 +171,10 @@
 
                 @foreach (['baptism' => 'Baptism details', 'wedding' => 'Marriage details', 'funeral' => 'Death and funeral details'] as $serviceKey => $heading)
                     @php($active = $selectedService === $serviceKey)
-                    <section data-service-fields="{{ $serviceKey }}" @if (! $active) hidden @endif aria-labelledby="{{ $serviceKey }}-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
+                    <section data-service-fields="{{ $serviceKey }}" @if (! $active) hidden @endif aria-labelledby="{{ $serviceKey }}-heading" class="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-9">
                         <p class="section-label text-muted">03 · Service Details</p>
-                        <h2 id="{{ $serviceKey }}-heading" class="mt-4 text-3xl">{{ $heading }}</h2>
-                        <p class="mt-3 text-sm leading-7 text-muted">The service date, time, and church are taken from Service Selection above.</p>
+                        <h2 id="{{ $serviceKey }}-heading" class="mt-4 scroll-mt-32 text-3xl">{{ $heading }}</h2>
+                        <p class="mt-3 text-sm leading-7 text-muted">Your chosen date, time, and church also apply to these details.</p>
                         <x-appointment-service-fields :service-type="$serviceKey" :active="$active" :input-class="$inputClass" :select-class="$selectClass" />
                         <div class="mt-9">
                             @include('client-side.appointments.partials.documents', ['documents' => $services[$serviceKey]['documents'], 'serviceType' => $serviceKey, 'active' => $active])
@@ -177,13 +184,47 @@
 
                 @foreach($services as $serviceKey => $service)
                     @if(!in_array($serviceKey, ['baptism', 'wedding', 'funeral']) && ($service['active'] ?? true))
-                        <section data-service-fields="{{ $serviceKey }}" @if($selectedService !== $serviceKey) hidden @endif class="border border-navy/15 bg-ivory p-6 sm:p-9">
+                        <section data-service-fields="{{ $serviceKey }}" @if($selectedService !== $serviceKey) hidden @endif class="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-9">
                             <h2 class="mb-5 text-2xl">{{ $service['label'] }} details</h2>
-                            <label class="grid gap-2 text-sm"><span>Recipient full name *</span><input name="service[recipient_full_name]" value="{{ old('service.recipient_full_name') }}" data-required="true" @required($selectedService === $serviceKey) @disabled($selectedService !== $serviceKey) class="{{ $inputClass }}"></label>
+                            <label class="grid gap-2 text-sm"><span>Recipient full name <span class="text-red-700" aria-hidden="true">*</span></span><input name="service[recipient_full_name]" value="{{ old('service.recipient_full_name') }}" data-required="true" @required($selectedService === $serviceKey) @disabled($selectedService !== $serviceKey) class="{{ $inputClass }}"></label>
                             @include('client-side.appointments.partials.documents', ['documents' => $service['documents'], 'serviceType' => $serviceKey, 'active' => $selectedService === $serviceKey])
                         </section>
                     @endif
                 @endforeach
+
+                <section aria-labelledby="payment-option-heading" class="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-9">
+                    <p class="section-label text-muted">04 · Payment Option</p>
+                    <h2 id="payment-option-heading" class="mt-4 scroll-mt-32 text-3xl">How would you like to pay?</h2>
+                    <p class="mt-3 max-w-3xl text-sm leading-7 text-muted">Payment remains optional and does not affect document verification or your reserved schedule. Choose where you would prefer to pay when you are ready.</p>
+
+                    <fieldset class="mt-7 grid gap-4 sm:grid-cols-2">
+                        <legend class="sr-only">Payment option</legend>
+                        <label class="flex min-h-36 cursor-pointer gap-4 rounded-xl border border-navy/15 bg-ivory p-5 transition-colors has-checked:border-gold has-checked:bg-gold/10">
+                            <input type="radio" name="payment_option" value="online" required data-payment-label="Online via Xendit Sandbox" @checked(old('payment_option') === 'online') @disabled(! $xenditSandboxAvailable) class="mt-1 size-5 shrink-0 accent-[#9b7b34]">
+                            <span>
+                                <span class="block font-semibold text-navy">Online via Xendit Sandbox</span>
+                                <span class="mt-2 block text-sm leading-6 text-muted">Test checkout only. Xendit shows GCash, Maya, cards, and any other methods enabled for the sandbox account.</span>
+                                @unless($xenditSandboxAvailable)
+                                    <span class="mt-2 block text-xs font-medium text-amber-800">Temporarily unavailable until sandbox credentials are configured.</span>
+                                @endunless
+                            </span>
+                        </label>
+
+                        <label class="flex min-h-36 cursor-pointer gap-4 rounded-xl border border-navy/15 bg-ivory p-5 transition-colors has-checked:border-gold has-checked:bg-gold/10">
+                            <input type="radio" name="payment_option" value="walk_in" required data-payment-label="Walk-in at the parish office" @checked(old('payment_option', 'walk_in') === 'walk_in') class="mt-1 size-5 shrink-0 accent-[#9b7b34]">
+                            <span>
+                                <span class="block font-semibold text-navy">Walk-in at the parish office</span>
+                                <span class="mt-2 block text-sm leading-6 text-muted">Pay in person at the parish office. Staff will record the receipt in your appointment ledger.</span>
+                            </span>
+                        </label>
+                    </fieldset>
+
+                    @error('payment_option')
+                        <p class="mt-4 text-sm text-red-700">{{ $message }}</p>
+                    @enderror
+                    <p class="mt-5 border-l-4 border-sky-700 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950"><strong>Sandbox notice:</strong> Online checkout uses test credentials only. No live charge can be created by this application.</p>
+                </section>
+
                 <div class="flex flex-col-reverse gap-4 border border-navy/15 bg-navy p-6 text-ivory sm:flex-row sm:items-center sm:justify-between sm:p-8">
                     <p class="max-w-xl text-sm leading-7 text-ivory/65">Submitting this form creates a request with a unique reference number. Parish staff will review it before the appointment is confirmed.</p>
                     <button type="submit" data-review-appointment class="inline-flex min-h-12 shrink-0 items-center justify-center gap-4 bg-gold px-7 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63]">
@@ -220,6 +261,10 @@
                 <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
                     <dt class="font-medium text-navy">Church / chapel</dt>
                     <dd data-review-church></dd>
+                </div>
+                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
+                    <dt class="font-medium text-navy">Payment option</dt>
+                    <dd data-review-payment></dd>
                 </div>
             </dl>
 

@@ -12,7 +12,7 @@
     <label for="{{ $id }}" class="flex flex-wrap items-center gap-2 text-sm font-medium text-navy">
         <span>{{ $label }}</span>
         @if ($required)
-            <span class="text-[10px] font-semibold tracking-[0.12em] uppercase text-[#80662e]">Required</span>
+            <span class="font-semibold text-red-700" aria-hidden="true">*</span>
         @elseif ($optional)
             <span class="text-[10px] font-medium tracking-[0.12em] uppercase text-muted">Optional</span>
         @endif

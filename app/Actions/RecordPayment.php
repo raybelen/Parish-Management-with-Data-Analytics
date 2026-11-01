@@ -35,6 +35,15 @@ class RecordPayment
                 'kind' => $data['kind'], 'amount_cents' => $cents, 'method' => $data['method'],
                 'reference' => $data['reference'] ?? null, 'notes' => $data['notes'], 'paid_at' => $data['paid_at'],
             ]);
+            $locked->load('payments');
+            $locked->update([
+                'payment_status' => match (true) {
+                    $locked->fee_cents === 0 => 'not_required',
+                    $locked->netPaidCents() <= 0 => 'unpaid',
+                    $locked->balanceCents() === 0 => 'paid',
+                    default => 'partial',
+                },
+            ]);
             OfficeAudit::record('payment.'.$data['kind'], $payment, [], $payment->only(['appointment_id', 'kind', 'amount_cents', 'method', 'paid_at', 'original_payment_id']), $data['notes']);
 
             return $payment;

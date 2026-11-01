@@ -12,6 +12,9 @@ use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\AdminPasswordController;
 use App\Http\Controllers\AdminPaymentController;
 use App\Http\Controllers\AdminPersonnelController;
+use App\Http\Controllers\AdminPriestController;
+use App\Http\Controllers\AdminPriestRotationController;
+use App\Http\Controllers\AdminPriestUnavailabilityController;
 use App\Http\Controllers\AdminRecordController;
 use App\Http\Controllers\AdminRecordImportController;
 use App\Http\Controllers\AdminReportController;
@@ -33,10 +36,15 @@ use App\Http\Controllers\AppointmentReferenceRecoveryController;
 use App\Http\Controllers\AppointmentScheduleController;
 use App\Http\Controllers\ParishCalendarController;
 use App\Http\Controllers\ParishPageController;
+use App\Http\Controllers\XenditPaymentController;
+use App\Http\Controllers\XenditWebhookController;
 use App\Http\Middleware\EnsureTwoFactorChallenge;
 use App\Http\Middleware\PrepareAdminLogin;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
+
+Route::post('/webhooks/xendit/payment-sessions', XenditWebhookController::class)
+    ->name('webhooks.xendit.payment-sessions');
 
 Route::middleware('guest:web')->group(function (): void {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -62,10 +70,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::get('/', AdminDashboardController::class)->name('dashboard');
         Route::get('calendar', [AdminCalendarController::class, 'index'])->name('calendar.index');
         Route::get('calendar/events', [AdminCalendarController::class, 'events'])->name('calendar.events');
+        Route::get('priests', AdminPriestController::class)->name('priests.index');
+        Route::put('priests/rotation', [AdminPriestRotationController::class, 'update'])->name('priests.rotation.update');
+        Route::post('priests/unavailabilities', [AdminPriestUnavailabilityController::class, 'store'])->name('priests.unavailabilities.store');
+        Route::delete('priests/unavailabilities/{unavailability}', [AdminPriestUnavailabilityController::class, 'destroy'])->name('priests.unavailabilities.destroy');
         Route::resource('schedules', AdminScheduleController::class)->only(['store', 'update', 'destroy'])
             ->middleware('throttle:60,1');
-        Route::resource('appointments', AdminAppointmentController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
-        Route::patch('appointments/{appointment}/details', [AdminAppointmentController::class, 'details'])->name('appointments.details');
+        Route::resource('appointments', AdminAppointmentController::class)->only(['index', 'create', 'store', 'show', 'update']);
         Route::post('appointments/{appointment}/status', [AdminAppointmentStatusController::class, 'store'])->name('appointments.status');
         Route::patch('appointments/{appointment}/documents', [AdminDocumentController::class, 'update'])->name('documents.update');
         Route::post('appointments/{appointment}/documents', [AdminDocumentController::class, 'store'])->name('documents.store');
@@ -128,6 +139,11 @@ Route::post('/appointments/availability', AppointmentAvailabilityController::cla
 Route::post('/appointments/{appointment}/availability', AppointmentAvailabilityController::class)->middleware(['signed', 'throttle:60,1'])->name('appointments.availability.update');
 Route::get('/appointments/new', [AppointmentController::class, 'create'])->name('appointments.create');
 Route::post('/appointments', [AppointmentController::class, 'store'])->middleware('throttle:appointment-submissions')->name('appointments.store');
+Route::post('/appointments/{appointment}/payments/xendit', [XenditPaymentController::class, 'store'])
+    ->middleware(['signed', 'throttle:5,1'])
+    ->name('appointments.payments.xendit');
+Route::get('/appointments/payments/return/{paymentTransaction}', [XenditPaymentController::class, 'show'])
+    ->name('appointments.payments.return');
 Route::get('/appointments/manage', [AppointmentLookupController::class, 'create'])->name('appointments.lookup.create');
 Route::post('/appointments/manage', [AppointmentLookupController::class, 'store'])->middleware('throttle:10,1')->name('appointments.lookup.store');
 Route::post('/appointments/manage/recover', [AppointmentReferenceRecoveryController::class, 'store'])->middleware('throttle:5,1')->name('appointments.reference-recovery.store');

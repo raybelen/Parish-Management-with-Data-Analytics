@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\ExpirePendingAppointment;
+use App\Mail\AppointmentConfirmed;
 use App\Models\Appointment;
 use App\Support\OfficeAccess;
 use App\Support\OfficeAudit;
@@ -9,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -74,33 +77,74 @@ class AdminDocumentController extends Controller
         return Storage::disk(config('appointments.document_disk'))->download($file['path'], basename($file['original_name']), ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 
-    public function update(Request $request, Appointment $appointment): RedirectResponse
+    public function update(Request $request, Appointment $appointment, ExpirePendingAppointment $expirePendingAppointment): RedirectResponse
     {
         Gate::authorize('documents.manage');
         OfficeAccess::appointment($request->user(), $appointment);
         $data = $request->validate([
             'type' => ['required', Rule::in(array_keys($appointment->documentRequirements()))],
-            'channel' => ['required', Rule::in(['physical', 'online'])], 'verified' => ['required', 'boolean'],
-            'version' => ['required', 'integer'], 'reason' => ['required', 'string', 'max:1000'],
+            'decision' => ['required', Rule::in(['verified', 'declined'])],
+            'version' => ['required', 'integer'],
         ]);
-        DB::transaction(function () use ($appointment, $data): void {
+        $result = DB::transaction(function () use ($appointment, $data, $expirePendingAppointment): string {
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
             abort_unless($locked->version === (int) $data['version'], 409, 'Refresh this appointment before saving.');
             abort_unless(in_array($locked->status, ['pending', 'confirmed'], true), 409, 'Finalized requirements are preserved.');
-            if ($data['channel'] === 'online') {
-                abort_unless(! empty($locked->documents[$data['type']]), 422, 'No uploaded file exists for this requirement.');
+
+            if ($locked->status === 'pending' && ($expirationReason = $expirePendingAppointment->handle($locked)) !== null) {
+                return 'expired_'.$expirationReason;
             }
-            $field = $data['channel'] === 'physical' ? 'physical_documents' : 'online_verification';
-            $before = $locked->$field ?? [];
-            $locked->$field = array_replace($before, [$data['type'] => ['verified' => (bool) $data['verified'], 'user_id' => auth()->id(), 'verified_at' => now()->toIso8601String()]]);
-            if ($locked->status === 'confirmed' && ! $locked->physicalDocumentsComplete()) {
-                throw ValidationException::withMessages(['verified' => 'A confirmed appointment must keep its required physical documents verified.']);
+
+            $before = $locked->physical_documents ?? [];
+            $isVerified = $data['decision'] === 'verified';
+            $locked->physical_documents = array_replace($before, [$data['type'] => [
+                'verified' => $isVerified,
+                'user_id' => auth()->id(),
+                'verified_at' => now()->toIso8601String(),
+            ]]);
+            $previousStatus = $locked->status;
+            if (! $isVerified) {
+                $locked->status = 'declined';
+                $locked->outcome = 'A submitted physical document was declined by the parish office.';
+            } elseif ($locked->status === 'pending' && $locked->physicalDocumentsComplete()) {
+                $locked->status = 'confirmed';
+                $locked->outcome = null;
             }
             $locked->version++;
             $locked->save();
-            OfficeAudit::record('document.verified', $locked, [$field => $before], [$field => $locked->$field], $data['reason']);
+            OfficeAudit::record(
+                $isVerified ? 'document.verified' : 'document.declined',
+                $locked,
+                ['physical_documents' => $before],
+                ['physical_documents' => $locked->physical_documents],
+                $isVerified ? 'Physical copy verified' : 'Physical copy declined',
+            );
+            if (! $isVerified) {
+                OfficeAudit::record('appointment.declined', $locked, ['status' => $previousStatus], ['status' => 'declined'], $locked->outcome);
+                OfficeAudit::notify($locked, 'declined', 'Document declined: '.$locked->reference_number);
+            } elseif ($previousStatus === 'pending' && $locked->status === 'confirmed') {
+                OfficeAudit::record('appointment.confirmed', $locked, ['status' => 'pending'], ['status' => 'confirmed'], 'All required physical documents verified');
+                OfficeAudit::notify($locked, 'confirmed', 'Documents verified and appointment confirmed: '.$locked->reference_number);
+                if ($locked->client_email !== null) {
+                    Mail::to($locked->client_email)->queue(
+                        (new AppointmentConfirmed($locked))->afterCommit(),
+                    );
+                }
+            }
+
+            return match (true) {
+                ! $isVerified => 'declined',
+                $previousStatus === 'pending' && $locked->status === 'confirmed' => 'confirmed',
+                default => 'verified',
+            };
         });
 
-        return back()->with('status', 'Document verification updated.');
+        return back()->with('status', match ($result) {
+            'declined' => 'Document declined. The reserved slot was released and will not appear on parish calendars.',
+            'expired_scheduled_start' => 'The scheduled appointment time has passed. The unverified reservation expired and its slot was released.',
+            'expired_document_deadline' => 'The three-day document deadline has passed. The reserved slot was released.',
+            'confirmed' => 'All required physical documents are verified. The appointment is confirmed and now appears on the public parish calendar.',
+            default => 'Physical document verified. Verify the remaining required documents to confirm the appointment.',
+        });
     }
 }

@@ -1,7 +1,8 @@
 @extends('admin.layout')
-@section('title', isset($appointment) ? 'Correct appointment details' : 'New walk-in appointment')
+@section('title', isset($appointment) ? 'Edit appointment details' : 'New walk-in appointment')
+@section('actions')<a class="admin-secondary" href="{{ isset($appointment) ? route('admin.appointments.show', $appointment) : route('admin.appointments.index') }}">Back to appointments</a>@endsection
 @section('content')
-    <p class="text-sm text-muted">Record a current office request without a client account. Older register entries belong in Service records.</p>
+    <p class="text-sm text-muted">Enter the booking details below. New appointments reserve the slot for three days while the office verifies physical documents. Payment is optional.</p>
     <form class="grid gap-6" method="POST" action="{{ isset($appointment) ? route('admin.appointments.details', $appointment) : route('admin.appointments.store') }}">@csrf
         @isset($appointment)@method('PATCH')<input type="hidden" name="version" value="{{ $appointment->version }}">@endisset
         <section class="admin-card grid gap-4 sm:grid-cols-2"><h2 class="text-2xl sm:col-span-2">Booking contact</h2>
@@ -26,6 +27,6 @@
         @endforeach
         <p class="rounded-lg border border-gold/30 bg-amber-50 p-4 text-sm">Online uploads are optional. Required physical copies must be submitted and verified at the church office.</p>
         @isset($appointment)<x-admin.field label="Reason for correction" name="change_reason" required />@endisset
-        <button class="admin-button justify-self-start">{{ isset($appointment) ? 'Save corrected details' : 'Create pending appointment' }}</button>
+        <button class="admin-button justify-self-start">{{ isset($appointment) ? 'Save changes' : 'Create appointment' }}</button>
     </form>
 @endsection
