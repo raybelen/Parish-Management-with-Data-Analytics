@@ -26,6 +26,7 @@ class DeploymentProcessConfigurationTest extends TestCase
         $this->assertStringContainsString('command=php artisan schedule:work --no-interaction', $supervisorConfiguration);
         $this->assertStringContainsString('[program:queue-worker]', $supervisorConfiguration);
         $this->assertStringContainsString('command=php artisan queue:work --sleep=5 --tries=3 --backoff=10 --timeout=20 --max-time=3600 --no-interaction', $supervisorConfiguration);
+        $this->assertSame(2, substr_count($supervisorConfiguration, 'environment=HOME="/var/www",USER="www-data"'));
     }
 
     public function test_every_scheduled_office_command_uses_a_single_server_lock(): void
