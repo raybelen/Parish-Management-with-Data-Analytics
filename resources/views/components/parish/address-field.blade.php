@@ -10,6 +10,7 @@
 ])
 
 <input
+    id="{{ $id }}"
     type="hidden"
     name="{{ $name }}"
     value="{{ $value }}"
@@ -56,7 +57,7 @@
 
         <div class="border-l-2 border-gold bg-gold/10 px-4 py-3 sm:col-span-2">
             <p class="text-[10px] font-semibold tracking-[0.12em] text-[#80662e] uppercase">Selected address</p>
-            <output id="{{ $id }}" class="mt-1 block min-h-5 text-sm leading-6 text-navy" data-psgc-address-preview>{{ $value ?: 'Select your region, province, city or municipality, and barangay to complete the address.' }}</output>
+            <output id="{{ $id }}-preview" class="mt-1 block min-h-5 text-sm leading-6 text-navy" data-psgc-address-preview>{{ $value ?: 'Select your region, province, city or municipality, and barangay to complete the address.' }}</output>
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3 sm:col-span-2">

@@ -12,6 +12,7 @@ function initializeCalendar(root) {
     const readableDate = (value) => parseDay(value).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     const time = (value) => new Date(value).toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' });
     const titleCase = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+    const isMarkedEvent = (event) => ['Appointment', 'Schedule'].includes(event.kind);
     const element = (tag, className = '', text = '') => {
         const node = document.createElement(tag);
         node.className = className;
@@ -77,7 +78,8 @@ function initializeCalendar(root) {
             Object.entries(payload.summary).forEach(([key, value]) => { find(`[data-summary="${key}"]`).textContent = value; });
             renderCalendar();
             renderAgenda(payload.upcoming);
-            message.textContent = `${events.length} matching entries in this view · Updated ${new Date().toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' })}`;
+            const markedCount = events.filter(isMarkedEvent).length;
+            message.textContent = `${markedCount} appointments and staff activities marked in this view · Updated ${new Date().toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' })}`;
             find('[data-calendar-retry]').hidden = true;
         } catch (error) {
             if (error.name === 'AbortError') return;
@@ -103,15 +105,16 @@ function initializeCalendar(root) {
 
     function dayButton(date, compact = false) {
         const dayEvents = onDay(date);
+        const markedEvents = dayEvents.filter(isMarkedEvent);
         const node = button(String(date.getDate()), 'calendar-day', () => {
             if (canManage) openCreate(dateKey(date));
             else { selected = date; view = 'week'; refresh(); }
         });
-        node.setAttribute('aria-label', `${readableDate(dateKey(date))}, ${dayEvents.length} events. ${canManage ? 'Add schedule' : 'View week'}`);
+        node.setAttribute('aria-label', `${readableDate(dateKey(date))}, ${markedEvents.length} appointments or staff activities marked, ${dayEvents.length} total events. ${canManage ? 'Add schedule' : 'View week'}`);
         if (dateKey(date) === today) node.setAttribute('aria-current', 'date');
-        if (compact) {
+        if (compact && markedEvents.length) {
             const dots = element('span', 'calendar-dots');
-            [...new Set(dayEvents.map((event) => event.display_status))].forEach((status) => dots.append(element('span', `calendar-dot calendar-status-${status}`)));
+            [...new Set(markedEvents.map((event) => event.display_status))].forEach((status) => dots.append(element('span', `calendar-dot calendar-status-${status}`)));
             dots.setAttribute('aria-hidden', 'true');
             node.append(dots);
         }
@@ -159,8 +162,8 @@ function initializeCalendar(root) {
                 const card = element('section', 'calendar-mini');
                 card.append(button(monthName(date), 'calendar-mini-heading', () => { selected = date; view = 'month'; refresh(); }));
                 card.append(monthGrid(date, true));
-                const count = events.filter((event) => event.starts_at < dateKey(new Date(selected.getFullYear(), month + 1, 1, 12)) + 'T00:00' && event.ends_at > dateKey(date) + 'T00:00').length;
-                card.append(element('p', 'mt-2 text-xs text-muted', `${count} entries · Select month to view events`));
+                const count = events.filter((event) => isMarkedEvent(event) && event.starts_at < dateKey(new Date(selected.getFullYear(), month + 1, 1, 12)) + 'T00:00' && event.ends_at > dateKey(date) + 'T00:00').length;
+                card.append(element('p', 'mt-2 text-xs text-muted', `${count} marked entries · Select month to view events`));
                 year.append(card);
             }
             grid.append(year);

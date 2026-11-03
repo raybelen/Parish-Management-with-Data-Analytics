@@ -363,6 +363,7 @@ return [
     'services' => [
         'baptism' => [
             'label' => 'Baptism',
+            'fee_cents' => 10000,
             'documents' => [
                 'birth_certificate' => ['label' => 'Photocopy of Birth Certificate with registry number (PSA or Local Civil Registry)', 'required' => true, 'multiple' => false],
                 'parents_marriage_contract' => ['label' => 'Marriage Contract, if parents are married', 'required' => false, 'multiple' => false],
@@ -370,6 +371,7 @@ return [
         ],
         'wedding' => [
             'label' => 'Wedding',
+            'fee_cents' => 10000,
             'documents' => [
                 'psa_birth_certificate' => ['label' => 'PSA Birth Certificate', 'required' => true, 'multiple' => true],
                 'updated_baptismal_confirmation_certificate' => ['label' => 'Updated Baptismal & Confirmation Certificate (Purpose: For Marriage)', 'required' => true, 'multiple' => true],
@@ -379,6 +381,7 @@ return [
         ],
         'funeral' => [
             'label' => 'Funeral',
+            'fee_cents' => 10000,
             'documents' => [
                 'death_certificate' => ['label' => 'Photocopy of Death Certificate', 'required' => true, 'multiple' => false],
             ],

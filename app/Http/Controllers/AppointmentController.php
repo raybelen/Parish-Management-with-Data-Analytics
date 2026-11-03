@@ -46,7 +46,9 @@ class AppointmentController extends Controller
         $appointment = $createAppointment->handle($request->validated());
 
         if ($appointment->client_email !== null) {
-            Mail::to($appointment->client_email)->queue(new AppointmentReserved($appointment));
+            Mail::to($appointment->client_email)->queue(
+                (new AppointmentReserved($appointment))->onConnection('deferred'),
+            );
         }
 
         $appointmentUrl = $access->issue($request, $appointment);

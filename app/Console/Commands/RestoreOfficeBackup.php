@@ -113,7 +113,7 @@ class RestoreOfficeBackup extends Command
         foreach (ServiceType::all() as $service) {
             $default = config('appointments.services.'.$service->slug);
             if (! $default || $service->name !== $default['label'] || $service->requirements !== $default['documents']
-                || $service->fee_cents !== 0 || ! $service->active || $service->buffer_minutes !== 30
+                || $service->fee_cents !== $default['fee_cents'] || ! $service->active || $service->buffer_minutes !== 30
                 || $service->duration_minutes !== 60) {
                 return false;
             }

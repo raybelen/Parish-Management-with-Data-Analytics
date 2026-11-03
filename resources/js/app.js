@@ -302,7 +302,7 @@ function selectedOptionText(fieldName) {
 }
 
 function fieldValue(fieldName) {
-    return appointmentForm?.elements.namedItem(fieldName)?.value?.trim() || 'Not provided';
+    return appointmentForm?.querySelector(`[name="${fieldName}"]`)?.value?.trim() || 'Not provided';
 }
 
 function updateAppointmentReview() {

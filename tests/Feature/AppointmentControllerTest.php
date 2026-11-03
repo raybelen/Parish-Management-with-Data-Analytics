@@ -7,7 +7,6 @@ use App\Mail\AppointmentReserved;
 use App\Models\Appointment;
 use App\Models\ParishSetting;
 use App\Models\PaymentTransaction;
-use App\Models\ServiceType;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -118,6 +117,9 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame(1, $xpath->query('//form[@data-appointment-form]//button[@type="submit" and @data-review-appointment]')->length);
         $this->assertSame(1, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//button[@type="button" and @data-confirm-appointment]')->length);
         $this->assertSame(7, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//dd[@*[starts-with(name(), "data-review-")]]')->length);
+        $this->assertSame(1, $xpath->query('//*[@id="client_address" and @name="client_address" and @data-psgc-address-output]')->length);
+        $this->assertSame(1, $xpath->query('//*[@id="client_address-preview" and @data-psgc-address-preview]')->length);
+        $this->assertSame(1, $xpath->query('//*[@id="client_address"]')->length);
     }
 
     #[DataProvider('invalidServiceDetails')]
@@ -221,7 +223,8 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame('2026-10-27 '.($serviceType === 'wedding' ? '11:00' : '10:30'), $appointment->ends_at?->format('Y-m-d H:i'));
         $this->assertSame('St. John Nepomucene Parish', $appointment->confirmed_church);
         $this->assertSame('walk_in', $appointment->payment_option);
-        $this->assertSame('not_required', $appointment->payment_status);
+        $this->assertSame(10000, $appointment->fee_cents);
+        $this->assertSame('unpaid', $appointment->payment_status);
         $this->assertSame([], $appointment->documents);
         $this->assertMatchesRegularExpression('/^APT-260927-[A-Z0-9]{6}$/', $appointment->reference_number);
         $this->assertDatabaseHas('appointments', [
@@ -230,7 +233,9 @@ class AppointmentControllerTest extends TestCase
             'client_contact_key' => '09123456789',
         ]);
         Mail::assertQueued(AppointmentReserved::class, function (AppointmentReserved $mail) use ($appointment): bool {
-            return $mail->appointment->is($appointment) && $mail->hasTo('maria@example.com');
+            return $mail->appointment->is($appointment)
+                && $mail->hasTo('maria@example.com')
+                && $mail->connection === 'deferred';
         });
         Mail::assertNotQueued(AppointmentConfirmed::class);
 
@@ -288,7 +293,6 @@ class AppointmentControllerTest extends TestCase
         ]);
         URL::forceRootUrl('https://parish.test');
         URL::forceScheme('https');
-        ServiceType::query()->where('slug', 'baptism')->update(['fee_cents' => 10000]);
         Mail::fake();
         Http::preventStrayRequests();
         Http::fake([
