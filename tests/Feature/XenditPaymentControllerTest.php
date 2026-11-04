@@ -173,6 +173,30 @@ class XenditPaymentControllerTest extends TestCase
         $this->assertSame('pending', $appointment->refresh()->payment_status);
     }
 
+    public function test_verified_xendit_dashboard_probe_is_acknowledged_without_recording_payment(): void
+    {
+        $this->configureSandbox();
+
+        $this->withHeader('X-Callback-Token', 'sandbox-webhook-token')
+            ->postJson(route('webhooks.xendit.payment-sessions'), [
+                'event' => 'payment_session.completed',
+                'business_id' => '5781d19b2e2385880609791c',
+                'created' => '2020-04-20T16:25:52Z',
+                'data' => [
+                    'id' => 'ps-579c8d61f23fa4ca35e52da4',
+                    'reference_id' => 'test_session',
+                    'currency' => 'IDR',
+                    'session_type' => 'SAVE',
+                    'status' => 'COMPLETED',
+                    'updated' => '2020-04-20T16:25:52Z',
+                ],
+            ])
+            ->assertNoContent();
+
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertDatabaseCount('payment_transactions', 0);
+    }
+
     public function test_verified_expiry_webhook_marks_unpaid_session_expired(): void
     {
         $this->configureSandbox();

@@ -26,16 +26,18 @@ class XenditWebhookRequest extends FormRequest
      */
     public function rules(): array
     {
+        $isDashboardTest = $this->input('data.reference_id') === 'test_session';
+
         return [
             'event' => ['required', Rule::in(['payment_session.completed', 'payment_session.expired'])],
             'business_id' => ['required', 'string', 'max:255'],
             'created' => ['required', 'date'],
             'data' => ['required', 'array'],
             'data.reference_id' => ['required', 'string', 'max:64'],
-            'data.payment_session_id' => ['required', 'string', 'max:255'],
-            'data.payment_id' => [Rule::requiredIf($this->input('event') === 'payment_session.completed'), 'nullable', 'string', 'max:255'],
-            'data.amount' => ['required', 'integer', 'min:1'],
-            'data.currency' => ['required', Rule::in(['PHP'])],
+            'data.payment_session_id' => [Rule::requiredIf(! $isDashboardTest), 'nullable', 'string', 'max:255'],
+            'data.payment_id' => [Rule::requiredIf(! $isDashboardTest && $this->input('event') === 'payment_session.completed'), 'nullable', 'string', 'max:255'],
+            'data.amount' => [Rule::requiredIf(! $isDashboardTest), 'nullable', 'integer', 'min:1'],
+            'data.currency' => [Rule::requiredIf(! $isDashboardTest), 'nullable', Rule::when(! $isDashboardTest, Rule::in(['PHP']), ['string', 'size:3'])],
             'data.status' => ['required', Rule::in(['COMPLETED', 'EXPIRED'])],
             'data.updated' => ['nullable', 'date'],
             'data.expires_at' => ['nullable', 'date'],
