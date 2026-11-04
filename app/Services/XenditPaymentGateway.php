@@ -30,6 +30,12 @@ class XenditPaymentGateway
             throw new RuntimeException('Xendit Sandbox return URLs require an HTTPS APP_URL.');
         }
 
+        if ($transaction->amount_cents % 100 !== 0) {
+            throw new RuntimeException('Xendit Sandbox payments require a whole-peso amount.');
+        }
+
+        $amountPesos = intdiv($transaction->amount_cents, 100);
+
         $appointment = $transaction->appointment;
         $customerName = Str::of(Str::ascii($appointment->client_full_name))
             ->replaceMatches('/[^A-Za-z0-9 ]+/', '')
@@ -61,7 +67,7 @@ class XenditPaymentGateway
                 'mode' => 'PAYMENT_LINK',
                 'allow_save_payment_method' => 'DISABLED',
                 'capture_method' => 'AUTOMATIC',
-                'amount' => $transaction->amount_cents,
+                'amount' => $amountPesos,
                 'currency' => 'PHP',
                 'country' => 'PH',
                 'locale' => 'en',

@@ -41,7 +41,7 @@ class XenditPaymentControllerTest extends TestCase
             return $request->url() === 'https://api.xendit.co/sessions'
                 && $request->hasHeader('Authorization', 'Basic '.base64_encode('xnd_development_test_secret:'))
                 && $request['reference_id'] === $transaction->reference_id
-                && $request['amount'] === 15000
+                && $request['amount'] === 150
                 && $request['currency'] === 'PHP'
                 && $request['country'] === 'PH'
                 && $request['mode'] === 'PAYMENT_LINK'
@@ -164,7 +164,7 @@ class XenditPaymentControllerTest extends TestCase
         $this->withHeader('X-Callback-Token', 'sandbox-webhook-token')
             ->postJson(route('webhooks.xendit.payment-sessions'), [
                 ...$payload,
-                'data' => [...$payload['data'], 'amount' => 9999],
+                'data' => [...$payload['data'], 'amount' => 99],
             ])
             ->assertUnprocessable();
 
@@ -280,7 +280,7 @@ class XenditPaymentControllerTest extends TestCase
                 'reference_id' => $transaction->reference_id,
                 'payment_session_id' => $transaction->provider_session_id,
                 'payment_id' => 'py-sandbox-payment-123',
-                'amount' => $transaction->amount_cents,
+                'amount' => intdiv($transaction->amount_cents, 100),
                 'currency' => 'PHP',
                 'status' => 'COMPLETED',
                 'updated' => '2026-11-01T08:00:00Z',

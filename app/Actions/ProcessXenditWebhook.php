@@ -29,10 +29,12 @@ class ProcessXenditWebhook
                 return;
             }
 
+            $providerAmountCents = (int) $data['amount'] * 100;
+
             abort_unless($transaction->environment === 'sandbox'
                 && hash_equals((string) $transaction->provider_session_id, (string) $data['payment_session_id'])
                 && hash_equals((string) $transaction->provider_business_id, (string) $payload['business_id'])
-                && $transaction->amount_cents === (int) $data['amount']
+                && $transaction->amount_cents === $providerAmountCents
                 && $transaction->currency === $data['currency'], 422);
 
             $eventAt = CarbonImmutable::parse($data['updated'] ?? $payload['created']);
