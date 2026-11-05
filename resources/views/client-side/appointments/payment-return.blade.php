@@ -48,4 +48,10 @@
             </div>
         </div>
     </section>
+
+    @if($transaction?->status === 'pending')
+        <script>
+            window.setTimeout(() => window.location.reload(), 3000);
+        </script>
+    @endif
 @endsection

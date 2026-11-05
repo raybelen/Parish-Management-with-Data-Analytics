@@ -238,11 +238,38 @@ class XenditPaymentControllerTest extends TestCase
             ->assertOk()
             ->assertHeader('Cache-Control', 'max-age=0, no-store, private')
             ->assertSee('Payment confirmation is processing')
+            ->assertSee('window.setTimeout(() => window.location.reload(), 3000);', false)
             ->assertSee($appointment->reference_number)
             ->assertDontSee($appointment->client_email);
 
         $this->assertDatabaseCount('payments', 0);
         $this->assertSame('pending', $transaction->refresh()->status);
+    }
+
+    public function test_paid_return_redirects_to_manage_appointment_with_paid_status(): void
+    {
+        $this->configureSandbox();
+        $appointment = Appointment::factory()->create([
+            'fee_cents' => 10000,
+            'payment_option' => 'online',
+            'payment_status' => 'paid',
+        ]);
+        $transaction = PaymentTransaction::factory()->for($appointment)->create([
+            'status' => 'paid',
+            'provider_payment_id' => 'py-sandbox-payment-123',
+            'paid_at' => now(),
+        ]);
+
+        $response = $this->get(route('appointments.payments.return', $transaction));
+
+        $response
+            ->assertRedirectContains(route('appointments.show', $appointment))
+            ->assertSessionHas('appointment_message', 'Sandbox payment confirmed. Your payment status is now Paid.');
+
+        $this->get($response->headers->get('Location'))
+            ->assertOk()
+            ->assertSee('Sandbox payment confirmed. Your payment status is now Paid.')
+            ->assertSee('Paid');
     }
 
     private function configureSandbox(string $secretKey = 'xnd_development_test_secret'): void

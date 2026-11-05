@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Actions\StartXenditPayment;
 use App\Models\Appointment;
 use App\Models\PaymentTransaction;
+use App\Support\AppointmentAccess;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Throwable;
 
@@ -29,9 +31,18 @@ class XenditPaymentController extends Controller
         return redirect()->away((string) $transaction->checkout_url);
     }
 
-    public function show(PaymentTransaction $paymentTransaction): Response
-    {
+    public function show(
+        Request $request,
+        PaymentTransaction $paymentTransaction,
+        AppointmentAccess $appointmentAccess,
+    ): RedirectResponse|Response {
         $paymentTransaction->load('appointment');
+
+        if ($paymentTransaction->status === 'paid') {
+            return redirect()->to(
+                $appointmentAccess->issue($request, $paymentTransaction->appointment),
+            )->with('appointment_message', 'Sandbox payment confirmed. Your payment status is now Paid.');
+        }
 
         return response()->view('client-side.appointments.payment-return', [
             'pageTitle' => 'Sandbox Payment Status',
