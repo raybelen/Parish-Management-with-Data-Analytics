@@ -57,7 +57,7 @@ class AppointmentAvailabilityTest extends TestCase
             $queryCount++;
         });
 
-        $this->postJson(route('appointments.availability'), [...$this->payload(), 'suggest' => true])
+        $this->postJson(route('appointments.availability'), [...$this->payload(), 'suggest' => true, 'times' => ['08:00', '09:00', '10:00', '13:00', '14:00', '15:00']])
             ->assertOk()
             ->assertJsonPath('available', false)
             ->assertJsonStructure(['alternatives' => [['time', 'label']]]);
@@ -130,6 +130,55 @@ class AppointmentAvailabilityTest extends TestCase
             ->assertInvalid(['baptism_mode', 'group_baptism_session_id']);
         $this->postJson(route('appointments.store'), [...$this->payload(), 'baptism_mode' => 'shared', 'group_baptism_session_id' => 1])
             ->assertInvalid(['baptism_mode', 'group_baptism_session_id']);
+    }
+
+    public function test_time_buttons_report_each_conflict_even_when_the_selected_time_is_available(): void
+    {
+        $this->travelTo('2026-10-01');
+        config(['parish.regular_schedules' => []]);
+        ScheduleBlock::factory()->create([
+            'church' => 'St. John Nepomucene Parish',
+            'starts_at' => '2026-11-02 09:00',
+            'ends_at' => '2026-11-02 10:00',
+            'title' => 'Private office details',
+        ]);
+
+        foreach (['baptism', 'wedding', 'funeral'] as $service) {
+            $this->postJson(route('appointments.availability'), [
+                ...$this->payload(),
+                'service_type' => $service,
+                'preferred_time' => '13:00',
+                'times' => ['08:00', '09:00', '10:00', '13:00'],
+            ])->assertOk()
+                ->assertJsonPath('available', true)
+                ->assertJsonPath('time_slots.0.available', true)
+                ->assertJsonPath('time_slots.1.time', '09:00')
+                ->assertJsonPath('time_slots.1.available', false)
+                ->assertJsonPath('time_slots.2.available', true)
+                ->assertJsonPath('time_slots.3.available', true)
+                ->assertDontSee('Private office details');
+        }
+
+        $this->postJson(route('appointments.availability'), [
+            ...$this->payload(),
+            'preferred_church' => 'San Isidro Labrador Chapel',
+            'times' => ['09:00'],
+        ])->assertJsonPath('time_slots.0.available', true);
+        $this->postJson(route('appointments.availability'), [
+            ...$this->payload(),
+            'preferred_date' => '2026-11-03',
+            'times' => ['09:00'],
+        ])->assertJsonPath('time_slots.0.available', true);
+        $this->assertDatabaseEmpty('appointments');
+    }
+
+    public function test_time_button_batch_rejects_invalid_or_excessive_times(): void
+    {
+        $this->travelTo('2026-10-01');
+        $this->postJson(route('appointments.availability'), [...$this->payload(), 'times' => ['invalid']])
+            ->assertUnprocessable()->assertInvalid(['times.0']);
+        $this->postJson(route('appointments.availability'), [...$this->payload(), 'times' => array_fill(0, 13, '09:00')])
+            ->assertUnprocessable()->assertInvalid(['times']);
     }
 
     private function payload(): array

@@ -55,7 +55,120 @@ class AdminOperationsTest extends TestCase
 
         $this->get('/admin/appointments/'.$appointment->reference_number)
             ->assertSeeInOrder(['id="appointment-documents"', 'id="appointment-payments"', 'id="appointment-status"'], false)
+            ->assertSee('data-document-verification', false)
+            ->assertSee('data-document-decision-form', false)
+            ->assertSee('Needs checking')
             ->assertDontSee('name="completed_at"', false);
+    }
+
+    public function test_document_verification_returns_an_incremental_update_for_the_staff_interface(): void
+    {
+        $this->travelTo('2026-11-03 09:00:00');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        Mail::fake();
+        $requirements = [
+            'license' => ['label' => 'Marriage License', 'required' => true],
+            'seminar' => ['label' => 'Pre-Cana Seminar', 'required' => true],
+        ];
+        $appointment = Appointment::factory()->create([
+            'status' => 'pending',
+            'service_type' => 'wedding',
+            'requirements' => $requirements,
+            'starts_at' => '2026-11-15 09:00:00',
+            'ends_at' => '2026-11-15 10:00:00',
+            'reserved_until' => '2026-11-15 10:00:00',
+            'documents_due_at' => '2026-11-06 09:00:00',
+        ]);
+
+        $response = $this->patchJson('/admin/appointments/'.$appointment->reference_number.'/documents', [
+            'type' => 'license',
+            'decision' => 'verified',
+            'version' => 1,
+        ]);
+
+        $response->assertOk()->assertJson([
+            'result' => 'verified',
+            'message' => 'Physical document verified. Verify the remaining required documents to confirm the appointment.',
+            'appointment_status' => 'pending',
+            'version' => 2,
+            'document' => ['type' => 'license', 'verified' => true],
+        ]);
+        $this->assertStringContainsString('data-appointment-status-section', $response->json('status_section_html'));
+        $appointment->refresh();
+        $this->assertSame('pending', $appointment->status);
+        $this->assertTrue($appointment->physical_documents['license']['verified']);
+        Mail::assertNothingQueued();
+    }
+
+    public function test_document_verification_requires_a_clear_staff_decision(): void
+    {
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $appointment = Appointment::factory()->create();
+
+        $response = $this->patchJson('/admin/appointments/'.$appointment->reference_number.'/documents', [
+            'type' => array_key_first($appointment->documentRequirements()),
+            'version' => 1,
+        ]);
+
+        $response->assertInvalid(['decision' => 'Choose Verified or Decline.']);
+        $this->assertSame([], $appointment->refresh()->physical_documents ?? []);
+    }
+
+    public function test_final_document_verification_returns_confirmed_controls_without_a_page_redirect(): void
+    {
+        $this->travelTo('2026-11-03 09:00:00');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        Mail::fake();
+        $appointment = Appointment::factory()->create([
+            'status' => 'pending',
+            'requirements' => ['certificate' => ['label' => 'Certificate', 'required' => true]],
+            'starts_at' => '2026-11-15 09:00:00',
+            'ends_at' => '2026-11-15 10:00:00',
+            'reserved_until' => '2026-11-15 10:00:00',
+            'documents_due_at' => '2026-11-06 09:00:00',
+        ]);
+
+        $response = $this->patchJson('/admin/appointments/'.$appointment->reference_number.'/documents', [
+            'type' => 'certificate',
+            'decision' => 'verified',
+            'version' => 1,
+        ]);
+
+        $response->assertOk()->assertJson([
+            'result' => 'confirmed',
+            'appointment_status' => 'confirmed',
+            'version' => 2,
+        ]);
+        $this->assertStringContainsString('Confirmed', $response->json('status_badge_html'));
+        $this->assertStringContainsString('name="completed_at"', $response->json('status_section_html'));
+        $this->assertSame('confirmed', $appointment->refresh()->status);
+        Mail::assertQueued(AppointmentConfirmed::class, fn (AppointmentConfirmed $mail): bool => $mail->appointment->is($appointment));
+    }
+
+    public function test_final_document_verification_does_not_email_a_phone_contact(): void
+    {
+        $this->travelTo('2026-11-03 09:00:00');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        Mail::fake();
+        $appointment = Appointment::factory()->create([
+            'status' => 'pending',
+            'preferred_contact_method' => 'phone',
+            'client_email' => 'optional@example.com',
+            'requirements' => ['certificate' => ['label' => 'Certificate', 'required' => true]],
+            'starts_at' => '2026-11-15 09:00:00',
+            'ends_at' => '2026-11-15 10:00:00',
+            'reserved_until' => '2026-11-15 10:00:00',
+            'documents_due_at' => '2026-11-06 09:00:00',
+        ]);
+
+        $this->patch('/admin/appointments/'.$appointment->reference_number.'/documents', [
+            'type' => 'certificate',
+            'decision' => 'verified',
+            'version' => 1,
+        ])->assertSessionHas('status', 'All required physical documents are verified. The appointment is confirmed and now appears on the public parish calendar.');
+
+        $this->assertSame('confirmed', $appointment->refresh()->status);
+        Mail::assertNothingQueued();
     }
 
     public function test_appointment_service_details_open_in_a_modal_instead_of_a_dropdown(): void
@@ -241,6 +354,31 @@ class AdminOperationsTest extends TestCase
         $this->assertSame('pending', $appointment->refresh()->status);
         $this->assertSame(10000, $appointment->balanceCents());
         $this->assertFalse($appointment->physicalDocumentsComplete());
+    }
+
+    public function test_status_confirmation_does_not_email_a_phone_contact(): void
+    {
+        $this->travelTo('2026-10-01');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        Mail::fake();
+        $appointment = Appointment::factory()->create([
+            'preferred_contact_method' => 'phone',
+            'client_email' => 'optional@example.com',
+            'requirements' => [],
+            'starts_at' => '2026-10-10 10:00',
+            'ends_at' => '2026-10-10 11:00',
+            'reserved_until' => '2026-10-10 11:00',
+            'confirmed_church' => 'San Isidro Labrador Chapel',
+        ]);
+
+        $this->post('/admin/appointments/'.$appointment->reference_number.'/status', [
+            'status' => 'confirmed',
+            'version' => 1,
+            'reason' => 'Reviewed',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('confirmed', $appointment->refresh()->status);
+        Mail::assertNothingQueued();
     }
 
     public function test_confirmation_email_contains_the_confirmed_schedule_and_church(): void

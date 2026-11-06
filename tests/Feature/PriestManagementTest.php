@@ -72,6 +72,36 @@ class PriestManagementTest extends TestCase
         $this->assertSame(2, $rotation->regularPosition(now()->toImmutable()->setDate(2026, 11, 1)));
     }
 
+    public function test_priest_activity_schedule_is_paginated_into_weekly_periods(): void
+    {
+        $this->travelTo('2026-11-03 08:00:00');
+        $this->withoutVite();
+        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        config(['parish.regular_schedules' => []]);
+        $firstPeriod = Appointment::factory()->create([
+            'status' => 'confirmed',
+            'starts_at' => '2026-11-05 09:00:00',
+            'ends_at' => '2026-11-05 10:00:00',
+            'reserved_until' => '2026-11-05 10:00:00',
+        ]);
+        $secondPeriod = Appointment::factory()->create([
+            'status' => 'confirmed',
+            'starts_at' => '2026-11-12 09:00:00',
+            'ends_at' => '2026-11-12 10:00:00',
+            'reserved_until' => '2026-11-12 10:00:00',
+        ]);
+
+        $this->get('/admin/priests')
+            ->assertViewHas('scheduleRows', fn ($rows): bool => $rows->pluck('title')->contains($firstPeriod->reference_number)
+                && ! $rows->pluck('title')->contains($secondPeriod->reference_number))
+            ->assertSee('Period 1 of 5')
+            ->assertSee(route('admin.priests.index', ['page' => 2]));
+        $this->get('/admin/priests?page=2')
+            ->assertViewHas('scheduleRows', fn ($rows): bool => ! $rows->pluck('title')->contains($firstPeriod->reference_number)
+                && $rows->pluck('title')->contains($secondPeriod->reference_number))
+            ->assertSee('Period 2 of 5');
+    }
+
     public function test_multiple_regular_schedules_on_the_same_day_follow_the_priest_rotation(): void
     {
         $this->travelTo('2026-10-29 08:00:00');
@@ -123,12 +153,61 @@ class PriestManagementTest extends TestCase
         ]);
 
         $this->post('/admin/priests/unavailabilities', [
-            'personnel_id' => $priestOne->id, 'unavailable_on' => '2026-11-03', 'reason' => 'Retreat',
+            'personnel_id' => $priestOne->id, 'unavailable_from' => '2026-11-03', 'reason' => 'Retreat',
         ])->assertRedirectBack()->assertSessionHas('status');
 
         $this->assertNotSame($priestOne->id, $appointment->refresh()->personnel_id);
         $unavailability = $priestOne->unavailabilities()->firstOrFail();
         $this->assertSame('2026-11-03', $unavailability->unavailable_on->toDateString());
+    }
+
+    public function test_staff_can_save_consecutive_priest_unavailability_dates_and_reassign_affected_activities(): void
+    {
+        $this->travelTo('2026-10-29 08:00:00');
+        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        [$priestOne] = $this->configuredPriests();
+        $appointments = collect(['2026-11-03', '2026-11-04', '2026-11-05'])->map(fn (string $date): Appointment => Appointment::factory()->create([
+            'status' => 'confirmed',
+            'personnel_id' => $priestOne->id,
+            'starts_at' => "{$date} 10:00",
+            'ends_at' => "{$date} 11:00",
+            'reserved_until' => "{$date} 11:00",
+        ]));
+        $schedule = Schedule::factory()->create([
+            'personnel_id' => $priestOne->id,
+            'priest_required' => true,
+            'starts_at' => '2026-11-04 14:00',
+            'ends_at' => '2026-11-04 15:00',
+        ]);
+
+        $this->post('/admin/priests/unavailabilities', [
+            'personnel_id' => $priestOne->id,
+            'unavailable_from' => '2026-11-03',
+            'unavailable_through' => '2026-11-05',
+            'reason' => 'Retreat',
+        ])->assertRedirectBack()->assertSessionHas('status', 'Priest unavailability saved for 3 dates and affected activities reassigned where possible.');
+
+        $this->assertSame(
+            ['2026-11-03', '2026-11-04', '2026-11-05'],
+            $priestOne->unavailabilities()->orderBy('unavailable_on')->get()->map(fn ($unavailability): string => $unavailability->unavailable_on->toDateString())->all(),
+        );
+        $appointments->each(fn (Appointment $appointment) => $this->assertNotSame($priestOne->id, $appointment->refresh()->personnel_id));
+        $this->assertNotSame($priestOne->id, $schedule->refresh()->personnel_id);
+    }
+
+    public function test_unavailability_through_date_cannot_be_before_the_start_date(): void
+    {
+        $this->travelTo('2026-10-29 08:00:00');
+        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        [$priestOne] = $this->configuredPriests();
+
+        $this->post('/admin/priests/unavailabilities', [
+            'personnel_id' => $priestOne->id,
+            'unavailable_from' => '2026-11-05',
+            'unavailable_through' => '2026-11-03',
+        ])->assertInvalid(['unavailable_through' => 'must be a date after or equal to unavailable from']);
+
+        $this->assertDatabaseCount('priest_unavailabilities', 0);
     }
 
     public function test_priest_required_calendar_activity_is_one_hour_and_automatically_assigned(): void

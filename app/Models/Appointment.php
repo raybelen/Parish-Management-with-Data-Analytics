@@ -152,4 +152,10 @@ class Appointment extends Model
             && in_array($this->status, ['pending', 'confirmed', 'completed'], true)
             && $this->balanceCents() > 0;
     }
+
+    public function wantsEmailNotifications(): bool
+    {
+        return $this->preferred_contact_method === 'email'
+            && filled($this->client_email);
+    }
 }

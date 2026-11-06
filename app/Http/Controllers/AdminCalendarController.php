@@ -45,8 +45,13 @@ class AdminCalendarController extends Controller
         $to = CarbonImmutable::parse($data['to'], config('office.timezone'));
         abort_if($from->diffInDays($to) > 370, 422, 'Choose a calendar range of at most one year.');
         $now = CarbonImmutable::now(config('office.timezone'));
-        $events = $calendar->filter($calendar->events($request->user(), $from, $to), $data);
-        $current = $calendar->events($request->user(), $now->startOfMonth(), $now->addMonthNoOverflow()->startOfMonth());
+        $visible = $calendar->events($request->user(), $from, $to);
+        $events = $calendar->filter($visible, $data);
+        $monthStart = $now->startOfMonth();
+        $monthEnd = $now->addMonthNoOverflow()->startOfMonth();
+        $current = $from <= $monthStart && $to >= $monthEnd
+            ? $visible->filter(fn (array $event): bool => $event['starts_at'] < $monthEnd->format('Y-m-d\TH:i') && $event['ends_at'] > $monthStart->format('Y-m-d\TH:i'))
+            : $calendar->events($request->user(), $monthStart, $monthEnd);
         $future = $calendar->events($request->user(), $now, null)->whereIn('display_status', ['upcoming', 'ongoing'])->values();
         $agenda = $calendar->filter($future->where('kind', '!=', 'Regular Mass'), $data);
         $page = $request->integer('page', 1);

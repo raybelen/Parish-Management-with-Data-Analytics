@@ -96,5 +96,24 @@
             <footer class="mt-2 border-t border-navy/10 pt-5 text-xs leading-5 text-muted">Private parish office workspace <span aria-hidden="true">·</span> Access and administrative changes are audited.</footer>
         </main>
     </div>
+    <dialog data-confirmation-dialog aria-labelledby="admin-confirmation-title" aria-describedby="admin-confirmation-message" class="w-[min(30rem,calc(100vw-2rem))] max-w-none rounded-2xl border border-navy/10 bg-white p-0 text-navy shadow-2xl backdrop:bg-navy/65">
+        <div class="grid gap-5 p-5 sm:p-6">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex min-w-0 items-start gap-3">
+                    <span class="grid size-10 shrink-0 place-items-center rounded-full bg-ivory font-sans text-lg font-semibold text-[#80662e]" aria-hidden="true">?</span>
+                    <div class="min-w-0">
+                        <h2 id="admin-confirmation-title" data-confirmation-title class="text-2xl leading-tight">Confirm action</h2>
+                        <p class="mt-1 text-sm text-muted">Please review before continuing.</p>
+                    </div>
+                </div>
+                <button type="button" data-close-dialog class="grid size-10 shrink-0 place-items-center rounded-lg border border-navy/15 text-xl transition hover:border-navy/30 hover:bg-slate-50" aria-label="Close confirmation">×</button>
+            </div>
+            <p id="admin-confirmation-message" data-confirmation-message class="text-sm leading-6 text-muted"></p>
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button type="button" data-close-dialog autofocus class="admin-secondary w-full sm:w-auto">Cancel</button>
+                <button type="button" data-confirmation-accept data-tone="default" class="admin-button w-full data-[tone=danger]:bg-red-700 data-[tone=danger]:hover:bg-red-800 sm:w-auto">Continue</button>
+            </div>
+        </div>
+    </dialog>
 </body>
 </html>

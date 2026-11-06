@@ -10,17 +10,36 @@ use App\Support\OfficeSettings;
 use App\Support\PriestRotation;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
 class AdminPriestController extends Controller
 {
-    public function __invoke(PriestRotation $rotation): View
+    public function __invoke(Request $request, PriestRotation $rotation): View
     {
         Gate::authorize('schedules.manage');
-        $from = CarbonImmutable::today(config('office.timezone'));
-        $through = $from->addDays(30)->endOfDay();
+        $rangeStart = CarbonImmutable::today(config('office.timezone'));
+        $rangeThrough = $rangeStart->addDays(30)->endOfDay();
+        $daysPerPage = 7;
+        $totalDays = 31;
+        $lastPage = (int) ceil($totalDays / $daysPerPage);
+        $currentPage = min(max($request->integer('page', 1), 1), $lastPage);
+        $from = $rangeStart->addDays(($currentPage - 1) * $daysPerPage);
+        $through = $from->addDays($daysPerPage - 1)->endOfDay();
+        if ($through->greaterThan($rangeThrough)) {
+            $through = $rangeThrough;
+        }
         $rotation->warmPeriod($from, $through);
+        $daysOnPage = (int) $from->startOfDay()->diffInDays($through->startOfDay()) + 1;
+        $schedulePeriods = new LengthAwarePaginator(
+            range(1, $daysOnPage),
+            $totalDays,
+            $daysPerPage,
+            $currentPage,
+            ['path' => route('admin.priests.index'), 'pageName' => 'page'],
+        );
 
         return view('admin.priests.index', [
             'personnel' => Personnel::query()->where('active', true)->orderBy('name')->get(),
@@ -31,8 +50,11 @@ class AdminPriestController extends Controller
             'unavailabilities' => PriestUnavailability::query()->with('personnel')->whereDate('unavailable_on', '>=', $from)
                 ->orderBy('unavailable_on')->orderBy('personnel_id')->get(),
             'scheduleRows' => $this->scheduleRows($rotation, $from, $through),
+            'schedulePeriods' => $schedulePeriods,
             'from' => $from,
             'through' => $through,
+            'rangeStart' => $rangeStart,
+            'rangeThrough' => $rangeThrough,
         ]);
     }
 

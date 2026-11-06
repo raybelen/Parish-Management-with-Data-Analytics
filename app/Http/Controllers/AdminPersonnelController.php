@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Appointment;
 use App\Models\Personnel;
+use App\Models\Schedule;
+use App\Models\ScheduleBlock;
 use App\Support\OfficeAudit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AdminPersonnelController extends Controller
 {
@@ -20,6 +24,36 @@ class AdminPersonnelController extends Controller
     public function update(Request $request, Personnel $personnel): RedirectResponse
     {
         return $this->save($request, $personnel);
+    }
+
+    public function destroy(Personnel $personnel): RedirectResponse
+    {
+        Gate::authorize('settings.manage');
+        DB::transaction(function () use ($personnel): void {
+            $lockedPersonnel = Personnel::query()->lockForUpdate()->findOrFail($personnel->id);
+
+            if ($lockedPersonnel->rotation_position !== null) {
+                throw ValidationException::withMessages([
+                    'personnel' => 'This person is part of the priest rotation. Assign another priest to that position before removing them.',
+                ]);
+            }
+
+            $hasAssignmentHistory = Appointment::query()->where('personnel_id', $lockedPersonnel->id)->exists()
+                || Schedule::query()->where('personnel_id', $lockedPersonnel->id)->exists()
+                || ScheduleBlock::query()->where('personnel_id', $lockedPersonnel->id)->exists();
+
+            if ($hasAssignmentHistory) {
+                throw ValidationException::withMessages([
+                    'personnel' => 'Personnel with appointment or schedule history cannot be removed. Set their availability to Inactive instead.',
+                ]);
+            }
+
+            $before = $lockedPersonnel->toArray();
+            OfficeAudit::record('personnel.removed', $lockedPersonnel, $before, []);
+            $lockedPersonnel->delete();
+        });
+
+        return back()->with('status', 'Personnel removed.');
     }
 
     private function save(Request $request, Personnel $personnel): RedirectResponse

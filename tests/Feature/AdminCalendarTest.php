@@ -47,6 +47,7 @@ class AdminCalendarTest extends TestCase
         Schedule::factory()->create(['category' => '<img src=x onerror=alert(1)>']);
 
         $this->get('/admin/calendar')->assertOk()->assertSee('Upcoming Schedules')->assertSee('+ Add Schedule')
+            ->assertSee('data-calendar-skeleton', false)->assertSee('aria-busy="true"', false)
             ->assertSee('Year')->assertSee('Month')->assertSee('Week')->assertSee('&lt;script&gt;', false)
             ->assertDontSee('<script>alert(1)</script>', false)->assertDontSee('<img src=x onerror=alert(1)>', false);
     }
@@ -93,6 +94,23 @@ class AdminCalendarTest extends TestCase
         $this->getJson($this->feed())->assertOk();
 
         $this->assertLessThanOrEqual(50, $queryCount);
+    }
+
+    public function test_summary_stays_unfiltered_and_month_scoped_in_padded_and_other_month_views(): void
+    {
+        config(['parish.regular_schedules' => []]);
+        $this->travelTo('2026-11-02 10:30:00');
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        Schedule::factory()->create(['title' => 'Current activity']);
+        Schedule::factory()->create(['title' => 'Previous month', 'starts_at' => '2026-10-31 09:00', 'ends_at' => '2026-10-31 10:00']);
+        Schedule::factory()->create(['title' => 'Next month', 'starts_at' => '2026-12-01 09:00', 'ends_at' => '2026-12-01 10:00']);
+
+        $this->getJson('/admin/calendar/events?from=2026-10-26&to=2026-12-07&search=Previous')
+            ->assertOk()->assertJsonCount(1, 'events')->assertJsonPath('events.0.title', 'Previous month')
+            ->assertJsonPath('summary', ['month' => 1, 'upcoming' => 1, 'today' => 1, 'completed' => 0]);
+        $this->getJson('/admin/calendar/events?from=2026-12-01&to=2027-01-01')
+            ->assertOk()->assertJsonCount(1, 'events')->assertJsonPath('events.0.title', 'Next month')
+            ->assertJsonPath('summary', ['month' => 1, 'upcoming' => 1, 'today' => 1, 'completed' => 0]);
     }
 
     public function test_filters_match_search_category_status_personnel_and_overlapping_dates(): void

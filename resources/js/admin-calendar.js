@@ -27,8 +27,11 @@ function initializeCalendar(root) {
     };
     let today = root.dataset.today;
     let selected = parseDay(today);
-    let view = 'year';
+    let view = 'month';
     let events = [];
+    let dayEventsCache = new Map();
+    let loading = false;
+    let renderedCalendar = '';
     let page = 1;
     let total = 0;
     let requestId = 0;
@@ -41,6 +44,7 @@ function initializeCalendar(root) {
     const form = find('[data-schedule-form]');
     const filters = find('[data-calendar-filters]');
     const grid = find('[data-calendar-grid]');
+    const skeleton = find('[data-calendar-skeleton]');
     const message = find('[data-calendar-message]');
     const errors = find('[data-schedule-errors]');
     const canManage = root.dataset.canManage === '1';
@@ -48,12 +52,18 @@ function initializeCalendar(root) {
 
     function range() {
         if (view === 'year') return [new Date(selected.getFullYear(), 0, 1, 12), new Date(selected.getFullYear() + 1, 0, 1, 12)];
-        if (view === 'month') return [new Date(selected.getFullYear(), selected.getMonth(), 1, 12), new Date(selected.getFullYear(), selected.getMonth() + 1, 1, 12)];
+        if (view === 'month') {
+            const first = new Date(selected.getFullYear(), selected.getMonth(), 1, 12);
+            const next = new Date(selected.getFullYear(), selected.getMonth() + 1, 1, 12);
+            return [addDays(first, -((first.getDay() + 6) % 7)), addDays(next, (7 - ((next.getDay() + 6) % 7)) % 7)];
+        }
         const start = addDays(selected, -((selected.getDay() + 6) % 7));
         return [start, addDays(start, 7)];
     }
 
     async function refresh(quiet = false) {
+        if (quiet && loading) return;
+        loading = true;
         const id = ++requestId;
         feedController?.abort();
         feedController = new AbortController();
@@ -62,7 +72,11 @@ function initializeCalendar(root) {
         params.set('from', dateKey(from));
         params.set('to', dateKey(to));
         params.set('page', page);
-        if (!quiet) message.textContent = 'Loading schedules…';
+        if (!quiet) {
+            message.textContent = 'Loading schedules…';
+            skeleton.hidden = false;
+            grid.hidden = true;
+        }
         grid.setAttribute('aria-busy', 'true');
         try {
             const response = await fetch(`${root.dataset.feed}?${params}`, { headers: { Accept: 'application/json' }, signal: feedController.signal });
@@ -70,13 +84,18 @@ function initializeCalendar(root) {
             if (id !== requestId) return;
             today = payload.today;
             events = payload.events;
+            dayEventsCache = new Map();
             total = payload.upcoming_total;
             if (page > Math.max(1, Math.ceil(total / 20))) {
                 page = Math.max(1, Math.ceil(total / 20));
                 return refresh();
             }
             Object.entries(payload.summary).forEach(([key, value]) => { find(`[data-summary="${key}"]`).textContent = value; });
-            renderCalendar();
+            const calendarSignature = JSON.stringify([view, dateKey(selected), today, events]);
+            if (calendarSignature !== renderedCalendar) {
+                renderCalendar();
+                renderedCalendar = calendarSignature;
+            }
             renderAgenda(payload.upcoming);
             const markedCount = events.filter(isMarkedEvent).length;
             message.textContent = `${markedCount} appointments and staff activities marked in this view · Updated ${new Date().toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' })}`;
@@ -86,7 +105,14 @@ function initializeCalendar(root) {
             message.textContent = `Could not refresh schedules. ${error.message} Previously loaded data may be out of date.`;
             find('[data-calendar-retry]').hidden = false;
         } finally {
-            if (id === requestId) grid.setAttribute('aria-busy', 'false');
+            if (id === requestId) {
+                loading = false;
+                grid.setAttribute('aria-busy', 'false');
+                if (!quiet) {
+                    skeleton.hidden = true;
+                    grid.hidden = false;
+                }
+            }
         }
     }
 
@@ -98,9 +124,13 @@ function initializeCalendar(root) {
     }
 
     const onDay = (date) => {
+        const key = dateKey(date);
+        if (dayEventsCache.has(key)) return dayEventsCache.get(key);
         const start = dateKey(date) + 'T00:00';
         const end = dateKey(addDays(date, 1)) + 'T00:00';
-        return events.filter((event) => event.starts_at < end && event.ends_at > start);
+        const items = events.filter((event) => event.starts_at < end && event.ends_at > start);
+        dayEventsCache.set(key, items);
+        return items;
     };
 
     function dayButton(date, compact = false) {
@@ -122,7 +152,9 @@ function initializeCalendar(root) {
     }
 
     function eventButton(event) {
-        const node = button(`${time(event.starts_at)} · ${event.title}`, `calendar-event calendar-status-${event.display_status}`, () => openDetails(event));
+        const node = button('', `calendar-event calendar-status-${event.display_status}`, () => openDetails(event));
+        node.append(element('span', 'calendar-event-title', event.title), element('span', 'calendar-event-time', time(event.starts_at)));
+        node.title = `${event.title} · ${time(event.starts_at)}`;
         node.setAttribute('aria-label', `${event.title}, ${event.display_status}, ${readableDate(event.starts_at)}, ${time(event.starts_at)} to ${time(event.ends_at)}`);
         return node;
     }
@@ -131,17 +163,28 @@ function initializeCalendar(root) {
         const days = element('div', compact ? 'calendar-days' : 'calendar-days calendar-month');
         ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach((day) => days.append(element('span', 'calendar-weekday', day)));
         const offset = (month.getDay() + 6) % 7;
-        for (let index = 0; index < offset; index++) days.append(element('div', compact ? '' : 'calendar-cell'));
+        if (!compact) {
+            const [first, end] = range();
+            for (let date = first; date < end; date = addDays(date, 1)) {
+                const cell = element('div', `calendar-cell${date.getMonth() !== month.getMonth() ? ' calendar-cell-outside' : ''}`);
+                cell.append(dayButton(date));
+                const items = onDay(date);
+                items.slice(0, 3).forEach((event) => cell.append(eventButton(event)));
+                if (items.length > 3) {
+                    const overflow = element('details', 'calendar-overflow');
+                    overflow.append(element('summary', '', `${items.length - 3} more…`));
+                    items.slice(3).forEach((event) => overflow.append(eventButton(event)));
+                    cell.append(overflow);
+                }
+                days.append(cell);
+            }
+            return days;
+        }
+        for (let index = 0; index < offset; index++) days.append(element('div'));
         const last = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
         for (let day = 1; day <= last; day++) {
             const date = new Date(month.getFullYear(), month.getMonth(), day, 12);
-            if (compact) days.append(dayButton(date, true));
-            else {
-                const cell = element('div', 'calendar-cell');
-                cell.append(dayButton(date));
-                onDay(date).forEach((event) => cell.append(eventButton(event)));
-                days.append(cell);
-            }
+            days.append(dayButton(date, true));
         }
         return days;
     }
@@ -150,11 +193,12 @@ function initializeCalendar(root) {
         grid.replaceChildren();
         const [start, end] = range();
         find('[data-calendar-heading]').textContent = view === 'year' ? selected.getFullYear() : view === 'month' ? `${monthName(selected)} ${selected.getFullYear()}` : `${readableDate(dateKey(start))} – ${readableDate(dateKey(addDays(end, -1)))}`;
+        find('[data-calendar-range]').textContent = `${readableDate(dateKey(start))} – ${readableDate(dateKey(addDays(end, -1)))}`;
+        find('[data-calendar-view-select]').value = view;
         find('[data-calendar-prev]').setAttribute('aria-label', `Previous ${view}`);
         find('[data-calendar-next]').setAttribute('aria-label', `Next ${view}`);
         find('[data-calendar-prev]').disabled = start.getFullYear() <= 1900;
         find('[data-calendar-next]').disabled = selected.getFullYear() >= 2100;
-        root.querySelectorAll('[data-calendar-view]').forEach((node) => node.setAttribute('aria-pressed', String(node.dataset.calendarView === view)));
         if (view === 'year') {
             const year = element('div', 'calendar-year');
             for (let month = 0; month < 12; month++) {
@@ -169,7 +213,7 @@ function initializeCalendar(root) {
             grid.append(year);
         } else if (view === 'month') {
             const scroll = element('div', 'calendar-month-scroll');
-            scroll.append(monthGrid(start, false));
+            scroll.append(monthGrid(new Date(selected.getFullYear(), selected.getMonth(), 1, 12), false));
             grid.append(scroll);
         } else {
             const week = element('div', 'calendar-week');
@@ -347,7 +391,7 @@ function initializeCalendar(root) {
     dialog.addEventListener('close', () => lastTrigger?.isConnected && lastTrigger.focus());
     form.elements.recurrence.addEventListener('change', updateRecurrence);
     document.querySelector('[data-calendar-add]')?.addEventListener('click', () => openCreate(dateKey(selected)));
-    root.querySelectorAll('[data-calendar-view]').forEach((node) => node.addEventListener('click', () => { view = node.dataset.calendarView; refresh(); }));
+    find('[data-calendar-view-select]').addEventListener('change', (event) => { view = event.target.value; refresh(); });
     function navigate(direction) {
         selected = view === 'year' ? new Date(selected.getFullYear() + direction, selected.getMonth(), 1, 12) : view === 'month' ? new Date(selected.getFullYear(), selected.getMonth() + direction, 1, 12) : addDays(selected, direction * 7);
         refresh();

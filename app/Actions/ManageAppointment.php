@@ -89,7 +89,7 @@ class ManageAppointment
             OfficeAudit::record('appointment.'.$status, $locked, $before, $locked->only(array_keys($before)), $reason);
             OfficeAudit::notify($locked, $status, ucfirst(str_replace('_', ' ', $status)).': '.$locked->reference_number);
 
-            if ($status === 'confirmed' && $locked->client_email !== null) {
+            if ($status === 'confirmed' && $locked->wantsEmailNotifications()) {
                 Mail::to($locked->client_email)->queue(
                     (new AppointmentConfirmed($locked))->afterCommit(),
                 );

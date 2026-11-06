@@ -15,10 +15,34 @@
 .calendar-status { display: inline-flex; align-items: center; gap: .35rem; font-size: .75rem; color: var(--status-text); }
 .calendar-status::before { content: ''; width: .45rem; height: .45rem; border-radius: 50%; background: var(--status-color); }
 .calendar-month-scroll { overflow-x: auto; }
-.calendar-month { min-width: 650px; }
-.calendar-cell { min-height: 130px; border: 1px solid #e2e8f0; padding: .4rem; min-width: 0; }
-.calendar-cell .calendar-day { min-width: 38px; }
-.calendar-event { display: block; width: 100%; text-align: left; border-left: 3px solid var(--status-color); border-radius: .35rem; background: var(--status-bg); color: var(--status-text); padding: .4rem .5rem; margin-top: .3rem; font-size: .75rem; overflow-wrap: anywhere; }
+.calendar-board { overflow: hidden; }
+.calendar-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.calendar-navigation { display: flex; }
+.calendar-navigation .admin-secondary { border-radius: 0; }
+.calendar-navigation .admin-secondary:first-child { border-radius: .65rem 0 0 .65rem; }
+.calendar-navigation .admin-secondary:last-child { border-radius: 0 .65rem .65rem 0; }
+.calendar-month { min-width: 760px; border-top: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; }
+.calendar-month .calendar-weekday { border-right: 1px solid #e2e8f0; padding: .7rem 0; font-weight: 600; }
+.calendar-skeleton { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-width: 760px; border-top: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+.calendar-skeleton-weekday { border-right: 1px solid #e2e8f0; padding: .7rem 0; text-align: center; font-size: .7rem; font-weight: 600; color: #94a3b8; }
+.calendar-skeleton-cell { min-height: 150px; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; padding: .55rem; }
+.calendar-skeleton-date, .calendar-skeleton-event { display: block; border-radius: .35rem; background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%); background-size: 200% 100%; animation: calendar-skeleton-shimmer 1.35s ease-in-out infinite; }
+.calendar-skeleton-date { width: 1.4rem; height: 1.4rem; margin-bottom: .65rem; border-radius: 50%; }
+.calendar-skeleton-event { width: 92%; height: 1.25rem; margin-top: .4rem; }
+.calendar-skeleton-event-short { width: 65%; }
+@keyframes calendar-skeleton-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .calendar-skeleton-date, .calendar-skeleton-event { animation: none; } }
+.calendar-cell { min-height: 150px; border-right: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; padding: .35rem; min-width: 0; }
+.calendar-month { border-bottom: 1px solid #e2e8f0; }
+.calendar-cell-outside { background: #f8fafc; }
+.calendar-cell-outside > .calendar-day { color: #64748b; }
+.calendar-cell .calendar-day { min-width: 28px; min-height: 28px; margin-bottom: .15rem; }
+.calendar-event { display: flex; align-items: center; gap: .35rem; width: 100%; text-align: left; border-left: 3px solid var(--status-color); border-radius: .35rem; background: var(--status-bg); color: var(--status-text); padding: .25rem .35rem; margin-top: .25rem; font-size: .7rem; }
+.calendar-event-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.calendar-event-time { white-space: nowrap; font-size: .65rem; }
+.calendar-overflow summary { cursor: pointer; font-size: .7rem; color: #64748b; padding: .3rem .15rem; }
+.calendar-week .calendar-event { flex-wrap: wrap; }
+.calendar-week .calendar-event-title { white-space: normal; overflow-wrap: anywhere; }
 .calendar-week { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: .65rem; }
 .calendar-week-section { border: 1px solid #e2e8f0; border-radius: .75rem; padding: .75rem; min-width: 0; }
 .calendar-agenda-item { border: 1px solid #e2e8f0; border-left: 4px solid var(--status-color); border-radius: .8rem; padding: 1rem; min-width: 0; }

@@ -45,7 +45,7 @@ class AppointmentController extends Controller
     ): RedirectResponse {
         $appointment = $createAppointment->handle($request->validated());
 
-        if ($appointment->client_email !== null) {
+        if ($appointment->wantsEmailNotifications()) {
             Mail::to($appointment->client_email)->queue(
                 (new AppointmentReserved($appointment))->onConnection('deferred'),
             );

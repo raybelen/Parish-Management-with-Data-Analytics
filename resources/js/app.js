@@ -228,8 +228,9 @@ function updateScheduleSelection() {
 
 suggestedTimeButtons.forEach((button) => {
     button.addEventListener('click', () => {
+        if (button.disabled) return;
         preferredTime.value = button.dataset.timeValue;
-        preferredTime.dispatchEvent(new Event('change', { bubbles: true }));
+        preferredTime.dispatchEvent(new CustomEvent('change', { bubbles: true, detail: { availabilityChecked: true } }));
     });
 });
 

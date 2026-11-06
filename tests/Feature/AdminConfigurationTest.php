@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Appointment;
 use App\Models\ForecastRun;
 use App\Models\ParishSetting;
+use App\Models\Personnel;
 use App\Models\ServiceType;
 use App\Models\User;
 use App\Support\OfficeSettings;
@@ -52,11 +53,53 @@ class AdminConfigurationTest extends TestCase
 
     public function test_staff_cannot_change_settings_or_permissions(): void
     {
+        $personnel = Personnel::factory()->create();
         $this->verified(User::factory()->staff()->withTwoFactor()->create());
 
         $this->get('/admin/settings')->assertForbidden();
         $this->put('/admin/settings', [])->assertForbidden();
         $this->put('/admin/permissions', ['password' => 'password'])->assertForbidden();
+        $this->delete('/admin/personnel/'.$personnel->id)->assertForbidden();
+        $this->assertModelExists($personnel);
+    }
+
+    public function test_admin_can_remove_unused_personnel(): void
+    {
+        $personnel = Personnel::factory()->create(['name' => 'Unused personnel']);
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+
+        $this->get('/admin/settings')
+            ->assertOk()
+            ->assertSee(route('admin.personnel.destroy', $personnel), false)
+            ->assertSee('Remove');
+        $this->delete('/admin/personnel/'.$personnel->id)
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Personnel removed.');
+
+        $this->assertModelMissing($personnel);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'personnel.removed',
+            'entity_id' => $personnel->id,
+        ]);
+    }
+
+    public function test_personnel_with_history_or_a_rotation_position_cannot_be_removed(): void
+    {
+        $assignedPersonnel = Personnel::factory()->create();
+        Appointment::factory()->create(['personnel_id' => $assignedPersonnel->id]);
+        $rotationPersonnel = Personnel::factory()->rotationPosition(1)->create();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+
+        $this->delete('/admin/personnel/'.$assignedPersonnel->id)
+            ->assertRedirect()
+            ->assertSessionHasErrors(['personnel' => 'Personnel with appointment or schedule history cannot be removed. Set their availability to Inactive instead.']);
+        $this->delete('/admin/personnel/'.$rotationPersonnel->id)
+            ->assertRedirect()
+            ->assertSessionHasErrors(['personnel' => 'This person is part of the priest rotation. Assign another priest to that position before removing them.']);
+
+        $this->assertModelExists($assignedPersonnel);
+        $this->assertModelExists($rotationPersonnel);
     }
 
     public function test_super_admin_can_configure_staff_permissions_without_granting_role_management(): void

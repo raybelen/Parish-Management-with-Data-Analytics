@@ -136,12 +136,12 @@
                                     <div class="grid gap-5">
                                         <div class="flex flex-wrap items-center justify-between gap-2">
                                             <p class="text-[11px] font-semibold tracking-[0.14em] uppercase text-muted">Suggested times</p>
-                                            <p class="text-[11px] text-muted">Tap a time to select it</p>
+                                            <p class="text-[11px] text-muted" data-time-availability-hint role="status">Choose a service, date, and venue first.</p>
                                         </div>
 
                                         <div class="flex flex-wrap gap-2" aria-label="Suggested time options">
                                             @foreach (['08:00' => '8:00 AM', '09:00' => '9:00 AM', '10:00' => '10:00 AM', '13:00' => '1:00 PM', '14:00' => '2:00 PM', '15:00' => '3:00 PM'] as $timeValue => $timeLabel)
-                                                <button type="button" data-time-value="{{ $timeValue }}" aria-pressed="false" class="min-h-12 min-w-[calc(50%_-_0.25rem)] flex-1 basis-[calc(50%_-_0.25rem)] border border-navy/15 bg-white px-3 text-sm font-medium text-navy shadow-[0_1px_0_rgb(19_35_63/0.04)] transition-[border-color,background-color,color,transform,box-shadow] hover:-translate-y-0.5 hover:border-gold hover:bg-gold/10 hover:shadow-sm sm:min-w-[calc(25%_-_0.375rem)] sm:basis-[calc(25%_-_0.375rem)] lg:min-w-0 lg:basis-0 aria-pressed:border-navy aria-pressed:bg-navy aria-pressed:text-ivory aria-pressed:shadow-sm">{{ $timeLabel }}</button>
+                                                <button type="button" data-time-value="{{ $timeValue }}" disabled aria-pressed="false" class="min-h-12 min-w-[calc(50%_-_0.25rem)] flex-1 basis-[calc(50%_-_0.25rem)] border border-navy/15 bg-white px-3 text-sm font-medium text-navy shadow-[0_1px_0_rgb(19_35_63/0.04)] transition-[border-color,background-color,color,transform,box-shadow] enabled:hover:-translate-y-0.5 enabled:hover:border-gold enabled:hover:bg-gold/10 enabled:hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none sm:min-w-[calc(25%_-_0.375rem)] sm:basis-[calc(25%_-_0.375rem)] lg:min-w-0 lg:basis-0 aria-pressed:border-navy aria-pressed:bg-navy aria-pressed:text-ivory aria-pressed:shadow-sm">{{ $timeLabel }}</button>
                                             @endforeach
                                         </div>
 

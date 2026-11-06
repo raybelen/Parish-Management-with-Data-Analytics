@@ -1,13 +1,13 @@
 @extends('admin.layout')
 @section('title', $appointment->reference_number)
-@section('actions')<div class="flex items-center gap-3"><x-admin.status :value="$appointment->status" /><a class="admin-secondary" href="{{ route('admin.appointments.index') }}">All appointments</a></div>@endsection
+@section('actions')<div class="flex items-center gap-3"><span data-appointment-status-badge>@include('admin.appointments.partials.status-badge', ['status' => $appointment->status])</span><a class="admin-secondary" href="{{ route('admin.appointments.index') }}">All appointments</a></div>@endsection
 @section('content')
     <section class="rounded-2xl border border-navy/10 bg-white p-5 sm:p-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div><p class="text-sm text-muted">{{ $service->name }}</p><h2 class="mt-1 text-2xl">{{ $appointment->client_full_name }}</h2></div>
             <p class="text-sm text-muted">{{ ($appointment->starts_at ?? $appointment->preferred_date)->format('F j, Y') }}<br>{{ $appointment->confirmed_church ?? $appointment->preferred_church }}</p>
         </div>
-        <p class="mt-4 text-sm leading-6 text-muted">{{ match ($appointment->status) {
+        <p class="mt-4 text-sm leading-6 text-muted" data-appointment-status-summary>{{ match ($appointment->status) {
             'pending' => 'The slot is reserved for three days and visible to staff while the physical documents are verified. It is not yet on the public calendar.',
             'confirmed' => 'All required physical documents are verified. The appointment is confirmed and visible on both parish calendars.',
             'completed' => 'This service is complete. You can review its details and history below.',
@@ -18,7 +18,7 @@
             <a class="admin-secondary" href="#appointment-schedule">Schedule</a>
             @can('documents.manage')<a class="admin-secondary" href="#appointment-documents">Documents</a>@endcan
             @can('finance.view')<a class="admin-secondary" href="#appointment-payments">Payments</a>@endcan
-            @canany(['appointments.manage', 'appointments.approve'])@if(in_array($appointment->status, ['pending', 'confirmed']))<a class="admin-secondary" href="#appointment-status">Update status</a>@endif @endcanany
+            @canany(['appointments.manage', 'appointments.approve'])@if(in_array($appointment->status, ['pending', 'confirmed']))<a class="admin-secondary" href="#appointment-status" data-appointment-status-link>Update status</a>@endif @endcanany
             <a class="admin-secondary" href="#appointment-history">History</a>
         </nav>
     </section>
@@ -66,7 +66,7 @@
             @endforeach
         </div>
     </x-parish.dialog>
-    <section id="appointment-schedule" class="admin-card scroll-mt-28"><h2 class="mb-4 text-2xl">{{ $appointment->status === 'pending' ? 'Reserved schedule' : 'Confirmed schedule' }}</h2>
+    <section id="appointment-schedule" class="admin-card scroll-mt-28"><h2 class="mb-4 text-2xl" data-appointment-schedule-heading>{{ $appointment->status === 'pending' ? 'Reserved schedule' : 'Confirmed schedule' }}</h2>
         @if($appointment->starts_at)
             <dl class="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
                 <div><dt class="text-muted">Service</dt><dd class="mt-1 font-medium">{{ $service->name }}</dd></div>
@@ -76,7 +76,7 @@
             </dl>
             <p class="mt-5 text-sm text-muted">The client-selected service, date, time, and venue were reserved automatically after the availability check. Staff cannot change them here.</p>
             @if($appointment->status === 'pending' && $appointment->documents_due_at)
-                <p class="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">Awaiting documents until {{ $appointment->documents_due_at->timezone(config('office.timezone'))->format('F j, Y \a\t g:i A') }}. The slot is shown only on staff calendars until verification is complete.</p>
+                <p class="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900" data-pending-document-notice>Awaiting documents until {{ $appointment->documents_due_at->timezone(config('office.timezone'))->format('F j, Y \a\t g:i A') }}. The slot is shown only on staff calendars until verification is complete.</p>
             @endif
         @else
             <p class="text-sm text-muted">This legacy request does not have a confirmed schedule.</p>
@@ -88,17 +88,23 @@
             </form>
         @endif @endcan
     </section>
-    @can('documents.manage')<section id="appointment-documents" class="admin-card scroll-mt-28"><h2 class="mb-2 text-2xl">Check documents</h2><p class="mb-5 text-sm text-muted">Verify each required physical document. The appointment is confirmed and published only after all required documents are verified. Declining any document releases the slot.</p><div class="grid gap-5">
-        @foreach($appointment->documentRequirements() as $key => $requirement)<div class="rounded-lg border border-navy/10 p-4"><div class="flex flex-wrap justify-between gap-3"><strong class="text-sm">{{ $requirement['label'] }} <span class="font-normal text-muted">{{ $requirement['required'] ? '· physical copy required' : '· optional' }}</span></strong><span class="text-sm">{{ ($appointment->physical_documents[$key]['verified'] ?? false) ? 'Paper copy checked' : 'Paper copy needs checking' }}</span></div>
-            <div class="my-3 flex flex-wrap gap-3">@forelse($appointment->documents[$key] ?? [] as $index => $file)<a class="text-link break-all" href="{{ route('admin.documents.show', [$appointment, $key, $index]) }}">{{ $file['original_name'] }}</a>@empty<p class="text-xs text-muted">No online upload</p>@endforelse</div>
-            @if(in_array($appointment->status, ['pending', 'confirmed']))<form class="mt-4 flex flex-wrap gap-3" method="POST" action="{{ route('admin.documents.update', $appointment) }}">@csrf @method('PATCH')<input type="hidden" name="version" value="{{ $appointment->version }}"><input type="hidden" name="type" value="{{ $key }}">
-                <button class="admin-button" name="decision" value="verified">Verified</button>
-                <button class="admin-secondary" name="decision" value="declined">Decline</button>
-            </form>@endif
-        </div>@endforeach
+    @can('documents.manage')<section id="appointment-documents" class="admin-card scroll-mt-28" data-document-verification><h2 class="mb-2 text-2xl">Check documents</h2><p class="mb-4 max-w-3xl text-sm leading-6 text-muted">Check each paper copy, then choose Verified or Decline. The appointment is confirmed only when every required document is verified.</p><p role="status" aria-live="polite" data-document-feedback hidden></p><div class="grid gap-3">
+        @foreach($appointment->documentRequirements() as $key => $requirement)
+            @php($documentVerified = $appointment->physical_documents[$key]['verified'] ?? false)
+            <article class="grid gap-4 rounded-xl border border-navy/10 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center" data-document-card data-document-key="{{ $key }}" data-document-state="{{ $documentVerified ? 'verified' : 'pending' }}"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><p class="text-sm font-semibold leading-6 text-navy">{{ $requirement['label'] }}</p><span @class(['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold', 'border-emerald-200 bg-emerald-50 text-emerald-800' => $documentVerified, 'border-amber-200 bg-amber-50 text-amber-900' => ! $documentVerified]) data-document-status><span aria-hidden="true" class="size-1.5 rounded-full bg-current"></span><span data-document-status-label>{{ $documentVerified ? 'Verified' : 'Needs checking' }}</span></span></div><p class="mt-1 text-xs text-muted">{{ $requirement['required'] ? 'Required physical copy' : 'Optional physical copy' }}</p>
+                    @if(! empty($appointment->documents[$key]))
+                        <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs"><span class="text-muted">Attached copy:</span>@foreach($appointment->documents[$key] as $index => $file)<a class="text-link break-all" href="{{ route('admin.documents.show', [$appointment, $key, $index]) }}">{{ $file['original_name'] }}</a>@endforeach</div>
+                    @endif
+                </div>
+                @if(in_array($appointment->status, ['pending', 'confirmed']))<form class="flex flex-wrap gap-2 md:justify-end" method="POST" action="{{ route('admin.documents.update', $appointment) }}" data-document-decision-form data-document-key="{{ $key }}">@csrf @method('PATCH')<input type="hidden" name="version" value="{{ $appointment->version }}"><input type="hidden" name="type" value="{{ $key }}">
+                    <button class="admin-button min-h-10 px-4 py-2" name="decision" value="verified">Verified</button>
+                    <button class="admin-secondary min-h-10 border-red-200 px-4 py-2 text-red-800 hover:border-red-300 hover:bg-red-50" name="decision" value="declined">Decline</button>
+                </form>@endif
+            </article>
+        @endforeach
     </div>
         @if(in_array($appointment->status, ['pending', 'confirmed']) && count($appointment->documentRequirements()))
-            <details class="mt-6 rounded-lg border border-navy/10 p-4"><summary class="cursor-pointer text-sm font-semibold">Attach an optional document copy</summary>
+            <details class="mt-5 rounded-xl border border-navy/10 p-4" data-document-upload><summary class="cursor-pointer text-sm font-semibold">Attach an optional document copy</summary>
                 <form method="POST" action="{{ route('admin.documents.store', $appointment) }}" enctype="multipart/form-data" class="mt-4 grid items-end gap-4 sm:grid-cols-2">@csrf
                     <input type="hidden" name="version" value="{{ $appointment->version }}">
                     <x-admin.field label="Requirement" name="type"><select class="admin-input" name="type">@foreach($appointment->documentRequirements() as $key => $requirement)<option value="{{ $key }}">{{ $requirement['label'] }}</option>@endforeach</select></x-admin.field>
@@ -109,13 +115,7 @@
         @endif
     </section>@endcan
     @can('finance.view')@include('admin.appointments.payments')@endcan
-    @canany(['appointments.manage', 'appointments.approve'])@if(in_array($appointment->status, ['pending', 'confirmed']))<section id="appointment-status" class="admin-card scroll-mt-28"><h2 class="mb-4 text-2xl">Update appointment status</h2><form class="grid items-end gap-4 sm:grid-cols-2" method="POST" action="{{ route('admin.appointments.status', $appointment) }}" data-confirm="Save this status change? Completed records and final outcomes will be preserved.">@csrf<input type="hidden" name="version" value="{{ $appointment->version }}">
-        <x-admin.field label="Change status to" name="status"><select class="admin-input" name="status">@foreach(($appointment->status === 'pending' ? ['declined', 'cancelled'] : ['completed', 'cancelled', 'no_show']) as $status)@if(auth()->user()->can('appointments.manage') || $status === 'declined')<option value="{{ $status }}">{{ ucfirst(str_replace('_', ' ', $status)) }}</option>@endif
-@endforeach</select></x-admin.field>
-        @if($appointment->status === 'confirmed')<x-admin.field label="Service completed at (if marking completed)" name="completed_at" type="datetime-local" :value="now()->format('Y-m-d\TH:i')" />@endif
-        <x-admin.field label="Reason for this change" name="reason" required /><button class="admin-button">Save status</button>
-    </form></section>@endif
-@endcanany
+    <div data-appointment-status-slot>@include('admin.appointments.partials.status-section', ['appointment' => $appointment])</div>
     @if($appointment->serviceRecord)@can('records.view')<p class="admin-card text-sm">Permanent record created: <a class="underline" href="{{ route('admin.records.show', $appointment->serviceRecord) }}">{{ $appointment->serviceRecord->record_number }}</a> · {{ $appointment->completed_at?->format('M j, Y g:i A') }}</p>@endcan
 @endif
     <details id="appointment-history" class="admin-card scroll-mt-28"><summary class="cursor-pointer text-lg font-semibold">Appointment history</summary><div class="mt-4 grid gap-4">@forelse($history as $entry)<div class="border-b border-navy/10 pb-3 text-sm"><p><strong>{{ \Illuminate\Support\Str::headline($entry->action) }}</strong> · {{ $entry->created_at->format('M j, Y g:i A') }}</p><p class="text-muted">{{ $entry->actor?->name ?? 'Client / system' }} · {{ $entry->reason }}</p></div>@empty<p class="text-sm text-muted">No recorded changes.</p>@endforelse</div></details>

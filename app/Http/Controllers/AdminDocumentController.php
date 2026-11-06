@@ -7,6 +7,7 @@ use App\Mail\AppointmentConfirmed;
 use App\Models\Appointment;
 use App\Support\OfficeAccess;
 use App\Support\OfficeAudit;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -77,7 +78,7 @@ class AdminDocumentController extends Controller
         return Storage::disk(config('appointments.document_disk'))->download($file['path'], basename($file['original_name']), ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 
-    public function update(Request $request, Appointment $appointment, ExpirePendingAppointment $expirePendingAppointment): RedirectResponse
+    public function update(Request $request, Appointment $appointment, ExpirePendingAppointment $expirePendingAppointment): RedirectResponse|JsonResponse
     {
         Gate::authorize('documents.manage');
         OfficeAccess::appointment($request->user(), $appointment);
@@ -85,6 +86,9 @@ class AdminDocumentController extends Controller
             'type' => ['required', Rule::in(array_keys($appointment->documentRequirements()))],
             'decision' => ['required', Rule::in(['verified', 'declined'])],
             'version' => ['required', 'integer'],
+        ], [
+            'decision.required' => 'Choose Verified or Decline.',
+            'decision.in' => 'Choose Verified or Decline.',
         ]);
         $result = DB::transaction(function () use ($appointment, $data, $expirePendingAppointment): string {
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
@@ -125,7 +129,7 @@ class AdminDocumentController extends Controller
             } elseif ($previousStatus === 'pending' && $locked->status === 'confirmed') {
                 OfficeAudit::record('appointment.confirmed', $locked, ['status' => 'pending'], ['status' => 'confirmed'], 'All required physical documents verified');
                 OfficeAudit::notify($locked, 'confirmed', 'Documents verified and appointment confirmed: '.$locked->reference_number);
-                if ($locked->client_email !== null) {
+                if ($locked->wantsEmailNotifications()) {
                     Mail::to($locked->client_email)->queue(
                         (new AppointmentConfirmed($locked))->afterCommit(),
                     );
@@ -139,12 +143,37 @@ class AdminDocumentController extends Controller
             };
         });
 
-        return back()->with('status', match ($result) {
+        $message = match ($result) {
             'declined' => 'Document declined. The reserved slot was released and will not appear on parish calendars.',
             'expired_scheduled_start' => 'The scheduled appointment time has passed. The unverified reservation expired and its slot was released.',
             'expired_document_deadline' => 'The three-day document deadline has passed. The reserved slot was released.',
             'confirmed' => 'All required physical documents are verified. The appointment is confirmed and now appears on the public parish calendar.',
             default => 'Physical document verified. Verify the remaining required documents to confirm the appointment.',
-        });
+        };
+
+        if (! $request->expectsJson()) {
+            return back()->with('status', $message);
+        }
+
+        $appointment->refresh();
+
+        return response()->json([
+            'result' => $result,
+            'message' => $message,
+            'appointment_status' => $appointment->status,
+            'status_summary' => match ($appointment->status) {
+                'pending' => 'The slot is reserved for three days and visible to staff while the physical documents are verified. It is not yet on the public calendar.',
+                'confirmed' => 'All required physical documents are verified. The appointment is confirmed and visible on both parish calendars.',
+                'completed' => 'This service is complete. You can review its details and history below.',
+                default => 'This appointment is closed. Its details and history are kept for your records.',
+            },
+            'version' => $appointment->version,
+            'document' => [
+                'type' => $data['type'],
+                'verified' => (bool) ($appointment->physical_documents[$data['type']]['verified'] ?? false),
+            ],
+            'status_badge_html' => view('admin.appointments.partials.status-badge', ['status' => $appointment->status])->render(),
+            'status_section_html' => view('admin.appointments.partials.status-section', ['appointment' => $appointment])->render(),
+        ]);
     }
 }

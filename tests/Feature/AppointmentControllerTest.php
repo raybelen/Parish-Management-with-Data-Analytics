@@ -319,18 +319,20 @@ class AppointmentControllerTest extends TestCase
         Mail::assertQueued(AppointmentReserved::class);
     }
 
-    public function test_request_without_an_email_does_not_queue_a_confirmation_email(): void
+    public function test_non_email_contact_method_does_not_queue_a_reservation_email(): void
     {
         $this->travelTo('2026-09-27 09:00:00');
         Mail::fake();
         Storage::fake('local');
         $payload = $this->validPayload('baptism');
         $payload['preferred_contact_method'] = 'phone';
-        $payload['client_email'] = null;
 
         $this->post(route('appointments.store'), $payload)->assertSessionHasNoErrors();
 
-        $this->assertDatabaseCount('appointments', 1);
+        $this->assertDatabaseHas('appointments', [
+            'client_email' => 'maria@example.com',
+            'preferred_contact_method' => 'phone',
+        ]);
         Mail::assertNothingQueued();
     }
 

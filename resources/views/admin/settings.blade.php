@@ -12,42 +12,52 @@
     </nav>
     <form id="office-settings" class="admin-card grid gap-6" method="POST" action="{{ route('admin.settings.update') }}">@csrf @method('PUT')
         <header>
-            <h2 class="text-2xl">Office settings</h2>
-            <p class="mt-1 text-sm text-muted">Manage the parish details used for appointment requests and office schedules.</p>
+            <h2 class="text-2xl leading-tight">Office settings</h2>
+            <p class="mt-1 text-sm leading-6 text-muted">Manage the parish details used for appointment requests and office schedules.</p>
         </header>
 
         <section class="grid gap-4 border-t border-navy/10 pt-5">
             <div>
-                <h3 class="font-semibold">Parish information</h3>
-                <p class="mt-1 text-sm text-muted">This name appears throughout the administration workspace.</p>
+                <h3 class="text-xl leading-tight">Parish information</h3>
+                <p class="mt-1 text-sm leading-6 text-muted">This name appears throughout the administration workspace.</p>
             </div>
             <div class="max-w-2xl">
                 <x-admin.field label="Parish name" name="parish_name" :value="$settings['parish_name']" required />
             </div>
         </section>
 
-        <section class="grid gap-4 border-t border-navy/10 pt-5">
+        <section class="grid gap-5 border-t border-navy/10 pt-5">
             <div>
-                <h3 class="font-semibold">Operating schedule</h3>
-                <p class="mt-1 text-sm text-muted">Set the regular hours and days available for parish appointments.</p>
+                <h3 class="text-xl leading-tight">Operating schedule</h3>
+                <p class="mt-1 text-sm leading-6 text-muted">Choose the regular days and hours when clients can request parish appointments.</p>
             </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-                <x-admin.field label="Opening time" name="opens_at" type="time" :value="$settings['opens_at']" required />
-                <x-admin.field label="Closing time" name="closes_at" type="time" :value="$settings['closes_at']" help="Include any preparation time needed after the final appointment." required />
-            </div>
-            <fieldset>
-                <legend class="mb-3 text-sm font-semibold">Operating days</legend>
-                <div class="flex flex-wrap gap-x-5 gap-y-3">
-                    @foreach([1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday'] as $number => $day)
-                        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="operating_days[]" value="{{ $number }}" @checked(in_array($number, $settings['operating_days']))>{{ $day }}</label>
-                    @endforeach
+
+            <div class="grid gap-5 rounded-xl border border-navy/10 bg-slate-50/70 p-4 sm:p-5">
+                <div class="grid items-start gap-4 sm:grid-cols-2">
+                    <x-admin.field label="Opening time" name="opens_at" type="time" :value="$settings['opens_at']" help="The earliest available appointment time." required />
+                    <x-admin.field label="Closing time" name="closes_at" type="time" :value="$settings['closes_at']" help="Include any preparation time needed after the final appointment." required />
                 </div>
-            </fieldset>
+
+                <fieldset class="grid gap-3 border-t border-navy/10 pt-5">
+                    <div>
+                        <legend class="text-sm font-semibold">Operating days</legend>
+                        <p class="mt-1 text-xs leading-5 text-muted">Select every day that should accept appointment requests.</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+                        @foreach([1=>'Monday',2=>'Tuesday',3=>'Wednesday',4=>'Thursday',5=>'Friday',6=>'Saturday',7=>'Sunday'] as $number => $day)
+                            <label class="flex min-h-12 cursor-pointer items-center gap-2.5 rounded-xl border border-navy/10 bg-white px-3 py-2.5 text-sm font-medium shadow-xs transition hover:border-gold/50 hover:bg-ivory/50 has-checked:border-gold has-checked:bg-ivory">
+                                <input class="size-4 shrink-0 accent-navy" type="checkbox" name="operating_days[]" value="{{ $number }}" @checked(in_array($number, $settings['operating_days']))>
+                                <span>{{ $day }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </fieldset>
+            </div>
         </section>
 
         <fieldset class="grid gap-3 border-t border-navy/10 pt-5">
-            <legend class="font-semibold">Appointment venue availability</legend>
-            <p class="text-sm text-muted">Checked venues can receive new appointment requests. Existing appointments are not affected.</p>
+            <legend class="font-display text-xl leading-tight tracking-[-0.015em]">Appointment venue availability</legend>
+            <p class="text-sm leading-6 text-muted">Checked venues can receive new appointment requests. Existing appointments are not affected.</p>
             <input type="hidden" name="active_venues_present" value="1">
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 @foreach($venues as $venue)
@@ -84,13 +94,82 @@
         @foreach($services as $service)<details class="border-b border-navy/10 py-4"><summary class="cursor-pointer font-semibold">{{ $service->name }} · {{ $service->duration_minutes }} min + service-specific gaps · ₱{{ number_format($service->fee_cents / 100, 2) }}</summary>@include('admin.partials.service-form', ['service' => $service])</details>@endforeach
         <details class="mt-5"><summary class="cursor-pointer font-semibold">Add another service</summary>@include('admin.partials.service-form', ['service' => new \App\Models\ServiceType(['duration_minutes' => 60, 'buffer_minutes' => 0, 'fee_cents' => 0, 'active' => true, 'requirements' => []])])</details>
     </section>
-    <section id="personnel-settings" class="admin-card"><h2 class="mb-5 text-2xl">Priests & authorized personnel</h2>
-        @foreach($personnel->push(new \App\Models\Personnel(['active' => true])) as $person)
-            <form class="grid items-end gap-3 border-b border-navy/10 py-4 sm:grid-cols-4" method="POST" action="{{ $person->exists ? route('admin.personnel.update', $person) : route('admin.personnel.store') }}">@csrf @if($person->exists)@method('PUT')@endif
-                <x-admin.field :label="$person->exists ? 'Name' : 'New personnel name'" name="name" :value="$person->name" required /><x-admin.field label="Linked priest account" name="user_id"><select class="admin-input" name="user_id"><option value="">No login account</option>@foreach($users as $user)<option value="{{ $user->id }}" @selected($person->user_id === $user->id)>{{ $user->name }}</option>@endforeach</select></x-admin.field>
-                <x-admin.field label="Availability" name="active"><select class="admin-input" name="active"><option value="1" @selected($person->active)>Active</option><option value="0" @selected(!$person->active)>Inactive</option></select></x-admin.field><button class="admin-secondary">{{ $person->exists ? 'Save personnel' : 'Add personnel' }}</button>
-            </form>
-        @endforeach
+    <section id="personnel-settings" class="admin-card grid gap-6">
+        <header class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+                <h2 class="text-2xl leading-tight">Priests & authorized personnel</h2>
+                <p class="mt-1 text-sm leading-6 text-muted">Manage who can be assigned to appointments and connect priests to their login accounts. Personnel with activity history should be made inactive instead of removed.</p>
+            </div>
+            <span class="rounded-full border border-navy/10 bg-slate-50 px-3 py-1.5 text-xs font-medium text-muted">
+                {{ $personnel->count() }} {{ \Illuminate\Support\Str::plural('person', $personnel->count()) }}
+            </span>
+        </header>
+
+        <div class="grid gap-3">
+            @forelse($personnel as $person)
+                <div class="grid gap-4 rounded-xl border border-navy/10 bg-slate-50/50 p-4 sm:p-5">
+                    <form class="grid gap-4" method="POST" action="{{ route('admin.personnel.update', $person) }}">@csrf @method('PUT')
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-navy/10 pb-3">
+                            <h3 class="font-sans text-base font-semibold tracking-normal">{{ $person->name }}</h3>
+                            <span @class([
+                                'rounded-full px-2.5 py-1 text-xs font-semibold',
+                                'bg-emerald-100 text-emerald-800' => $person->active,
+                                'bg-slate-200 text-slate-600' => ! $person->active,
+                            ])>{{ $person->active ? 'Active' : 'Inactive' }}</span>
+                        </div>
+                        <div class="grid items-end gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(10rem,0.65fr)_auto]">
+                            <x-admin.field label="Name" name="name" :value="$person->name" required />
+                            <x-admin.field label="Linked priest account" name="user_id">
+                                <select class="admin-input" name="user_id">
+                                    <option value="">No login account</option>
+                                    @foreach($users as $user)
+                                        <option value="{{ $user->id }}" @selected($person->user_id === $user->id)>{{ $user->name }}</option>
+                                    @endforeach
+                                </select>
+                            </x-admin.field>
+                            <x-admin.field label="Availability" name="active">
+                                <select class="admin-input" name="active">
+                                    <option value="1" @selected($person->active)>Active</option>
+                                    <option value="0" @selected(! $person->active)>Inactive</option>
+                                </select>
+                            </x-admin.field>
+                            <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-1 xl:flex-nowrap">
+                                <button class="admin-secondary grow xl:grow-0">Save changes</button>
+                                <button type="submit" form="remove-personnel-{{ $person->id }}" class="admin-secondary grow border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50 xl:grow-0">Remove</button>
+                            </div>
+                        </div>
+                    </form>
+                    <form id="remove-personnel-{{ $person->id }}" method="POST" action="{{ route('admin.personnel.destroy', $person) }}" data-confirm-title="Remove personnel?" data-confirm="This permanently removes {{ $person->name }}. Personnel with activity history cannot be removed." data-confirm-label="Remove personnel" data-confirm-tone="danger">@csrf @method('DELETE')</form>
+                </div>
+            @empty
+                <p class="rounded-xl border border-dashed border-navy/20 px-4 py-6 text-center text-sm text-muted">No personnel have been added yet.</p>
+            @endforelse
+        </div>
+
+        <form class="grid gap-4 rounded-xl border border-dashed border-gold/60 bg-ivory/40 p-4 sm:p-5" method="POST" action="{{ route('admin.personnel.store') }}">@csrf
+            <div>
+                <h3 class="text-xl leading-tight">Add personnel</h3>
+                <p class="mt-1 text-sm leading-6 text-muted">Create another priest or authorized personnel record.</p>
+            </div>
+            <div class="grid items-end gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(10rem,0.65fr)_auto]">
+                <x-admin.field label="New personnel name" name="name" required />
+                <x-admin.field label="Linked priest account" name="user_id">
+                    <select class="admin-input" name="user_id">
+                        <option value="">No login account</option>
+                        @foreach($users as $user)
+                            <option value="{{ $user->id }}">{{ $user->name }}</option>
+                        @endforeach
+                    </select>
+                </x-admin.field>
+                <x-admin.field label="Availability" name="active">
+                    <select class="admin-input" name="active">
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
+                </x-admin.field>
+                <button class="admin-button w-full md:col-span-2 xl:col-span-1 xl:w-auto">Add personnel</button>
+            </div>
+        </form>
     </section>
     @can('manage-admin-roles')<details id="permission-settings" class="admin-card"><summary class="cursor-pointer text-lg font-semibold">Role permissions</summary><p class="my-4 text-sm text-muted">Super administrators retain full access and exclusive role administration. Priests can access only their assigned appointments.</p><form class="grid gap-5" method="POST" action="{{ route('admin.permissions.update') }}">@csrf @method('PUT')
         <div class="grid gap-5 sm:grid-cols-3">@foreach(['admin','staff','priest'] as $role)<fieldset class="rounded-lg border border-navy/10 p-4"><legend class="px-2 font-semibold">{{ ucfirst($role) }}</legend><div class="grid gap-3">@foreach($abilities as $ability)@if($role !== 'priest' || in_array($ability, ['appointments.view','appointments.approve']))<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="permissions[{{ $role }}][]" value="{{ $ability }}" @checked(in_array($ability, $settings['permissions'][$role] ?? config('office.permissions.'.$role)))>{{ \Illuminate\Support\Str::headline(str_replace('.', ' ', $ability)) }}</label>@endif

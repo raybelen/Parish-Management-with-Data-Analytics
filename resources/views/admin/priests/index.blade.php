@@ -31,13 +31,23 @@
     </section>
 
     <section class="admin-card grid gap-5">
-        <div><h2 class="text-2xl">Priest unavailability</h2><p class="mt-2 text-sm text-muted">Choose a whole date. Activities are reassigned to an available priest without an overlapping activity; otherwise they are flagged for reassignment.</p></div>
-        <form method="POST" action="{{ route('admin.priests.unavailabilities.store') }}" class="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div><h2 class="text-2xl">Priest unavailability</h2><p class="mt-2 text-sm text-muted">Add one whole day or a consecutive date range. Any affected activities are reassigned when another priest is available.</p></div>
+        <form method="POST" action="{{ route('admin.priests.unavailabilities.store') }}" class="grid gap-5">
             @csrf
-            <label class="grid gap-1 text-sm">Priest<select class="admin-input" name="personnel_id" required><option value="">Choose priest</option>@foreach($rotationPriests as $position => $priest)<option value="{{ $priest->id }}" @selected((string) old('personnel_id') === (string) $priest->id)>Priest {{ $position }} · {{ $priest->name }}</option>@endforeach</select></label>
-            <label class="grid gap-1 text-sm">Unavailable date<input class="admin-input" name="unavailable_on" type="date" min="{{ now()->toDateString() }}" value="{{ old('unavailable_on') }}" required></label>
-            <label class="grid gap-1 text-sm">Reason <span class="text-muted">(optional)</span><input class="admin-input" name="reason" maxlength="255" value="{{ old('reason') }}"></label>
-            <button class="admin-button">Save unavailable date</button>
+            <div class="grid gap-4 md:grid-cols-2">
+                <label class="grid gap-1 text-sm"><span class="font-medium">Priest</span><select class="admin-input" name="personnel_id" required><option value="">Choose priest</option>@foreach($rotationPriests as $position => $priest)<option value="{{ $priest->id }}" @selected((string) old('personnel_id') === (string) $priest->id)>Priest {{ $position }} · {{ $priest->name }}</option>@endforeach</select></label>
+                <label class="grid gap-1 text-sm"><span class="font-medium">Reason <span class="font-normal text-muted">(optional)</span></span><input class="admin-input" name="reason" maxlength="255" placeholder="For example, retreat or leave" value="{{ old('reason') }}"></label>
+            </div>
+            <fieldset class="grid gap-3 rounded-xl border border-navy/10 bg-navy/[0.02] p-4 sm:p-5">
+                <legend class="px-1 text-sm font-semibold">Unavailable dates</legend>
+                <div class="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto]">
+                    <label class="grid gap-1 text-sm"><span class="font-medium">From</span><input class="admin-input" name="unavailable_from" type="date" min="{{ now()->toDateString() }}" value="{{ old('unavailable_from') }}" required></label>
+                    <span class="hidden pb-3 text-sm text-muted sm:block" aria-hidden="true">to</span>
+                    <label class="grid gap-1 text-sm"><span class="font-medium">Through <span class="font-normal text-muted">(optional)</span></span><input class="admin-input" name="unavailable_through" type="date" min="{{ old('unavailable_from', now()->toDateString()) }}" value="{{ old('unavailable_through') }}"></label>
+                    <button class="admin-button sm:col-span-3 sm:justify-self-end xl:col-span-1">Save unavailable dates</button>
+                </div>
+                <p class="text-xs leading-5 text-muted">Leave the Through date blank to record only the From date.</p>
+            </fieldset>
         </form>
         <div class="grid gap-3">
             @forelse($unavailabilities as $unavailability)
@@ -52,17 +62,43 @@
     </section>
 
     <section class="admin-card min-w-0">
-        <div class="mb-5"><h2 class="text-2xl">Priest activity schedule</h2><p class="mt-2 text-sm text-muted">{{ $from->format('F j') }}–{{ $through->format('F j, Y') }} · Every priest-required activity lasts one hour.</p></div>
+        <div class="mb-5"><h2 class="text-2xl">Priest activity schedule</h2><p class="mt-2 text-sm text-muted">Showing {{ $from->format('F j') }}–{{ $through->format('F j, Y') }} of {{ $rangeStart->format('F j') }}–{{ $rangeThrough->format('F j, Y') }} · Every priest-required activity lasts one hour.</p></div>
         <div class="grid gap-3 lg:hidden">
-            @foreach($scheduleRows as $row)
+            @forelse($scheduleRows as $row)
                 <article class="rounded-xl border border-navy/10 p-4">
                     <p class="font-semibold">{{ $row['title'] }}</p><p class="mt-1 text-sm">{{ $row['starts_at']->format('l, F j, Y · g:i A') }}</p><p class="mt-1 text-sm">{{ $row['activity_type'] }} · {{ $row['personnel'] ?? 'Needs reassignment' }}</p>
                     <x-admin.priest-assignment-status :status="$row['assignment_status']" :regular="$row['regular_personnel'] ?? null" />
                 </article>
-            @endforeach
+            @empty
+                <p class="rounded-xl border border-dashed border-navy/15 p-5 text-sm text-muted">No priest-required activities in this period.</p>
+            @endforelse
         </div>
         <div class="hidden overflow-x-auto lg:block"><table class="admin-table"><thead><tr><th>Date</th><th>Day</th><th>Time</th><th>Activity type</th><th>Activity</th><th>Assigned priest</th><th>Status</th></tr></thead><tbody>
-            @foreach($scheduleRows as $row)<tr><td>{{ $row['starts_at']->format('M j, Y') }}</td><td>{{ $row['starts_at']->format('l') }}</td><td>{{ $row['starts_at']->format('g:i A') }}</td><td>{{ $row['activity_type'] }}</td><td>{{ $row['title'] }}</td><td>{{ $row['personnel'] ?? 'Unassigned' }}</td><td><x-admin.priest-assignment-status :status="$row['assignment_status']" :regular="$row['regular_personnel'] ?? null" /></td></tr>@endforeach
+            @forelse($scheduleRows as $row)<tr><td>{{ $row['starts_at']->format('M j, Y') }}</td><td>{{ $row['starts_at']->format('l') }}</td><td>{{ $row['starts_at']->format('g:i A') }}</td><td>{{ $row['activity_type'] }}</td><td>{{ $row['title'] }}</td><td>{{ $row['personnel'] ?? 'Unassigned' }}</td><td><x-admin.priest-assignment-status :status="$row['assignment_status']" :regular="$row['regular_personnel'] ?? null" /></td></tr>@empty<tr><td colspan="7" class="text-center text-muted">No priest-required activities in this period.</td></tr>@endforelse
         </tbody></table></div>
+        @if($schedulePeriods->hasPages())
+            <nav class="mt-6 flex flex-col gap-3 border-t border-navy/10 pt-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Priest activity schedule pages">
+                <p class="text-sm text-muted">Period {{ $schedulePeriods->currentPage() }} of {{ $schedulePeriods->lastPage() }}</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    @if($schedulePeriods->onFirstPage())
+                        <span class="admin-secondary min-h-10 cursor-not-allowed px-3 py-2 opacity-50" aria-disabled="true">Previous</span>
+                    @else
+                        <a class="admin-secondary min-h-10 px-3 py-2" href="{{ $schedulePeriods->previousPageUrl() }}" rel="prev">Previous</a>
+                    @endif
+                    @foreach($schedulePeriods->getUrlRange(1, $schedulePeriods->lastPage()) as $page => $url)
+                        @if($page === $schedulePeriods->currentPage())
+                            <span class="inline-flex size-10 items-center justify-center rounded-xl bg-navy text-sm font-semibold text-white" aria-current="page" aria-label="Page {{ $page }}">{{ $page }}</span>
+                        @else
+                            <a class="admin-secondary size-10 min-h-10 px-0 py-0" href="{{ $url }}" aria-label="Page {{ $page }}">{{ $page }}</a>
+                        @endif
+                    @endforeach
+                    @if($schedulePeriods->hasMorePages())
+                        <a class="admin-secondary min-h-10 px-3 py-2" href="{{ $schedulePeriods->nextPageUrl() }}" rel="next">Next</a>
+                    @else
+                        <span class="admin-secondary min-h-10 cursor-not-allowed px-3 py-2 opacity-50" aria-disabled="true">Next</span>
+                    @endif
+                </div>
+            </nav>
+        @endif
     </section>
 @endsection

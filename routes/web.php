@@ -107,6 +107,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::put('service-types/{serviceType}', [AdminServiceTypeController::class, 'update'])->name('services.update');
         Route::post('personnel', [AdminPersonnelController::class, 'store'])->name('personnel.store');
         Route::put('personnel/{personnel}', [AdminPersonnelController::class, 'update'])->name('personnel.update');
+        Route::delete('personnel/{personnel}', [AdminPersonnelController::class, 'destroy'])->name('personnel.destroy');
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
         Route::post('users', [AdminUserController::class, 'store'])->middleware('throttle:admin-sensitive')->name('users.store');
         Route::get('audit', [AdminAuditController::class, 'index'])->name('audit.index');

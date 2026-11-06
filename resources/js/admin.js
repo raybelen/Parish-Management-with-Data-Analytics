@@ -1,4 +1,5 @@
 import './admin-calendar';
+import './admin-document-verification';
 import './appointment-details';
 
 document.querySelectorAll('[data-forecast-form]').forEach((form) => {
@@ -72,12 +73,6 @@ document.querySelectorAll('[data-forecast-chart]').forEach((chart) => {
     });
 });
 
-document.querySelectorAll('form[data-confirm]').forEach((form) => {
-    form.addEventListener('submit', (event) => {
-        if (!window.confirm(form.dataset.confirm)) event.preventDefault();
-    });
-});
-
 document.querySelectorAll('.admin-mobile-menu').forEach((menu) => {
     menu.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && menu.open) {
@@ -93,6 +88,57 @@ document.querySelectorAll('.admin-mobile-menu').forEach((menu) => {
 });
 
 let activeDialogTrigger;
+const confirmationDialog = document.querySelector('[data-confirmation-dialog]');
+const confirmationTitle = confirmationDialog?.querySelector('[data-confirmation-title]');
+const confirmationMessage = confirmationDialog?.querySelector('[data-confirmation-message]');
+const confirmationAccept = confirmationDialog?.querySelector('[data-confirmation-accept]');
+let pendingConfirmationForm;
+let pendingConfirmationSubmitter;
+
+if (confirmationDialog && confirmationTitle && confirmationMessage && confirmationAccept) {
+    document.querySelectorAll('form[data-confirm]').forEach((form) => {
+        form.addEventListener('submit', (event) => {
+            if (form.dataset.confirmationAccepted === 'true') {
+                delete form.dataset.confirmationAccepted;
+                return;
+            }
+
+            event.preventDefault();
+            pendingConfirmationForm = form;
+            pendingConfirmationSubmitter = event.submitter;
+            activeDialogTrigger = event.submitter;
+            confirmationTitle.textContent = form.dataset.confirmTitle || 'Confirm action';
+            confirmationMessage.textContent = form.dataset.confirm;
+            confirmationAccept.textContent = form.dataset.confirmLabel || 'Continue';
+            confirmationAccept.dataset.tone = form.dataset.confirmTone || 'default';
+            confirmationDialog.showModal();
+            document.body.style.overflow = 'hidden';
+        });
+    });
+
+    confirmationAccept.addEventListener('click', () => {
+        if (!pendingConfirmationForm) return;
+
+        const form = pendingConfirmationForm;
+        const submitter = pendingConfirmationSubmitter;
+        pendingConfirmationForm = undefined;
+        pendingConfirmationSubmitter = undefined;
+        form.dataset.confirmationAccepted = 'true';
+        confirmationDialog.close();
+
+        if (submitter?.form === form) {
+            form.requestSubmit(submitter);
+        } else {
+            form.requestSubmit();
+        }
+    });
+
+    confirmationDialog.addEventListener('close', () => {
+        pendingConfirmationForm = undefined;
+        pendingConfirmationSubmitter = undefined;
+    });
+}
+
 document.querySelectorAll('[data-dialog-target]').forEach((trigger) => {
     trigger.addEventListener('click', () => {
         const dialog = document.getElementById(trigger.dataset.dialogTarget);
