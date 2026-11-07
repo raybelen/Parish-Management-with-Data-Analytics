@@ -2,7 +2,7 @@
 @section('title', isset($appointment) ? 'Edit appointment details' : 'New walk-in appointment')
 @section('actions')<a class="admin-secondary" href="{{ isset($appointment) ? route('admin.appointments.show', $appointment) : route('admin.appointments.index') }}">Back to appointments</a>@endsection
 @section('content')
-    <p class="text-sm text-muted">Enter the booking details below. New appointments reserve the slot for three days while the office verifies physical documents. Payment is optional.</p>
+    <p class="text-sm text-muted">Enter the booking details below. New appointments reserve the slot for three days while the office verifies physical documents. The service fee can be paid separately and does not block confirmation.</p>
     <form class="grid gap-6" method="POST" action="{{ isset($appointment) ? route('admin.appointments.details', $appointment) : route('admin.appointments.store') }}">@csrf
         @isset($appointment)@method('PATCH')<input type="hidden" name="version" value="{{ $appointment->version }}">@endisset
         <section class="admin-card grid gap-4 sm:grid-cols-2"><h2 class="text-2xl sm:col-span-2">Booking contact</h2>

@@ -18,6 +18,7 @@ use App\Http\Controllers\AdminPriestUnavailabilityController;
 use App\Http\Controllers\AdminRecordController;
 use App\Http\Controllers\AdminRecordImportController;
 use App\Http\Controllers\AdminReportController;
+use App\Http\Controllers\AdminRevenueController;
 use App\Http\Controllers\AdminRoleController;
 use App\Http\Controllers\AdminScheduleBlockController;
 use App\Http\Controllers\AdminScheduleController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\AdminTwoFactorSessionController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminWebsiteContentController;
 use App\Http\Controllers\AppointmentAvailabilityController;
+use App\Http\Controllers\AppointmentBillingController;
 use App\Http\Controllers\AppointmentCancellationController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AppointmentLookupController;
@@ -90,6 +92,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::get('records/services/{serviceType:slug}/book', [AdminRecordController::class, 'book'])->name('records.book');
         Route::resource('records', AdminRecordController::class)->parameters(['records' => 'record'])->except('edit');
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
+        Route::get('revenue', [AdminRevenueController::class, 'index'])->name('revenue.index');
+        Route::get('appointments/{appointment}/billing', [AppointmentBillingController::class, 'admin'])->name('appointments.billing');
         if (config('office.analytics_enabled')) {
             Route::get('statistics', [AdminStatisticsController::class, 'index'])->name('statistics.index');
             Route::post('statistics', [AdminStatisticsController::class, 'store'])->middleware('throttle:30,1')->name('statistics.store');
@@ -158,3 +162,5 @@ Route::get('/appointments/{appointment}/confirmation', [AppointmentController::c
     ->middleware('signed')
     ->block()
     ->name('appointments.show');
+Route::get('/appointments/{appointment}/billing', [AppointmentBillingController::class, 'show'])
+    ->middleware('signed')->block()->name('appointments.billing');

@@ -24,7 +24,7 @@ class AdminDashboardController extends Controller
             'counts' => (clone $query)->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status'),
             'services' => (clone $query)->selectRaw('service_type, count(*) as total')->groupBy('service_type')->pluck('total', 'service_type'),
             'upcoming' => (clone $query)->with('personnel')->where('status', 'confirmed')->where('starts_at', '>=', now())->orderBy('starts_at')->limit(8)->get(),
-            'totals' => $request->user()->can('finance.view') ? $analytics->totals(now()->startOfMonth()->toDateString(), now()->toDateString()) : null,
+            'totals' => $request->user()->can('finance.view') ? $analytics->totals(now()->startOfMonth()->toDateString(), now()->toDateString(), $request->user()) : null,
             'annualStatistics' => config('office.analytics_enabled') && $request->user()->can('reports.view') ? $statistics->annual() : [],
             'notifications' => $request->user()->can('notifications.manage') ? OfficeNotification::query()->whereHas('appointment', fn ($q) => $q->where('source', OfficeSettings::source()))->whereNull('read_at')->latest('id')->limit(8)->get() : collect(),
             'activity' => $request->user()->can('audit.view') ? AuditLog::query()->with('actor')->latest('id')->limit(6)->get() : collect(),

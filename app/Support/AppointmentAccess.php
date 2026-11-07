@@ -11,7 +11,7 @@ class AppointmentAccess
 {
     private const SESSION_KEY = 'appointment_access_tokens';
 
-    public function issue(Request $request, Appointment $appointment): string
+    public function issue(Request $request, Appointment $appointment, string $route = 'appointments.show'): string
     {
         $token = Str::random(64);
         $tokens = $request->session()->get(self::SESSION_KEY, []);
@@ -20,7 +20,7 @@ class AppointmentAccess
         $request->session()->put(self::SESSION_KEY, array_slice($tokens, -20, null, true));
 
         return URL::temporarySignedRoute(
-            'appointments.show',
+            $route,
             now()->addMinutes(30),
             ['appointment' => $appointment, 'access_token' => $token],
         );

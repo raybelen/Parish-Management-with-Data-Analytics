@@ -34,6 +34,7 @@ class DeploymentProcessConfigurationTest extends TestCase
         $events = collect(app(Schedule::class)->events())
             ->filter(fn ($event): bool => str_contains($event->command ?? '', 'office:reminders')
                 || str_contains($event->command ?? '', 'appointments:expire-unverified')
+                || str_contains($event->command ?? '', 'appointments:send-reminders')
                 || str_contains($event->command ?? '', 'analytics:forecast'));
 
         $this->assertNotEmpty($events);

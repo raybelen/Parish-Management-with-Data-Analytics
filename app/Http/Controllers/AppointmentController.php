@@ -81,7 +81,7 @@ class AppointmentController extends Controller
 
         $canManageRequest = in_array($appointment->status, ['pending', 'confirmed'], true)
             && ($appointment->status === 'pending' || $appointment->starts_at?->isFuture());
-        $appointment->load(['payments', 'paymentTransactions' => fn ($query) => $query->latest('id')]);
+        $appointment->load(['payments.originalPayment', 'paymentTransactions' => fn ($query) => $query->latest('id')]);
         $paymentUrl = $appointment->canStartOnlinePayment() && XenditPaymentGateway::isConfigured()
             ? URL::temporarySignedRoute(
                 'appointments.payments.xendit',
@@ -96,6 +96,7 @@ class AppointmentController extends Controller
             'service' => OfficeSettings::services()[$appointment->service_type] ?? ['label' => Str::headline($appointment->service_type)],
             'canManageRequest' => $canManageRequest,
             'paymentUrl' => $paymentUrl,
+            'billingUrl' => $access->issue($request, $appointment, 'appointments.billing'),
             'scheduleUpdateUrl' => $canManageRequest ? URL::temporarySignedRoute(
                 'appointments.schedule.update',
                 now()->addMinutes(30),

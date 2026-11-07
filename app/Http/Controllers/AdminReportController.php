@@ -8,6 +8,7 @@ use App\Models\ForecastRun;
 use App\Models\Payment;
 use App\Models\ServiceRecord;
 use App\Models\ServiceType;
+use App\Models\User;
 use App\Support\AnalyticsData;
 use App\Support\CsvExport;
 use App\Support\OfficeAudit;
@@ -49,7 +50,7 @@ class AdminReportController extends Controller
             Gate::authorize('forecasts.manage');
         }
         if ($request->boolean('export')) {
-            [$columns, $rows] = $this->rows($type, $data, $from, $to, $analytics);
+            [$columns, $rows] = $this->rows($type, $data, $from, $to, $analytics, $request->user());
             OfficeAudit::record('report.exported', null, [], ['type' => $type, 'from' => $from, 'to' => $to, 'source' => OfficeSettings::source()]);
 
             return CsvExport::download((OfficeSettings::demo() ? 'DEMO-' : '').$type.'-'.$from.'-'.$to.'.csv', $columns, $rows);
@@ -57,7 +58,7 @@ class AdminReportController extends Controller
 
         return view('admin.reports', [
             'from' => $from, 'to' => $to,
-            'totals' => $request->user()->can('finance.view') ? $analytics->totals($from, $to) : null,
+            'totals' => $request->user()->can('finance.view') ? $analytics->totals($from, $to, $request->user()) : null,
             'services' => ServiceType::query()->orderBy('name')->get(),
         ]);
     }
@@ -65,9 +66,9 @@ class AdminReportController extends Controller
     /** @param array<string, mixed> $filters
      * @return array{array<int, string>, iterable<array<array-key, mixed>>}
      */
-    private function rows(string $type, array $filters, string $from, string $to, AnalyticsData $analytics): array
+    private function rows(string $type, array $filters, string $from, string $to, AnalyticsData $analytics, User $user): array
     {
-        $label = OfficeSettings::demo() ? 'DEMO - simulated data' : 'Operational data';
+        $label = OfficeSettings::demo() ? 'DEMO - simulated data' : 'Operational data - includes sandbox demonstration payments';
         if ($type === 'records') {
             $records = ServiceRecord::query()->whereIn('source', ['archival', OfficeSettings::source()])->whereBetween('service_date', [$from, $to])
                 ->when($filters['service'] ?? null, fn ($q, $service) => $q->where('service_type', $service))->orderBy('id')->lazy();
@@ -75,7 +76,7 @@ class AdminReportController extends Controller
             return [[...ImportServiceRecords::COLUMNS, 'source', 'archived_at'], $records->map(fn ($record) => [...$record->only(ImportServiceRecords::COLUMNS), 'source' => $record->source, 'archived_at' => $record->archived_at?->toDateTimeString()])];
         }
         if ($type === 'monthly') {
-            return [['dataset', 'month', 'completed_services', 'net_collections_for_completed_services'], collect($analytics->monthlyReport($from, $to, $filters['service'] ?? null))->map(fn ($row) => [$label, ...array_values($row)])];
+            return [['dataset', 'month', 'completed_services', 'net_collections_for_completed_services'], collect($analytics->monthlyReport($from, $to, $filters['service'] ?? null, $user))->map(fn ($row) => [$label, ...array_values($row)])];
         }
         if ($type === 'forecast') {
             $runs = ForecastRun::query()->where('source', OfficeSettings::source())->whereDate('created_at', '>=', $from)->whereDate('created_at', '<=', $to)
@@ -88,12 +89,12 @@ class AdminReportController extends Controller
             ])];
         }
         if ($type === 'payments') {
-            $payments = Payment::query()->with('appointment')->whereHas('appointment', fn ($q) => $q->where('source', OfficeSettings::source())->when($filters['service'] ?? null, fn ($q, $service) => $q->where('service_type', $service)))
+            $payments = Payment::query()->with('appointment')->whereIn('appointment_id', $analytics->appointments($filters['service'] ?? null, $user)->select('appointments.id'))
                 ->whereDate('paid_at', '>=', $from)->whereDate('paid_at', '<=', $to)->orderBy('id')->lazy();
 
             return [['dataset', 'appointment', 'date', 'kind', 'amount', 'method', 'reference'], $payments->map(fn ($payment) => [$label, $payment->appointment->reference_number, $payment->paid_at->toDateTimeString(), $payment->kind, number_format($payment->amount_cents / 100, 2, '.', ''), $payment->method, $payment->reference])];
         }
-        $appointments = $analytics->appointments($filters['service'] ?? null)->with('payments')
+        $appointments = $analytics->appointments($filters['service'] ?? null, $user)->with('payments')
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->when($type !== 'outstanding', fn ($q) => $q->whereDate('created_at', '>=', $from)->whereDate('created_at', '<=', $to))
             ->when($type === 'outstanding', fn ($q) => $q->whereIn('status', ['pending', 'confirmed', 'completed']))->orderBy('id')->lazy();

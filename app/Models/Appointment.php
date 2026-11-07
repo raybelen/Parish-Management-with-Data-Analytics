@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Database\Factories\AppointmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -82,6 +83,8 @@ class Appointment extends Model
             'requirements' => 'array',
             'physical_documents' => 'array',
             'documents_due_at' => 'immutable_datetime',
+            'upcoming_reminder_sent_for' => 'immutable_datetime',
+            'documents_reminder_sent_for' => 'immutable_datetime',
             'online_verification' => 'array',
             'starts_at' => 'immutable_datetime',
             'ends_at' => 'immutable_datetime',
@@ -92,6 +95,17 @@ class Appointment extends Model
             'buffer_minutes' => 'integer',
             'version' => 'integer',
         ];
+    }
+
+    public function documentVerificationDeadline(): ?CarbonImmutable
+    {
+        if ($this->documents_due_at === null) {
+            return $this->starts_at;
+        }
+
+        return $this->starts_at !== null && $this->starts_at->lessThan($this->documents_due_at)
+            ? $this->starts_at
+            : $this->documents_due_at;
     }
 
     public function personnel(): BelongsTo
@@ -144,6 +158,17 @@ class Appointment extends Model
     public function balanceCents(): int
     {
         return max(0, $this->fee_cents - $this->netPaidCents());
+    }
+
+    public function billingStatusLabel(): string
+    {
+        return match (true) {
+            $this->netPaidCents() > $this->fee_cents => 'Overpaid',
+            $this->fee_cents === 0 => 'No payment due',
+            $this->balanceCents() === 0 => 'Paid',
+            $this->netPaidCents() > 0 => 'Partially paid',
+            default => 'Unpaid',
+        };
     }
 
     public function canStartOnlinePayment(): bool

@@ -14,7 +14,7 @@ Your requested schedule has no conflict, so the parish has reserved the slot whi
 
 Please bring every required physical document to the church office within three days. The appointment will be confirmed and shown on the public parish calendar after all required documents are verified. If the deadline passes first, the reserved slot will be released.
 
-Payment is optional at this stage and does not affect document verification or the reservation.
+The service fee can be paid separately. Payment is not required to confirm your appointment and does not affect document verification or the reservation.
 
 <x-mail::button :url="$manageUrl">
 View appointment

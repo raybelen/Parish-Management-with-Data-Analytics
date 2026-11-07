@@ -7,6 +7,8 @@ use App\Support\OfficeAudit;
 
 class ExpirePendingAppointment
 {
+    public function __construct(private NotifyAppointmentClient $notifyClient) {}
+
     public function handle(Appointment $appointment): ?string
     {
         $expirationReason = $this->expirationReason($appointment);
@@ -26,6 +28,7 @@ class ExpirePendingAppointment
 
         OfficeAudit::record('appointment.expired', $appointment, ['status' => 'pending'], ['status' => 'expired'], $outcome);
         OfficeAudit::notify($appointment, 'expired', 'Appointment hold expired: '.$appointment->reference_number);
+        $this->notifyClient->handle($appointment, 'expired');
 
         return $expirationReason;
     }

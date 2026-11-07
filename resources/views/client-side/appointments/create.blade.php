@@ -107,7 +107,7 @@
                                 <option value="">Select Baptism, Wedding, or Funeral</option>
                                 @foreach ($services as $serviceKey => $service)
                                     @if($service['active'] ?? true)
-                                    <option value="{{ $serviceKey }}" @selected($selectedService === $serviceKey)>{{ $service['label'] }}</option>
+                                    <option value="{{ $serviceKey }}" data-fee-cents="{{ $service['fee_cents'] ?? 0 }}" @selected($selectedService === $serviceKey)>{{ $service['label'] }} — ₱{{ number_format(($service['fee_cents'] ?? 0) / 100, 2) }}</option>
                                     @endif
                                 @endforeach
                             </select>
@@ -195,7 +195,8 @@
                 <section aria-labelledby="payment-option-heading" class="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-9">
                     <p class="section-label text-muted">04 · Payment Option</p>
                     <h2 id="payment-option-heading" class="mt-4 scroll-mt-32 text-3xl">How would you like to pay?</h2>
-                    <p class="mt-3 max-w-3xl text-sm leading-7 text-muted">Payment remains optional and does not affect document verification or your reserved schedule. Choose where you would prefer to pay when you are ready.</p>
+                    <p class="mt-3 max-w-3xl text-sm leading-7 text-muted">The service fee is payable separately. Payment is not required to confirm your appointment and does not affect document verification or your reserved schedule.</p>
+                    <p class="mt-5 rounded-lg bg-ivory p-4 text-sm" aria-live="polite">Service fee: <strong data-service-fee>{{ isset($services[$selectedService]) ? '₱'.number_format(($services[$selectedService]['fee_cents'] ?? 0) / 100, 2) : 'Select a service to see the fee.' }}</strong></p>
 
                     <fieldset class="mt-7 grid gap-4 sm:grid-cols-2">
                         <legend class="sr-only">Payment option</legend>
@@ -265,6 +266,10 @@
                 <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
                     <dt class="font-medium text-navy">Payment option</dt>
                     <dd data-review-payment></dd>
+                </div>
+                <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
+                    <dt class="font-medium text-navy">Service fee</dt>
+                    <dd data-review-fee></dd>
                 </div>
             </dl>
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\ExpirePendingAppointment;
+use App\Actions\NotifyAppointmentClient;
 use App\Mail\AppointmentConfirmed;
 use App\Models\Appointment;
 use App\Support\OfficeAccess;
@@ -78,7 +79,7 @@ class AdminDocumentController extends Controller
         return Storage::disk(config('appointments.document_disk'))->download($file['path'], basename($file['original_name']), ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff']);
     }
 
-    public function update(Request $request, Appointment $appointment, ExpirePendingAppointment $expirePendingAppointment): RedirectResponse|JsonResponse
+    public function update(Request $request, Appointment $appointment, ExpirePendingAppointment $expirePendingAppointment, NotifyAppointmentClient $notifyClient): RedirectResponse|JsonResponse
     {
         Gate::authorize('documents.manage');
         OfficeAccess::appointment($request->user(), $appointment);
@@ -90,7 +91,7 @@ class AdminDocumentController extends Controller
             'decision.required' => 'Choose Verified or Decline.',
             'decision.in' => 'Choose Verified or Decline.',
         ]);
-        $result = DB::transaction(function () use ($appointment, $data, $expirePendingAppointment): string {
+        $result = DB::transaction(function () use ($appointment, $data, $expirePendingAppointment, $notifyClient): string {
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
             abort_unless($locked->version === (int) $data['version'], 409, 'Refresh this appointment before saving.');
             abort_unless(in_array($locked->status, ['pending', 'confirmed'], true), 409, 'Finalized requirements are preserved.');
@@ -126,6 +127,7 @@ class AdminDocumentController extends Controller
             if (! $isVerified) {
                 OfficeAudit::record('appointment.declined', $locked, ['status' => $previousStatus], ['status' => 'declined'], $locked->outcome);
                 OfficeAudit::notify($locked, 'declined', 'Document declined: '.$locked->reference_number);
+                $notifyClient->handle($locked, 'declined');
             } elseif ($previousStatus === 'pending' && $locked->status === 'confirmed') {
                 OfficeAudit::record('appointment.confirmed', $locked, ['status' => 'pending'], ['status' => 'confirmed'], 'All required physical documents verified');
                 OfficeAudit::notify($locked, 'confirmed', 'Documents verified and appointment confirmed: '.$locked->reference_number);

@@ -40,6 +40,7 @@ class ProcessXenditWebhook
             $eventAt = CarbonImmutable::parse($data['updated'] ?? $payload['created']);
 
             if ($payload['event'] === 'payment_session.expired') {
+                abort_unless($data['status'] === 'EXPIRED', 422);
                 if ($transaction->status !== 'paid') {
                     $transaction->update([
                         'status' => 'expired',
@@ -48,7 +49,13 @@ class ProcessXenditWebhook
                     $appointment = Appointment::query()->lockForUpdate()->findOrFail($transaction->appointment_id);
                     $appointment->load('payments');
                     $appointment->update([
-                        'payment_status' => $appointment->netPaidCents() > 0 ? 'partial' : 'expired',
+                        'payment_status' => match (true) {
+                            $appointment->fee_cents === 0 => 'not_required',
+                            $appointment->balanceCents() === 0 => 'paid',
+                            $appointment->netPaidCents() > 0 => 'partial',
+                            $appointment->paymentTransactions()->where('status', 'pending')->where('expires_at', '>', now())->exists() => 'pending',
+                            default => 'expired',
+                        },
                     ]);
                 }
 

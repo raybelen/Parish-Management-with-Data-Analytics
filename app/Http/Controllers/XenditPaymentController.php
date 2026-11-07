@@ -41,7 +41,7 @@ class XenditPaymentController extends Controller
         if ($paymentTransaction->status === 'paid') {
             return redirect()->to(
                 $appointmentAccess->issue($request, $paymentTransaction->appointment),
-            )->with('appointment_message', 'Sandbox payment confirmed. Your payment status is now Paid.');
+            )->with('appointment_message', 'Sandbox payment confirmed. Test payment status is now Paid; no real money was collected.');
         }
 
         return response()->view('client-side.appointments.payment-return', [

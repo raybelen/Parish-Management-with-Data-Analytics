@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 
 class ManageAppointment
 {
-    public function __construct(private ReserveAppointmentSlot $slots) {}
+    public function __construct(private ReserveAppointmentSlot $slots, private NotifyAppointmentClient $notifyClient) {}
 
     /** @param array<string, mixed> $data */
     public function assignPersonnel(Appointment $appointment, array $data): void
@@ -88,6 +88,10 @@ class ManageAppointment
             $locked->save();
             OfficeAudit::record('appointment.'.$status, $locked, $before, $locked->only(array_keys($before)), $reason);
             OfficeAudit::notify($locked, $status, ucfirst(str_replace('_', ' ', $status)).': '.$locked->reference_number);
+
+            if (in_array($status, ['cancelled', 'declined'], true)) {
+                $this->notifyClient->handle($locked, $status);
+            }
 
             if ($status === 'confirmed' && $locked->wantsEmailNotifications()) {
                 Mail::to($locked->client_email)->queue(

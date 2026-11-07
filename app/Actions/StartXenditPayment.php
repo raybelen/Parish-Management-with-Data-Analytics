@@ -39,6 +39,7 @@ class StartXenditPayment
 
             $activeTransaction = $lockedAppointment->paymentTransactions()
                 ->where('status', 'pending')
+                ->where('amount_cents', $lockedAppointment->balanceCents())
                 ->where('expires_at', '>', now())
                 ->whereNotNull('checkout_url')
                 ->latest('id')
@@ -81,7 +82,14 @@ class StartXenditPayment
                     'failure_code' => is_string($errorCode) ? Str::limit($errorCode, 255, '') : null,
                     'failure_message' => Str::limit($exception->getMessage(), 1000, ''),
                 ]);
-                $lockedTransaction->appointment()->where('payment_status', '!=', 'paid')->update(['payment_status' => 'failed']);
+                $lockedAppointment = Appointment::query()->lockForUpdate()->findOrFail($lockedTransaction->appointment_id);
+                $lockedAppointment->load('payments');
+                $lockedAppointment->update(['payment_status' => match (true) {
+                    $lockedAppointment->fee_cents === 0 => 'not_required',
+                    $lockedAppointment->balanceCents() === 0 => 'paid',
+                    $lockedAppointment->netPaidCents() > 0 => 'partial',
+                    default => 'failed',
+                }]);
             });
 
             throw $exception;
@@ -98,7 +106,14 @@ class StartXenditPayment
                 'failure_code' => null,
                 'failure_message' => null,
             ]);
-            $lockedTransaction->appointment()->update(['payment_status' => 'pending']);
+            $lockedAppointment = Appointment::query()->lockForUpdate()->findOrFail($lockedTransaction->appointment_id);
+            $lockedAppointment->load('payments');
+            $lockedAppointment->update(['payment_status' => match (true) {
+                $lockedAppointment->fee_cents === 0 => 'not_required',
+                $lockedAppointment->balanceCents() === 0 => 'paid',
+                $lockedAppointment->netPaidCents() > 0 => 'partial',
+                default => 'pending',
+            }]);
             OfficeAudit::record('payment.xendit_started', $lockedTransaction, [], [
                 'appointment_id' => $lockedTransaction->appointment_id,
                 'amount_cents' => $lockedTransaction->amount_cents,

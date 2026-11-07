@@ -2,11 +2,18 @@ import './appointment-availability';
 import './appointment-details';
 import './psgc-address';
 
+document.querySelector('[data-print-billing]')?.addEventListener('click', () => window.print());
+
 const menuToggle = document.getElementById('menu-toggle');
 const mobileNavigation = document.getElementById('mobile-navigation');
 const oneTimeAppointmentAccess = document.querySelector('[data-one-time-appointment-access]');
 if (oneTimeAppointmentAccess) {
     window.history.replaceState(null, '', oneTimeAppointmentAccess.dataset.manageUrl);
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+            window.location.replace(oneTimeAppointmentAccess.dataset.manageUrl);
+        }
+    });
 }
 function closeMenu() {
     mobileNavigation.hidden = true;
@@ -114,6 +121,12 @@ const serviceSelect = document.querySelector('[data-service-select]');
 const serviceSections = [...document.querySelectorAll('[data-service-fields]')];
 function updateServiceFields() {
     const selectedService = serviceSelect?.value ?? '';
+    const feeLabel = document.querySelector('[data-service-fee]');
+    if (feeLabel) {
+        feeLabel.textContent = selectedService
+            ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(serviceSelect.selectedOptions[0].dataset.feeCents ?? 0) / 100)
+            : 'Select a service to see the fee.';
+    }
 
     serviceSections.forEach((section) => {
         const isActive = section.dataset.serviceFields === selectedService;
@@ -317,6 +330,7 @@ function updateAppointmentReview() {
         schedule: `${preferredDate?.value ? new Intl.DateTimeFormat('en-PH', { dateStyle: 'long' }).format(new Date(`${preferredDate.value}T12:00:00`)) : 'Not provided'} at ${preferredTime?.value ? new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(`2000-01-01T${preferredTime.value}:00`)) : 'Not provided'}`,
         church: selectedOptionText('preferred_church'),
         payment: appointmentForm?.querySelector('[name="payment_option"]:checked')?.dataset.paymentLabel ?? 'Not provided',
+        fee: document.querySelector('[data-service-fee]')?.textContent ?? 'Not provided',
     };
 
     Object.entries(reviewValues).forEach(([name, value]) => {

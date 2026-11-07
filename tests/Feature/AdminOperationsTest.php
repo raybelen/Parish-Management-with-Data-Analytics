@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\AppointmentConfirmed;
+use App\Mail\AppointmentUpdate;
 use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\ParishSetting;
@@ -328,7 +329,9 @@ class AdminOperationsTest extends TestCase
         $this->assertSame([], $appointment->physical_documents ?? []);
         $this->assertDatabaseHas('audit_logs', ['action' => 'appointment.expired', 'entity_id' => $appointment->id]);
         $this->assertDatabaseMissing('audit_logs', ['action' => 'appointment.confirmed', 'entity_id' => $appointment->id]);
-        Mail::assertNothingQueued();
+        Mail::assertNotQueued(AppointmentConfirmed::class);
+        Mail::assertQueued(AppointmentUpdate::class, fn (AppointmentUpdate $mail): bool => $mail->event === 'expired'
+            && $mail->hasTo($appointment->client_email));
     }
 
     public function test_pending_appointment_cannot_be_confirmed_before_required_documents_are_verified(): void

@@ -16,7 +16,9 @@ class SecurityHeaders
         $response = $next($request);
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        if ($response->headers->get('Referrer-Policy') !== 'no-referrer') {
+            $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        }
         if (app()->isProduction()) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000');
         }

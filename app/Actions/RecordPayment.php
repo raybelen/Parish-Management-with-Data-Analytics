@@ -18,12 +18,25 @@ class RecordPayment
             $existing = Payment::query()->where('idempotency_key', $data['idempotency_key'])->first();
             $cents = self::cents($data['amount']);
             if ($existing) {
-                abort_unless($existing->appointment_id === $locked->id && $existing->kind === $data['kind'] && $existing->amount_cents === $cents, 409);
+                $originalPaymentId = $data['kind'] === 'refund' ? (int) $data['original_payment_id'] : null;
+                abort_unless($existing->appointment_id === $locked->id
+                    && $existing->kind === $data['kind'] && $existing->amount_cents === $cents
+                    && $existing->original_payment_id === $originalPaymentId
+                    && $existing->method === $data['method']
+                    && $existing->paid_at->format('Y-m-d\TH:i') === $data['paid_at']
+                    && ($existing->reference ?? '') === ($data['reference'] ?? '')
+                    && $existing->notes === $data['notes'], 409, 'This submission was already recorded with different details. Refresh the appointment before entering another payment or refund.');
 
                 return $existing;
             }
             if ($data['kind'] === 'refund') {
                 $original = Payment::query()->where('appointment_id', $locked->id)->where('kind', 'payment')->find($data['original_payment_id']);
+                if ($original?->method === 'xendit_sandbox' && $data['method'] !== 'xendit_sandbox') {
+                    throw ValidationException::withMessages(['original_payment_id' => 'Choose Xendit Sandbox to record a demonstration refund for this test payment.']);
+                }
+                if ($original !== null && $original->method !== 'xendit_sandbox' && $data['method'] === 'xendit_sandbox') {
+                    throw ValidationException::withMessages(['method' => 'Sandbox refunds must reference a sandbox payment.']);
+                }
                 $refunded = Payment::query()->where('original_payment_id', $original?->id)->where('kind', 'refund')->sum('amount_cents');
                 if (! $original || $cents > $original->amount_cents - $refunded || $data['paid_at'] < $original->paid_at->format('Y-m-d\TH:i')) {
                     throw ValidationException::withMessages(['amount' => 'Refunds must reference a payment, follow its date, and not exceed its unrefunded amount.']);

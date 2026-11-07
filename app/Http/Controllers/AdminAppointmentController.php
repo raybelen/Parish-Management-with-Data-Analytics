@@ -69,7 +69,7 @@ class AdminAppointmentController extends Controller
         Gate::authorize('appointments.manage');
         $appointment = $create->handle($request->validated());
 
-        return redirect()->route('admin.appointments.show', $appointment)->with('status', 'Appointment reserved for three days while its physical documents are verified. Payment remains optional.');
+        return redirect()->route('admin.appointments.show', $appointment)->with('status', 'Appointment reserved for three days while its physical documents are verified. The service fee can be paid separately and does not block confirmation.');
     }
 
     public function show(Request $request, Appointment $appointment): View
@@ -78,7 +78,7 @@ class AdminAppointmentController extends Controller
         OfficeAccess::appointment($request->user(), $appointment);
         $appointment->load(['participants', 'personnel', 'serviceRecord']);
         if ($request->user()->can('finance.view')) {
-            $appointment->load(['payments', 'paymentTransactions' => fn ($query) => $query->latest('id')]);
+            $appointment->load(['payments.originalPayment', 'paymentTransactions' => fn ($query) => $query->latest('id')]);
         }
 
         return view('admin.appointments.show', [

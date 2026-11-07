@@ -116,7 +116,7 @@ class AppointmentControllerTest extends TestCase
             ->assertSee('Go back and edit');
         $this->assertSame(1, $xpath->query('//form[@data-appointment-form]//button[@type="submit" and @data-review-appointment]')->length);
         $this->assertSame(1, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//button[@type="button" and @data-confirm-appointment]')->length);
-        $this->assertSame(7, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//dd[@*[starts-with(name(), "data-review-")]]')->length);
+        $this->assertSame(8, $xpath->query('//dialog[@id="confirm-appointment-dialog"]//dd[@*[starts-with(name(), "data-review-")]]')->length);
         $this->assertSame(1, $xpath->query('//*[@id="client_address" and @name="client_address" and @data-psgc-address-output]')->length);
         $this->assertSame(1, $xpath->query('//*[@id="client_address-preview" and @data-psgc-address-preview]')->length);
         $this->assertSame(1, $xpath->query('//*[@id="client_address"]')->length);
@@ -369,7 +369,7 @@ class AppointmentControllerTest extends TestCase
         $mail->assertHasSubject('Appointment reserved: APT-261014-ABC123');
         $mail->assertSeeInText('within three days');
         $mail->assertSeeInText('public parish calendar after all required documents are verified');
-        $mail->assertSeeInText('Payment is optional');
+        $mail->assertSeeInText('The service fee can be paid separately');
     }
 
     #[DataProvider('regularMassConflicts')]

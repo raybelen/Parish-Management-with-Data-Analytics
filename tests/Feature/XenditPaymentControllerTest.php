@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Appointment;
+use App\Models\Payment;
 use App\Models\PaymentTransaction;
+use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -13,6 +15,117 @@ use Tests\TestCase;
 class XenditPaymentControllerTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    public function test_completed_checkout_is_recorded_once_and_reconciles_client_admin_and_revenue_views(): void
+    {
+        $this->withoutVite();
+        $this->travelTo('2026-11-01 16:00');
+        $this->configureSandbox();
+        Http::preventStrayRequests();
+        Http::fake(['https://api.xendit.co/sessions' => Http::response($this->sessionResponse(), 201)]);
+        $appointment = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'online', 'payment_status' => 'partial']);
+        Payment::factory()->for($appointment)->create(['amount_cents' => 4000]);
+        $checkoutUrl = URL::temporarySignedRoute('appointments.payments.xendit', now()->addMinutes(5), ['appointment' => $appointment]);
+
+        $this->post($checkoutUrl)->assertRedirect('https://checkout-staging.xendit.co/sessions/ps-sandbox-session-123');
+        $this->post($checkoutUrl)->assertRedirect('https://checkout-staging.xendit.co/sessions/ps-sandbox-session-123');
+        Http::assertSentCount(1);
+        $transaction = PaymentTransaction::query()->sole();
+        $this->assertSame(6000, $transaction->amount_cents);
+        $this->assertSame('pending', $transaction->status);
+        $this->assertSame(6000, $appointment->refresh()->balanceCents());
+        $this->assertSame('partial', $appointment->payment_status);
+
+        $payload = $this->completedWebhook($transaction);
+        $this->withHeader('X-Callback-Token', 'sandbox-webhook-token')->postJson(route('webhooks.xendit.payment-sessions'), $payload)->assertNoContent();
+        $this->postJson(route('webhooks.xendit.payment-sessions'), $payload)->assertNoContent();
+
+        $this->assertDatabaseCount('payments', 2);
+        $this->assertDatabaseCount('payment_transactions', 1);
+        $this->assertDatabaseHas('payment_transactions', ['id' => $transaction->id, 'status' => 'paid', 'environment' => 'sandbox', 'payment_method' => 'PH_GCASH']);
+        $transaction->refresh();
+        $this->assertDatabaseHas('payments', ['id' => $transaction->ledger_payment_id, 'appointment_id' => $appointment->id, 'amount_cents' => 6000, 'reference' => 'py-sandbox-payment-123']);
+        $this->assertSame('paid', $appointment->refresh()->payment_status);
+        $this->assertSame(0, $appointment->balanceCents());
+        $this->assertSame('pending', $appointment->status);
+
+        $return = $this->get(route('appointments.payments.return', $transaction));
+        $return->assertRedirect();
+        $confirmation = $this->get($return->headers->get('Location'));
+        $confirmation->assertSee('Paid')->assertSee('py-sandbox-payment-123')->assertSee('Demonstration statement:');
+        $this->get($confirmation->viewData('billingUrl'))->assertSee('Paid')->assertSee('100.00')->assertSee('py-sandbox-payment-123');
+
+        $admin = User::factory()->admin()->withTwoFactor()->create();
+        $this->actingAs($admin)->withSession(['admin.mfa_user_id' => $admin->id, 'admin.mfa_fingerprint' => $admin->adminSessionFingerprint()]);
+        $this->get(route('admin.appointments.show', $appointment))->assertSee('Paid')->assertSee('PH_GCASH')->assertSee('ps-sandbox-session-123')->assertSee('py-sandbox-payment-123');
+        $this->get(route('admin.revenue.index'))->assertViewHas('totals', ['received' => 10000, 'refunded' => 0, 'net' => 10000])
+            ->assertViewHas('sandboxTotals', ['received' => 6000, 'refunded' => 0, 'net' => 6000])->assertViewHas('outstandingTotal', 0)
+            ->assertSee('PH_GCASH')->assertSee('py-sandbox-payment-123')->assertSee('Sandbox');
+    }
+
+    public function test_expiring_an_older_checkout_does_not_unpay_a_settled_appointment(): void
+    {
+        $this->configureSandbox();
+        $appointment = Appointment::factory()->create(['fee_cents' => 10000, 'payment_status' => 'paid']);
+        Payment::factory()->for($appointment)->create(['method' => 'xendit_sandbox', 'amount_cents' => 10000]);
+        $older = PaymentTransaction::factory()->for($appointment)->create();
+        $payload = $this->completedWebhook($older);
+        $payload['event'] = 'payment_session.expired';
+        $payload['data']['status'] = 'EXPIRED';
+
+        $this->withHeader('X-Callback-Token', 'sandbox-webhook-token')->postJson(route('webhooks.xendit.payment-sessions'), $payload)->assertNoContent();
+
+        $this->assertSame('expired', $older->refresh()->status);
+        $this->assertSame('paid', $appointment->refresh()->payment_status);
+        $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_expiry_event_with_a_completed_status_is_rejected(): void
+    {
+        $this->configureSandbox();
+        $transaction = PaymentTransaction::factory()->create();
+        $payload = $this->completedWebhook($transaction);
+        $payload['event'] = 'payment_session.expired';
+
+        $this->withHeader('X-Callback-Token', 'sandbox-webhook-token')->postJson(route('webhooks.xendit.payment-sessions'), $payload)->assertUnprocessable();
+
+        $this->assertSame('pending', $transaction->refresh()->status);
+        $this->assertDatabaseEmpty('payments');
+    }
+
+    public function test_checkout_failure_keeps_partial_payment_and_records_failed_attempt(): void
+    {
+        $this->withoutVite();
+        $this->configureSandbox();
+        Http::preventStrayRequests();
+        Http::fake(['https://api.xendit.co/sessions' => Http::response(['error_code' => 'TEMPORARY_ERROR'], 503)]);
+        $appointment = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'online', 'payment_status' => 'partial']);
+        Payment::factory()->for($appointment)->create(['amount_cents' => 4000]);
+        $url = URL::temporarySignedRoute('appointments.payments.xendit', now()->addMinutes(5), ['appointment' => $appointment]);
+
+        $this->post($url)->assertStatus(503);
+
+        $this->assertDatabaseHas('payment_transactions', ['appointment_id' => $appointment->id, 'status' => 'failed', 'amount_cents' => 6000, 'failure_code' => 'TEMPORARY_ERROR']);
+        $this->assertSame('partial', $appointment->refresh()->payment_status);
+        $this->assertSame(6000, $appointment->balanceCents());
+        $this->assertDatabaseCount('payments', 1);
+    }
+
+    public function test_changed_balance_creates_checkout_for_current_amount_instead_of_reusing_old_session(): void
+    {
+        $this->configureSandbox();
+        Http::preventStrayRequests();
+        Http::fake(['https://api.xendit.co/sessions' => Http::response($this->sessionResponse(), 201)]);
+        $appointment = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'online']);
+        PaymentTransaction::factory()->for($appointment)->create(['amount_cents' => 10000, 'checkout_url' => 'https://checkout-staging.xendit.co/sessions/old-session']);
+        Payment::factory()->for($appointment)->create(['amount_cents' => 4000]);
+        $url = URL::temporarySignedRoute('appointments.payments.xendit', now()->addMinutes(5), ['appointment' => $appointment]);
+
+        $this->post($url)->assertRedirect('https://checkout-staging.xendit.co/sessions/ps-sandbox-session-123');
+
+        $this->assertDatabaseHas('payment_transactions', ['appointment_id' => $appointment->id, 'amount_cents' => 6000, 'provider_session_id' => 'ps-sandbox-session-123']);
+        Http::assertSent(fn (Request $request): bool => $request['amount'] === 60);
+    }
 
     public function test_signed_request_creates_a_sandbox_session_and_redirects_to_hosted_checkout(): void
     {
@@ -264,11 +377,11 @@ class XenditPaymentControllerTest extends TestCase
 
         $response
             ->assertRedirectContains(route('appointments.show', $appointment))
-            ->assertSessionHas('appointment_message', 'Sandbox payment confirmed. Your payment status is now Paid.');
+            ->assertSessionHas('appointment_message', 'Sandbox payment confirmed. Test payment status is now Paid; no real money was collected.');
 
         $this->get($response->headers->get('Location'))
             ->assertOk()
-            ->assertSee('Sandbox payment confirmed. Your payment status is now Paid.')
+            ->assertSee('Sandbox payment confirmed. Test payment status is now Paid; no real money was collected.')
             ->assertSee('Paid');
     }
 
