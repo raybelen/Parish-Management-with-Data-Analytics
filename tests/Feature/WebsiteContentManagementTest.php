@@ -22,7 +22,8 @@ class WebsiteContentManagementTest extends TestCase
         $admin = User::factory()->admin()->create();
         $this->actingAs($admin)->get('/admin/website-content')->assertRedirect('/admin/security');
 
-        $staff = User::factory()->staff()->withTwoFactor()->create();
+        config(['office.permissions.admin' => ['appointments.view']]);
+        $staff = User::factory()->admin()->withTwoFactor()->create();
         $this->verified($staff)->get('/admin/website-content')->assertForbidden();
         $this->put('/admin/website-content', ['content' => WebsiteContent::defaults()])->assertForbidden();
 

@@ -119,7 +119,7 @@
                         </div>
                         <div class="grid items-end gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(10rem,0.65fr)_auto]">
                             <x-admin.field label="Name" name="name" :value="$person->name" required />
-                            <x-admin.field label="Linked priest account" name="user_id">
+                            <x-admin.field label="Head priest account (optional)" name="user_id">
                                 <select class="admin-input" name="user_id">
                                     <option value="">No login account</option>
                                     @foreach($users as $user)
@@ -153,7 +153,7 @@
             </div>
             <div class="grid items-end gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(10rem,0.65fr)_auto]">
                 <x-admin.field label="New personnel name" name="name" required />
-                <x-admin.field label="Linked priest account" name="user_id">
+                <x-admin.field label="Head priest account (optional)" name="user_id">
                     <select class="admin-input" name="user_id">
                         <option value="">No login account</option>
                         @foreach($users as $user)
@@ -171,8 +171,8 @@
             </div>
         </form>
     </section>
-    @can('manage-admin-roles')<details id="permission-settings" class="admin-card"><summary class="cursor-pointer text-lg font-semibold">Role permissions</summary><p class="my-4 text-sm text-muted">Super administrators retain full access and exclusive role administration. Priests can access only their assigned appointments.</p><form class="grid gap-5" method="POST" action="{{ route('admin.permissions.update') }}">@csrf @method('PUT')
-        <div class="grid gap-5 sm:grid-cols-3">@foreach(['admin','staff','priest'] as $role)<fieldset class="rounded-lg border border-navy/10 p-4"><legend class="px-2 font-semibold">{{ ucfirst($role) }}</legend><div class="grid gap-3">@foreach($abilities as $ability)@if($role !== 'priest' || in_array($ability, ['appointments.view','appointments.approve']))<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="permissions[{{ $role }}][]" value="{{ $ability }}" @checked(in_array($ability, $settings['permissions'][$role] ?? config('office.permissions.'.$role)))>{{ \Illuminate\Support\Str::headline(str_replace('.', ' ', $ability)) }}</label>@endif
+    @can('manage-admin-roles')<details id="permission-settings" class="admin-card"><summary class="cursor-pointer text-lg font-semibold">Role permissions</summary><p class="my-4 text-sm text-muted">Account administration, parish settings, audit review, backups, and financial approvals are reserved for super administrators and cannot be delegated here. Refunds and fee adjustments require review by someone other than the requester, including requests made by super administrators. Office staff use Admin. The head priest uses Super Admin; other priests remain personnel records for scheduling.</p><form class="grid gap-5" method="POST" action="{{ route('admin.permissions.update') }}">@csrf @method('PUT')
+        <div class="grid gap-5">@foreach(['admin'] as $role)<fieldset class="rounded-lg border border-navy/10 p-4"><legend class="px-2 font-semibold">{{ ucfirst($role) }}</legend><div class="grid gap-3">@foreach($abilities as $ability)<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="permissions[{{ $role }}][]" value="{{ $ability }}" @checked(in_array($ability, $settings['permissions'][$role] ?? config('office.permissions.'.$role)))>{{ \Illuminate\Support\Str::headline(str_replace('.', ' ', $ability)) }}</label>
 @endforeach</div></fieldset>@endforeach</div>
         <x-admin.field label="Your current password" name="password" type="password" autocomplete="current-password" required /><button class="admin-button justify-self-start">Save permissions</button>
     </form></details>@endcan

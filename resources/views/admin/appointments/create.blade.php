@@ -13,6 +13,9 @@
             @php($selectedChurch = old('preferred_church', $appointment->preferred_church ?? ''))
             <x-admin.field label="Requested venue" name="preferred_church"><select name="preferred_church" class="admin-input" required><option value="">Choose an available venue</option>@if($selectedChurch && !in_array($selectedChurch, $churches, true))<option value="{{ $selectedChurch }}" selected>{{ $selectedChurch }} (currently unavailable)</option>@endif @foreach($churches as $church)<option value="{{ $church }}" @selected($selectedChurch === $church)>{{ $church }}</option>@endforeach</select></x-admin.field>
             <x-admin.field label="Requested date" name="preferred_date" type="date" :value="isset($appointment) ? $appointment->preferred_date->toDateString() : ''" required /><x-admin.field label="Requested time" name="preferred_time" type="time" :value="isset($appointment) ? substr($appointment->preferred_time, 0, 5) : ''" required />
+            @unless(isset($appointment))
+                <x-parish.group-baptism-fields :sessions="$groupSessions" select-class="admin-input" :selected-service="old('service_type', '')" />
+            @endunless
             <x-admin.field label="Additional notes" name="additional_notes" :value="$appointment->additional_notes ?? ''" />
         </section>
         @foreach($services as $service)

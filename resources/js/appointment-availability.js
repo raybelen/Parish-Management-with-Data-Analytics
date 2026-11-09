@@ -8,7 +8,10 @@ document.querySelectorAll('form[data-availability-url]').forEach((form) => {
 
     const timeButtons = [...form.querySelectorAll('[data-time-value]')];
     const timeHint = form.querySelector('[data-time-availability-hint]');
-    const fields = [date, time, venue, service].filter(Boolean);
+    const scheduleSummary = form.querySelector('[data-schedule-summary]');
+    const mode = form.elements.namedItem('baptism_mode');
+    const session = form.elements.namedItem('group_baptism_session_id');
+    const fields = [date, time, venue, service, mode, session].filter(Boolean);
     const alternatives = document.createElement('div');
     alternatives.className = 'sm:col-span-2 flex flex-wrap gap-3';
     status.after(alternatives);
@@ -27,6 +30,19 @@ document.querySelectorAll('form[data-availability-url]').forEach((form) => {
         time.setAttribute('aria-invalid', String(invalid));
     };
 
+    const updateScheduleSummary = (available = false) => {
+        if (!scheduleSummary) return;
+        const complete = fields.every(field => field.disabled || (field.value && field.validity.valid));
+        scheduleSummary.hidden = !available || !complete;
+        if (scheduleSummary.hidden) {
+            scheduleSummary.textContent = '';
+            return;
+        }
+        const formattedDate = new Intl.DateTimeFormat('en-PH', {dateStyle: 'full'}).format(new Date(`${date.value}T12:00:00`));
+        const formattedTime = new Intl.DateTimeFormat('en-PH', {hour: 'numeric', minute: '2-digit'}).format(new Date(`2000-01-01T${time.value}:00`));
+        scheduleSummary.textContent = `Preferred schedule: ${formattedDate} at ${formattedTime}. Final availability is subject to parish confirmation.`;
+    };
+
     const disableTimeButtons = (message) => {
         timeButtons.forEach((button) => {
             button.disabled = true;
@@ -36,6 +52,7 @@ document.querySelectorAll('form[data-availability-url]').forEach((form) => {
     };
 
     async function check(currentRevision, suggest = false) {
+        updateScheduleSummary();
         controller = new AbortController();
         const context = scheduleContext();
         const values = Object.fromEntries(fields.filter(field => !field.disabled).map((field) => [field.name, field.value]));
@@ -77,8 +94,9 @@ document.querySelectorAll('form[data-availability-url]').forEach((form) => {
                 ...(payload.alternatives || []).map(option => option.time),
             ]);
             show(time.value && !payload.available ? payload.message : '', Boolean(time.value) && !payload.available);
+            updateScheduleSummary(payload.available);
             alternatives.replaceChildren();
-            if (time.value && !payload.available && !suggest) {
+            if (time.value && !payload.available && !suggest && (!session || session.disabled)) {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'text-link';
@@ -118,6 +136,7 @@ document.querySelectorAll('form[data-availability-url]').forEach((form) => {
     }
 
     function scheduleCheck(event) {
+        updateScheduleSummary();
         if (event?.target === time && event.detail?.availabilityChecked
             && checkedContext === scheduleContext() && availableTimes.has(time.value)) {
             revision++;
@@ -125,6 +144,7 @@ document.querySelectorAll('form[data-availability-url]').forEach((form) => {
             clearTimeout(timer);
             status.removeAttribute('aria-busy');
             show('');
+            updateScheduleSummary(true);
             alternatives.replaceChildren();
             return;
         }

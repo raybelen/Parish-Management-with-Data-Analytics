@@ -39,7 +39,7 @@ class ParishCalendarController extends Controller
     private function scheduledEvents(CarbonImmutable $startsAt, CarbonImmutable $endsAt): array
     {
         $appointments = Appointment::query()
-            ->select(['service_type', 'preferred_date', 'preferred_time', 'preferred_church', 'confirmed_church', 'starts_at', 'personnel_id'])
+            ->select(['id', 'group_baptism_session_id', 'service_type', 'preferred_date', 'preferred_time', 'preferred_church', 'confirmed_church', 'starts_at', 'personnel_id'])
             ->with('personnel:id,name')
             ->where('source', OfficeSettings::source())
             ->where('status', 'confirmed')
@@ -53,13 +53,13 @@ class ParishCalendarController extends Controller
 
         $events = [];
 
-        foreach ($appointments as $appointment) {
+        foreach ($appointments->unique(fn (Appointment $appointment): string => $appointment->group_baptism_session_id ? 'group-'.$appointment->group_baptism_session_id : 'appointment-'.$appointment->id) as $appointment) {
             $eventDate = $appointment->starts_at ?? $appointment->preferred_date;
             $eventTime = $appointment->starts_at?->format('H:i') ?? $appointment->preferred_time;
             $events[$eventDate->toDateString()][] = [
                 'kind' => 'scheduled',
                 'type' => 'Service',
-                'name' => config(
+                'name' => $appointment->group_baptism_session_id ? 'Group Baptism' : config(
                     "appointments.services.{$appointment->service_type}.label",
                     Str::headline($appointment->service_type),
                 ),

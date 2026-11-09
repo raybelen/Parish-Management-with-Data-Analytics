@@ -6,6 +6,7 @@ use App\Models\ParishSetting;
 use App\Models\Personnel;
 use App\Models\ServiceType;
 use App\Models\User;
+use App\Support\OfficeAccess;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
 use Illuminate\Contracts\View\View;
@@ -21,7 +22,7 @@ class AdminSettingsController extends Controller
     public function index(): View
     {
         Gate::authorize('settings.manage');
-        $abilities = array_unique(array_merge(...array_values(config('office.permissions'))));
+        $abilities = OfficeAccess::configurableAbilities();
         if (! config('office.analytics_enabled')) {
             $abilities = array_values(array_diff($abilities, ['forecasts.manage']));
         }
@@ -29,7 +30,7 @@ class AdminSettingsController extends Controller
         return view('admin.settings', [
             'settings' => OfficeSettings::all(), 'services' => ServiceType::query()->orderBy('name')->get(),
             'personnel' => Personnel::query()->with('user')->orderBy('name')->get(),
-            'users' => User::query()->where('role', 'priest')->orderBy('name')->get(['id', 'name']),
+            'users' => User::query()->where('role', User::ROLE_SUPER_ADMIN)->orderBy('name')->get(['id', 'name']),
             'abilities' => $abilities,
             'venues' => config('parish.churches', []),
             'activeVenues' => OfficeSettings::activeVenues(),
@@ -83,16 +84,16 @@ class AdminSettingsController extends Controller
     public function permissions(Request $request): RedirectResponse
     {
         Gate::authorize('manage-admin-roles');
-        $abilities = array_unique(array_merge(...array_values(config('office.permissions'))));
+        $abilities = OfficeAccess::configurableAbilities();
         $data = $request->validate([
             'password' => ['required', 'current_password:web'],
-            'permissions' => ['nullable', 'array:admin,staff,priest'],
+            'permissions' => ['nullable', 'array:admin'],
             'permissions.*' => ['array'], 'permissions.*.*' => ['string', Rule::in($abilities)],
         ]);
         DB::transaction(function () use ($data): void {
             $settings = ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
             $before = $settings->value;
-            $permissions = array_replace(['admin' => [], 'staff' => [], 'priest' => []], $data['permissions'] ?? []);
+            $permissions = array_replace(['admin' => []], $data['permissions'] ?? []);
             if (! config('office.analytics_enabled')) {
                 foreach (array_keys($permissions) as $role) {
                     $permissions[$role] = array_values(array_diff($permissions[$role], ['forecasts.manage']));
@@ -102,7 +103,6 @@ class AdminSettingsController extends Controller
                     }
                 }
             }
-            $permissions['priest'] = array_values(array_intersect($permissions['priest'], ['appointments.view', 'appointments.approve']));
             $settings->update(['value' => array_replace($before, ['permissions' => $permissions])]);
             OfficeAudit::record('permissions.updated', $settings, ['permissions' => $before['permissions'] ?? config('office.permissions')], ['permissions' => $permissions]);
         });

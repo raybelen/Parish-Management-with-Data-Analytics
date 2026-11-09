@@ -16,6 +16,7 @@
             ['route' => 'admin.forecasts.index', 'label' => 'Service Analytics', 'ability' => 'forecasts.manage', 'icon' => 'chart', 'active' => ['admin.forecasts.*']],
         ],
         'Administration' => [
+            ['route' => 'admin.payment-adjustments.index', 'label' => 'Financial approvals', 'ability' => 'payments.approve', 'icon' => 'report', 'active' => ['admin.payment-adjustments.*']],
             ['route' => 'admin.website-content.index', 'label' => 'Website content', 'ability' => 'content.manage', 'icon' => 'book', 'active' => ['admin.website-content.*']],
             ['route' => 'admin.settings.index', 'label' => 'Parish settings', 'ability' => 'settings.manage', 'icon' => 'settings', 'active' => ['admin.settings.*']],
             ['route' => 'admin.users.index', 'label' => 'User accounts', 'ability' => 'manage-admin-roles', 'icon' => 'people', 'active' => ['admin.users.*']],

@@ -7,6 +7,7 @@ use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\MonthlyStatistic;
 use App\Models\Payment;
+use App\Models\PaymentAdjustment;
 use App\Models\Schedule;
 use App\Models\ServiceRecord;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -29,6 +30,7 @@ class OfficeRecoveryTest extends TestCase
         Storage::disk('local')->put($document, 'Private certificate content');
         $appointment->update(['documents' => ['birth_certificate' => [['path' => $document, 'original_name' => 'certificate.pdf']]]]);
         $payment = Payment::factory()->create(['appointment_id' => $appointment->id]);
+        $adjustment = PaymentAdjustment::factory()->for($appointment)->create();
         $record = ServiceRecord::factory()->create(['appointment_id' => $appointment->id, 'source' => 'operational']);
         $statistic = MonthlyStatistic::factory()->create(['count' => 168, 'reference' => 'Verified parish register']);
         $path = app(CreateOfficeBackup::class)->handle();
@@ -43,6 +45,8 @@ class OfficeRecoveryTest extends TestCase
         $this->assertSame($session->id, $appointment->fresh()->group_baptism_session_id);
         $this->assertSame(10, $session->fresh()->group_capacity);
         $this->assertSame($appointment->id, $payment->fresh()->appointment_id);
+        $this->assertSame($appointment->id, $adjustment->fresh()->appointment_id);
+        $this->assertSame($adjustment->payload, $adjustment->fresh()->payload);
         $this->assertSame($record->id, $appointment->fresh()->serviceRecord->id);
         $this->assertSame(168, $statistic->fresh()->count);
         $this->assertSame('Verified parish register', $statistic->fresh()->reference);
@@ -57,6 +61,25 @@ class OfficeRecoveryTest extends TestCase
         $this->artisan('office:restore', ['path' => 'office-backups/missing.json.enc'])->assertFailed();
 
         $this->assertModelExists($audit);
+    }
+
+    public function test_recovery_accepts_older_backups_without_adjustment_requests(): void
+    {
+        Storage::fake('local');
+        $this->app->instance('env', 'recovery');
+        $appointment = Appointment::factory()->create();
+        $path = app(CreateOfficeBackup::class)->handle();
+        $payload = json_decode(Crypt::decryptString(Storage::disk('local')->get($path)), true);
+        unset($payload['tables']['payment_adjustments']);
+        Storage::disk('local')->put($path, Crypt::encryptString(json_encode($payload)));
+        foreach (array_reverse(CreateOfficeBackup::TABLES) as $table) {
+            DB::table($table)->delete();
+        }
+
+        $this->artisan('office:restore', ['path' => $path])->assertSuccessful();
+
+        $this->assertModelExists($appointment);
+        $this->assertDatabaseEmpty('payment_adjustments');
     }
 
     public function test_recovery_never_overwrites_existing_documents(): void

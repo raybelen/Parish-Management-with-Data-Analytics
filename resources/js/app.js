@@ -1,4 +1,5 @@
 import './appointment-availability';
+import './group-baptisms';
 import './appointment-details';
 import './psgc-address';
 
@@ -122,9 +123,11 @@ const serviceSections = [...document.querySelectorAll('[data-service-fields]')];
 function updateServiceFields() {
     const selectedService = serviceSelect?.value ?? '';
     const feeLabel = document.querySelector('[data-service-fee]');
+    const groupSession = document.querySelector('[name="group_baptism_session_id"]');
+    const groupFee = groupSession && !groupSession.disabled ? groupSession.selectedOptions[0]?.dataset.feeCents : '';
     if (feeLabel) {
         feeLabel.textContent = selectedService
-            ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(serviceSelect.selectedOptions[0].dataset.feeCents ?? 0) / 100)
+            ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(groupFee || serviceSelect.selectedOptions[0].dataset.feeCents || 0) / 100)
             : 'Select a service to see the fee.';
     }
 
@@ -142,6 +145,7 @@ function updateServiceFields() {
     });
 }
 serviceSelect?.addEventListener('change', updateServiceFields);
+serviceSelect?.closest('form')?.addEventListener('group-session-changed', updateServiceFields);
 if (serviceSelect) updateServiceFields();
 
 const preferredContactMethod = document.querySelector('[data-contact-method]');
@@ -210,7 +214,6 @@ document.querySelectorAll('[data-email-input]').forEach((field) => {
 
 const preferredDate = document.querySelector('[data-preferred-date]');
 const preferredTime = document.querySelector('[data-preferred-time]');
-const scheduleSummary = document.querySelector('[data-schedule-summary]');
 const suggestedTimeButtons = [...document.querySelectorAll('[data-time-value]')];
 
 function updateScheduleSelection() {
@@ -220,23 +223,6 @@ function updateScheduleSelection() {
 
         button.setAttribute('aria-pressed', String(isSelected));
     });
-
-    if (!scheduleSummary) return;
-
-    if (!preferredDate?.value && !preferredTime?.value) {
-        scheduleSummary.textContent = 'Choose a preferred date and time.';
-
-        return;
-    }
-
-    const formattedDate = preferredDate?.value
-        ? new Intl.DateTimeFormat('en-PH', { dateStyle: 'full' }).format(new Date(`${preferredDate.value}T12:00:00`))
-        : 'a date to be selected';
-    const formattedTime = preferredTime?.value
-        ? new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(`2000-01-01T${preferredTime.value}:00`))
-        : 'a time to be selected';
-
-    scheduleSummary.textContent = `Preferred schedule: ${formattedDate} at ${formattedTime}. Final availability is subject to parish confirmation.`;
 }
 
 suggestedTimeButtons.forEach((button) => {
@@ -326,7 +312,7 @@ function updateAppointmentReview() {
         client: fieldValue('client_full_name'),
         contact: `${selectedOptionText('preferred_contact_method')}: ${fieldValue(fieldValue('preferred_contact_method') === 'email' ? 'client_email' : 'client_contact_number')}`,
         address: fieldValue('client_address'),
-        service: selectedOptionText('service_type'),
+        service: fieldValue('baptism_mode') === 'shared' && serviceSelect?.value === 'baptism' ? 'Group baptism' : selectedOptionText('service_type'),
         schedule: `${preferredDate?.value ? new Intl.DateTimeFormat('en-PH', { dateStyle: 'long' }).format(new Date(`${preferredDate.value}T12:00:00`)) : 'Not provided'} at ${preferredTime?.value ? new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(`2000-01-01T${preferredTime.value}:00`)) : 'Not provided'}`,
         church: selectedOptionText('preferred_church'),
         payment: appointmentForm?.querySelector('[name="payment_option"]:checked')?.dataset.paymentLabel ?? 'Not provided',

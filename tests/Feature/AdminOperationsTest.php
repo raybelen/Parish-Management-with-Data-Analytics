@@ -8,6 +8,7 @@ use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\ParishSetting;
 use App\Models\Payment;
+use App\Models\PaymentAdjustment;
 use App\Models\Personnel;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -24,7 +25,7 @@ class AdminOperationsTest extends TestCase
     public function test_office_pages_require_authentication_and_mfa(): void
     {
         $this->get('/admin/appointments')->assertRedirect('/login');
-        $this->actingAs(User::factory()->staff()->create())->get('/admin/appointments')->assertRedirect('/admin/security');
+        $this->actingAs(User::factory()->admin()->create())->get('/admin/appointments')->assertRedirect('/admin/security');
     }
 
     public function test_admin_can_render_all_office_pages_and_appointment_details(): void
@@ -186,19 +187,19 @@ class AdminOperationsTest extends TestCase
             ->assertDontSee('<summary class="cursor-pointer text-sm font-semibold">Full service details</summary>', false);
     }
 
-    public function test_priest_can_only_view_assigned_appointments_and_cannot_view_finances(): void
+    public function test_head_priest_super_admin_can_view_all_appointments_and_finances(): void
     {
         $this->withoutVite();
-        $priest = User::factory()->priest()->withTwoFactor()->create();
+        $priest = User::factory()->superAdmin()->withTwoFactor()->create();
         $personnel = Personnel::factory()->create(['user_id' => $priest->id]);
         $assigned = Appointment::factory()->create(['personnel_id' => $personnel->id]);
         $other = Appointment::factory()->create();
 
-        $this->verified($priest)->get('/admin/appointments/'.$assigned->reference_number)->assertSee($assigned->reference_number)->assertDontSee('Payments &amp; balance', false);
-        $this->get('/admin/appointments/'.$other->reference_number)->assertNotFound();
-        $this->get('/admin/reports')->assertForbidden();
-        $this->get('/admin/records')->assertForbidden();
-        $this->get('/admin/appointments')->assertDontSee($other->reference_number);
+        $this->verified($priest)->get('/admin/appointments/'.$assigned->reference_number)->assertSee($assigned->reference_number)->assertSee('Billing & payments', false);
+        $this->get('/admin/appointments/'.$other->reference_number)->assertOk();
+        $this->get('/admin/reports')->assertOk();
+        $this->get('/admin/records')->assertOk();
+        $this->get('/admin/appointments')->assertSee($other->reference_number);
     }
 
     public function test_staff_can_assign_available_personnel_without_editing_the_confirmed_schedule(): void
@@ -420,7 +421,7 @@ class AdminOperationsTest extends TestCase
     public function test_payment_retry_does_not_duplicate_and_refunds_cannot_exceed_original(): void
     {
         $this->travelTo('2026-10-10 14:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create(['fee_cents' => 10000]);
         $payload = ['idempotency_key' => (string) Str::uuid(), 'kind' => 'payment', 'amount' => '50.25', 'method' => 'cash', 'paid_at' => '2026-10-10T09:00', 'notes' => 'Receipt 100'];
         $url = '/admin/appointments/'.$appointment->reference_number.'/payments';
@@ -434,6 +435,10 @@ class AdminOperationsTest extends TestCase
         $this->assertDatabaseCount('payments', 1);
         $payload['amount'] = '10.25';
         $this->post($url, $payload)->assertSessionHasNoErrors();
+        $this->assertSame(4975, $appointment->refresh()->balanceCents());
+        $adjustment = PaymentAdjustment::query()->sole();
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create())
+            ->patch(route('admin.payment-adjustments.update', $adjustment), ['decision' => 'approved', 'reason' => 'Receipt verified'])->assertSessionHasNoErrors();
         $this->assertSame(6000, $appointment->refresh()->balanceCents());
     }
 
@@ -478,7 +483,7 @@ class AdminOperationsTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'document.uploaded', 'entity_id' => $appointment->id]);
         $this->post($url, $data)->assertConflict();
         $this->assertCount(1, Storage::disk('local')->allFiles('appointments'));
-        $this->verified(User::factory()->priest()->withTwoFactor()->create())->post($url, [...$data, 'version' => 2])->assertForbidden();
+        $this->verified(User::factory()->state(['role' => 'priest'])->withTwoFactor()->create())->post($url, [...$data, 'version' => 2])->assertForbidden();
     }
 
     public function test_confirmation_rechecks_operating_hours_after_settings_change(): void

@@ -17,7 +17,7 @@ class UpdateAdminRoleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role' => ['required', Rule::in([User::ROLE_USER, User::ROLE_ADMIN, User::ROLE_SUPER_ADMIN, User::ROLE_STAFF, User::ROLE_PRIEST])],
+            'role' => ['required', Rule::in([User::ROLE_USER, ...User::OFFICE_ROLES])],
             'password' => ['required', 'string', 'current_password:web'],
         ];
     }

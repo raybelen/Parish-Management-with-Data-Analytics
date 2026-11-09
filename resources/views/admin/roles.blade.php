@@ -1,7 +1,7 @@
 @extends('admin.layout')
 @section('title', 'Administrator roles')
 @section('content')
-    <p class="text-sm text-muted">Only super administrators can assign roles. You cannot change your own role.</p>
+    <p class="text-sm text-muted">Office staff use Admin; the head priest uses Super Admin. Only super administrators can assign roles. You cannot change your own role.</p>
     <div class="grid gap-4 xl:grid-cols-2">
         @foreach ($users as $user)
             <section class="admin-card grid content-start gap-4">
@@ -12,7 +12,7 @@
                         @method('PATCH')
                         <x-parish.form-field :id="'role-'.$user->id" name="role" label="Role">
                             <select id="role-{{ $user->id }}" name="role" class="admin-input">
-                                @foreach (['user' => 'User (no admin access)', 'staff' => 'Staff / secretary', 'priest' => 'Priest (assigned appointments)', 'admin' => 'Administrator', 'super_admin' => 'Super administrator'] as $value => $label)
+                                @foreach (['user' => 'No office access', 'admin' => 'Administrator', 'super_admin' => 'Super administrator'] as $value => $label)
                                     <option value="{{ $value }}" @selected($user->role === $value)>{{ $label }}</option>
                                 @endforeach
                             </select>

@@ -61,7 +61,7 @@ class ReserveAppointmentSlot
         return CarbonImmutable::parse($appointment->preferred_date->toDateString().' '.$appointment->preferred_time, config('office.timezone'));
     }
 
-    public function conflictMessage(Appointment $appointment, ?int $personnelId = null, ?int $exceptSchedule = null, bool $memoize = false): ?string
+    public function conflictMessage(Appointment $appointment, ?int $personnelId = null, ?int $exceptSchedule = null, bool $memoize = false, bool $requireOpenGroupSession = false): ?string
     {
         $start = $this->start($appointment);
         $end = $start->addHour();
@@ -101,21 +101,23 @@ class ReserveAppointmentSlot
         }
 
         $session = $sessionId ? Schedule::query()->find($sessionId) : null;
-        if ($sessionId && ($type !== 'baptism' || ! $start->isSunday() || ! $session
+        if ($sessionId && ($type !== 'baptism' || ! $session
             || $session->category !== 'Group Baptism' || $session->status !== 'scheduled' || $session->source !== $source
             || $session->location !== $venue || ! $session->starts_at->equalTo($start) || ! $session->ends_at->equalTo($end))) {
-            return 'Please select an available Sunday group baptism session and use its date, time, and venue.';
+            return 'Please select an available group baptism session and use its date, time, and venue.';
         }
-        if ($session && $session->group_capacity !== null) {
-            $families = Appointment::query()->where('source', $source)->where('group_baptism_session_id', $sessionId)
-                ->whereIn('status', ['pending', 'confirmed'])->when($appointment->exists, fn ($query) => $query->whereKeyNot($appointment->id))->count();
-            if ($families >= $session->group_capacity) {
-                return 'This group baptism session is full. Please choose another session or request a private baptism.';
-            }
+        if ($session && ($requireOpenGroupSession || ! $appointment->exists) && ! $session->group_booking_open) {
+            return 'This group baptism session is not open for bookings. Please choose another session.';
+        }
+        if ($session && $personnelId !== null && $personnelId !== $session->personnel_id) {
+            return 'Group baptism families use the priest assigned to their session.';
         }
 
         $others = $this->appointmentsForDate($appointment, $source, $start, $memoize);
         foreach ($others as $other) {
+            if ($session && $other->group_baptism_session_id === $session->id) {
+                continue;
+            }
             $otherStart = $other->starts_at ?? $this->start($other);
             $otherEnd = $other->ends_at ?? $otherStart->addHour();
             if ($message = $this->periodConflict($type, $start, $other->service_type, $otherStart)) {

@@ -128,6 +128,11 @@ class Appointment extends Model
         return $this->hasMany(PaymentTransaction::class);
     }
 
+    public function paymentAdjustments(): HasMany
+    {
+        return $this->hasMany(PaymentAdjustment::class);
+    }
+
     public function serviceRecord(): HasOne
     {
         return $this->hasOne(ServiceRecord::class);

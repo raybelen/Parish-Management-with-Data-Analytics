@@ -1,4 +1,4 @@
-@canany(['appointments.manage', 'appointments.approve'])
+@can('appointments.manage')
     @if(in_array($appointment->status, ['pending', 'confirmed']))
         <section id="appointment-status" class="admin-card scroll-mt-28" data-appointment-status-section>
             <h2 class="mb-4 text-2xl">Update appointment status</h2>
@@ -22,4 +22,4 @@
             </form>
         </section>
     @endif
-@endcanany
+@endcan

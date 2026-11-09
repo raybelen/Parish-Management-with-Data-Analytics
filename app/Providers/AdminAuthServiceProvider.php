@@ -96,7 +96,7 @@ class AdminAuthServiceProvider extends ServiceProvider
 
         Gate::define('access-admin', fn (User $user): bool => $user->isAdmin());
         Gate::define('manage-admin-roles', fn (User $user): bool => $user->role === User::ROLE_SUPER_ADMIN);
-        foreach (array_unique(array_merge(...array_values(config('office.permissions')))) as $ability) {
+        foreach (array_merge(OfficeAccess::SUPER_ADMIN_ABILITIES, OfficeAccess::configurableAbilities()) as $ability) {
             Gate::define($ability, fn (User $user): bool => OfficeAccess::allows($user, $ability));
         }
 

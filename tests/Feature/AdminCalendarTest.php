@@ -24,10 +24,10 @@ class AdminCalendarTest extends TestCase
     public function test_calendar_requires_login_mfa_and_separate_permissions(): void
     {
         $this->get('/admin/calendar')->assertRedirect('/login');
-        $this->actingAs(User::factory()->staff()->create())->get('/admin/calendar')->assertRedirect('/admin/security');
-        $user = User::factory()->staff()->withTwoFactor()->create();
+        $this->actingAs(User::factory()->admin()->create())->get('/admin/calendar')->assertRedirect('/admin/security');
+        $user = User::factory()->admin()->withTwoFactor()->create();
         $this->verified($user);
-        ParishSetting::query()->where('key', 'office')->update(['value' => ['permissions' => ['staff' => ['appointments.view']]]]);
+        ParishSetting::query()->where('key', 'office')->update(['value' => ['permissions' => ['admin' => ['appointments.view']]]]);
         OfficeSettings::forgetMemoizedValues();
 
         $this->get('/admin/calendar')->assertForbidden();
@@ -130,16 +130,16 @@ class AdminCalendarTest extends TestCase
         $this->getJson($this->feed().'&date_from=2026-11-04&date_to=2026-11-03')->assertUnprocessable();
     }
 
-    public function test_priest_only_sees_assigned_events_and_cannot_mutate_schedules(): void
+    public function test_retired_priest_role_cannot_access_assigned_events_or_mutate_schedules(): void
     {
         config(['parish.regular_schedules' => []]);
         $this->travelTo('2026-11-01');
-        $priest = User::factory()->priest()->withTwoFactor()->create();
+        $priest = User::factory()->state(['role' => 'priest'])->withTwoFactor()->create();
         $person = Personnel::factory()->create(['user_id' => $priest->id]);
         Schedule::factory()->create(['personnel_id' => $person->id, 'title' => 'Assigned']);
         $other = Schedule::factory()->create(['title' => 'Other']);
 
-        $this->verified($priest)->getJson($this->feed())->assertOk()->assertJsonCount(1, 'events')->assertJsonPath('events.0.title', 'Assigned')->assertJsonPath('events.0.edit_url', null);
+        $this->verified($priest)->getJson($this->feed())->assertForbidden();
         $this->postJson('/admin/schedules', $this->payload())->assertForbidden();
         $this->putJson('/admin/schedules/'.$other->id, [])->assertForbidden();
         $this->deleteJson('/admin/schedules/'.$other->id, ['version' => 1])->assertForbidden();
@@ -248,6 +248,7 @@ class AdminCalendarTest extends TestCase
         $this->put('/admin/appointments/'.$appointment->reference_number, [
             'personnel_id' => $person->id, 'version' => 1,
         ])->assertSessionHasErrors('starts_at');
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create());
         $this->post('/admin/schedule-blocks', ['title' => 'Closed', 'church' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-02T10:00', 'ends_at' => '2026-11-02T11:00'])->assertSessionHasErrors('starts_at');
         $this->assertNull($appointment->refresh()->personnel_id);
         $this->assertDatabaseEmpty('schedule_blocks');
@@ -290,11 +291,11 @@ class AdminCalendarTest extends TestCase
         $this->getJson($this->feed().'&page=2')->assertOk()->assertJsonCount(2, 'upcoming')->assertJsonCount(1, 'events');
     }
 
-    public function test_regular_masses_appear_with_venues_and_read_only_details_for_admins_and_priests(): void
+    public function test_regular_masses_appear_with_venues_and_read_only_details_for_both_office_roles(): void
     {
         $this->travelTo('2026-11-07 16:30:00');
 
-        foreach (['admin', 'priest'] as $role) {
+        foreach (['admin', 'super_admin'] as $role) {
             $this->verified(User::factory()->withTwoFactor()->create(['role' => $role]));
             $response = $this->getJson('/admin/calendar/events?from=2026-11-07&to=2026-11-09&category=Mass');
 

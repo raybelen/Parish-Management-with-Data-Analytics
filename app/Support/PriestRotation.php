@@ -55,7 +55,7 @@ class PriestRotation
                 $this->unavailabilityCache[$unavailability->personnel_id.':'.$unavailability->unavailable_on->toDateString()] = true;
             });
 
-        Appointment::query()->whereIn('status', ['pending', 'confirmed'])->whereNotNull('personnel_id')
+        Appointment::query()->whereIn('status', ['pending', 'confirmed'])->whereNotNull('personnel_id')->whereNull('group_baptism_session_id')
             ->where('starts_at', '<=', $through)->where('ends_at', '>', $from)
             ->get(['id', 'personnel_id', 'starts_at', 'ends_at'])
             ->each(fn (Appointment $appointment) => $this->cacheActivity([
@@ -104,6 +104,14 @@ class PriestRotation
             return null;
         }
 
+        if ($appointment->group_baptism_session_id) {
+            $session = Schedule::query()->with('personnel')->findOrFail($appointment->group_baptism_session_id);
+            $appointment->forceFill(['personnel_id' => $session->personnel_id])->save();
+            $this->forgetDate($appointment->starts_at);
+
+            return $session->personnel;
+        }
+
         $priest = $this->unexpectedPriest($appointment->starts_at, $appointment->ends_at, $appointment->id, null, $appointment->personnel);
         $appointment->forceFill(['personnel_id' => $priest?->id])->save();
         $this->forgetDate($appointment->starts_at);
@@ -119,6 +127,10 @@ class PriestRotation
 
         $priest = $this->unexpectedPriest($schedule->starts_at, $schedule->ends_at, null, $schedule->id, $schedule->personnel);
         $schedule->forceFill(['personnel_id' => $priest?->id])->save();
+        if ($schedule->category === 'Group Baptism') {
+            Appointment::query()->where('group_baptism_session_id', $schedule->id)->whereIn('status', ['pending', 'confirmed'])
+                ->increment('version', 1, ['personnel_id' => $priest?->id]);
+        }
         $this->forgetDate($schedule->starts_at);
 
         return $priest;
@@ -269,7 +281,7 @@ class PriestRotation
         }
         $from = $date->startOfDay();
         $to = $date->endOfDay();
-        $appointments = Appointment::query()->whereIn('status', ['pending', 'confirmed'])->whereNotNull('personnel_id')
+        $appointments = Appointment::query()->whereIn('status', ['pending', 'confirmed'])->whereNotNull('personnel_id')->whereNull('group_baptism_session_id')
             ->where('starts_at', '<=', $to)->where('ends_at', '>', $from)->get(['id', 'personnel_id', 'starts_at', 'ends_at'])
             ->map(fn (Appointment $appointment): array => ['type' => 'appointment', 'id' => $appointment->id, 'personnel_id' => $appointment->personnel_id, 'starts_at' => $appointment->starts_at, 'ends_at' => $appointment->ends_at, 'workload' => true]);
         $schedules = Schedule::query()->where('status', 'scheduled')->whereNotNull('personnel_id')

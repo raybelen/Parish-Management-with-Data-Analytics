@@ -10,6 +10,7 @@ use App\Http\Controllers\AdminDocumentController;
 use App\Http\Controllers\AdminForecastController;
 use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\AdminPasswordController;
+use App\Http\Controllers\AdminPaymentAdjustmentController;
 use App\Http\Controllers\AdminPaymentController;
 use App\Http\Controllers\AdminPersonnelController;
 use App\Http\Controllers\AdminPriestController;
@@ -93,6 +94,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::resource('records', AdminRecordController::class)->parameters(['records' => 'record'])->except('edit');
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
         Route::get('revenue', [AdminRevenueController::class, 'index'])->name('revenue.index');
+        Route::get('payment-adjustments', [AdminPaymentAdjustmentController::class, 'index'])->name('payment-adjustments.index');
+        Route::patch('payment-adjustments/{adjustment}', [AdminPaymentAdjustmentController::class, 'update'])
+            ->middleware('throttle:admin-sensitive')->block()->name('payment-adjustments.update');
         Route::get('appointments/{appointment}/billing', [AppointmentBillingController::class, 'admin'])->name('appointments.billing');
         if (config('office.analytics_enabled')) {
             Route::get('statistics', [AdminStatisticsController::class, 'index'])->name('statistics.index');

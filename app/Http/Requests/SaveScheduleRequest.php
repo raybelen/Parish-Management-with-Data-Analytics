@@ -24,6 +24,7 @@ class SaveScheduleRequest extends FormRequest
             'location' => ['nullable', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
             'group_capacity' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'group_booking_open' => ['sometimes', 'boolean'],
             'group_fee' => ['nullable', 'numeric', 'min:0', 'max:99999999.99', 'decimal:0,2'],
             'category' => ['required', 'string', 'max:80'],
             'personnel_id' => ['nullable', 'integer', Rule::exists('personnel', 'id')->where('active', true)],

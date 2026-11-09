@@ -114,6 +114,8 @@
                         </x-parish.form-field>
 
 
+                        <x-parish.group-baptism-fields :sessions="$groupSessions" :select-class="$selectClass" :selected-service="$selectedService" />
+
                            <div class="grid items-start gap-6 border-y border-navy/10 py-6 sm:col-span-2 sm:grid-cols-2" data-schedule-fields>
                             <x-parish.form-field id="preferred_date" name="preferred_date" label="Preferred date" :required="true" help="Choose a date from the calendar." class="self-start">
                                 <input id="preferred_date" name="preferred_date" type="date" value="{{ old('preferred_date') }}" min="{{ now()->toDateString() }}" required data-preferred-date class="{{ $inputClass }}">
@@ -159,9 +161,7 @@
 
                         <p id="schedule-availability" data-availability-status role="status" aria-live="polite" hidden class="sm:col-span-2 border-l-4 border-red-700 bg-red-50 px-5 py-4 text-sm text-red-900"></p>
 
-                        <div class="sm:col-span-2 border-l-2 border-gold bg-gold/10 px-4 py-3 text-sm text-navy" aria-live="polite" data-schedule-summary>
-                            Choose a preferred date and time.
-                        </div>
+                        <div class="sm:col-span-2 border-l-2 border-gold bg-gold/10 px-4 py-3 text-sm text-navy" aria-live="polite" data-schedule-summary hidden></div>
 
                         <x-parish.form-field id="additional_notes" name="additional_notes" label="Notes or special requests" :optional="true" class="sm:col-span-2">
                             <textarea id="additional_notes" name="additional_notes" rows="4" class="{{ $inputClass }}">{{ old('additional_notes') }}</textarea>

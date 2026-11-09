@@ -7,6 +7,7 @@ use App\Actions\StartXenditPayment;
 use App\Http\Requests\StoreAppointmentRequest;
 use App\Mail\AppointmentReserved;
 use App\Models\Appointment;
+use App\Models\Schedule;
 use App\Services\XenditPaymentGateway;
 use App\Support\AppointmentAccess;
 use App\Support\OfficeSettings;
@@ -32,6 +33,7 @@ class AppointmentController extends Controller
         return view('client-side.appointments.create', [
             'pageTitle' => 'Request an Appointment',
             'services' => OfficeSettings::services(),
+            'groupSessions' => Schedule::publicGroupSessions(),
             'churches' => OfficeSettings::activeVenues(),
             'xenditSandboxAvailable' => XenditPaymentGateway::isConfigured(),
         ]);

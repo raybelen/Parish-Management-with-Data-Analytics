@@ -61,7 +61,7 @@ class AdminPriestController extends Controller
     /** @return Collection<int, array<string, mixed>> */
     private function scheduleRows(PriestRotation $rotation, CarbonImmutable $from, CarbonImmutable $through): Collection
     {
-        $appointments = Appointment::query()->whereIn('status', ['pending', 'confirmed'])
+        $appointments = Appointment::query()->whereIn('status', ['pending', 'confirmed'])->whereNull('group_baptism_session_id')
             ->whereBetween('starts_at', [$from, $through])->with('personnel')->get()->map(fn (Appointment $appointment): array => [
                 'key' => 'appointment-'.$appointment->id, 'starts_at' => $appointment->starts_at, 'ends_at' => $appointment->ends_at,
                 'activity_type' => ucfirst($appointment->service_type), 'title' => $appointment->reference_number,

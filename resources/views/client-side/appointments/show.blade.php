@@ -150,7 +150,7 @@
                 <div class="grid gap-7">
                     <section aria-labelledby="summary-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
                         <p class="section-label text-muted">Appointment Summary</p>
-                        <h2 id="summary-heading" class="mt-4 text-3xl">{{ $service['label'] }} appointment</h2>
+                        <h2 id="summary-heading" class="mt-4 text-3xl">{{ $appointment->group_baptism_session_id ? 'Group Baptism' : $service['label'] }} appointment</h2>
 
                         <dl class="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2">
                             <div class="sm:col-span-2"><dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">Appointment created</dt><dd class="mt-2 text-sm leading-6">{{ $appointment->created_at->timezone(config('office.timezone'))->format('F j, Y · g:i A') }}</dd></div>

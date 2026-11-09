@@ -26,9 +26,7 @@ class ManageSchedule
     public function create(array $data): array
     {
         $data['priest_required'] = (bool) ($data['priest_required'] ?? false);
-        if (mb_strtolower(trim($data['category'] ?? '')) === 'group baptism') {
-            throw ValidationException::withMessages(['category' => 'Shared baptism sessions are currently unavailable.']);
-        }
+        $data = $this->normalizeGroupSession($data);
 
         return DB::transaction(function () use ($data): array {
             ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
@@ -83,11 +81,17 @@ class ManageSchedule
             ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
             $locked = Schedule::query()->lockForUpdate()->findOrFail($schedule->id);
             $this->checkVersion($locked, (int) $data['version']);
-            $this->protectEnrolledSession($locked);
             $before = $locked->toArray();
             $data['priest_required'] = (bool) ($data['priest_required'] ?? $locked->priest_required);
             $data['starts_at'] = CarbonImmutable::parse($data['starts_at'], config('office.timezone'));
             $data['ends_at'] = CarbonImmutable::parse($data['ends_at'], config('office.timezone'));
+            $data = $this->normalizeGroupSession($data);
+            if ($this->protectEnrolledSession($locked, $data)) {
+                $locked->fill([...$data, 'version' => $locked->version + 1])->save();
+                OfficeAudit::record('schedule.updated', $locked, $before, $locked->toArray());
+
+                return;
+            }
             $this->validateTimes([...$locked->only(['location', 'personnel_id']), ...$data], $locked->id);
             $locked->fill([...$data, 'version' => $locked->version + 1])->save();
             $this->priestRotation->assignSchedule($locked);
@@ -139,11 +143,26 @@ class ManageSchedule
         if (($data['priest_required'] ?? false) && ! $end->equalTo($start->addHour())) {
             throw ValidationException::withMessages(['ends_at' => 'Activities requiring a priest must last exactly one hour.']);
         }
+        if (($data['category'] ?? '') === 'Group Baptism') {
+            if (! $end->equalTo($start->addHour())) {
+                throw ValidationException::withMessages(['ends_at' => 'Group baptism sessions must last exactly one hour.']);
+            }
+            if (! OfficeSettings::venueIsActive($data['location'] ?? '')) {
+                throw ValidationException::withMessages(['location' => 'Choose an active church or chapel for group baptism.']);
+            }
+            if ($data['status'] === 'scheduled') {
+                $candidate = new Appointment([
+                    'service_type' => 'baptism', 'source' => OfficeSettings::source(),
+                    'preferred_date' => $start->toDateString(), 'preferred_time' => $start->format('H:i'), 'preferred_church' => $data['location'],
+                ]);
+                $message = app(ReserveAppointmentSlot::class)->conflictMessage($candidate, exceptSchedule: $except);
+                if ($message !== null) {
+                    throw ValidationException::withMessages(['starts_at' => $message]);
+                }
+            }
+        }
         if ($data['status'] !== 'scheduled') {
             return;
-        }
-        if (mb_strtolower(trim($data['category'] ?? '')) === 'group baptism') {
-            throw ValidationException::withMessages(['category' => 'Shared baptism sessions are currently unavailable.']);
         }
         $location = $data['location'] ?? null;
         $personnel = isset($data['personnel_id']) ? (int) $data['personnel_id'] : null;
@@ -190,12 +209,34 @@ class ManageSchedule
         }
     }
 
-    private function protectEnrolledSession(Schedule $session): void
+    /** @param array<string, mixed> $data */
+    private function protectEnrolledSession(Schedule $session, array $data): bool
     {
         if (! Appointment::query()->where('group_baptism_session_id', $session->id)->whereIn('status', ['pending', 'confirmed'])->exists()) {
-            return;
+            return false;
+        }
+        $changes = (clone $session)->fill($data)->getDirty();
+        if (array_diff(array_keys($changes), ['group_booking_open', 'group_capacity', 'version']) === []) {
+            return true;
         }
         throw ValidationException::withMessages(['schedule' => 'This group session has active family bookings. Cancel or move those requests before changing the session.']);
+    }
+
+    /** @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function normalizeGroupSession(array $data): array
+    {
+        if (mb_strtolower(trim($data['category'] ?? '')) === 'group baptism') {
+            $data['category'] = 'Group Baptism';
+            $data['priest_required'] = true;
+            $data['group_capacity'] = null;
+            $data['group_booking_open'] = $data['status'] === 'scheduled' && (bool) ($data['group_booking_open'] ?? false);
+        } else {
+            $data['group_booking_open'] = false;
+        }
+
+        return $data;
     }
 
     private function checkVersion(Schedule $schedule, int $version): void

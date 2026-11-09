@@ -54,7 +54,7 @@ class AdminConfigurationTest extends TestCase
     public function test_staff_cannot_change_settings_or_permissions(): void
     {
         $personnel = Personnel::factory()->create();
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
 
         $this->get('/admin/settings')->assertForbidden();
         $this->put('/admin/settings', [])->assertForbidden();
@@ -63,11 +63,11 @@ class AdminConfigurationTest extends TestCase
         $this->assertModelExists($personnel);
     }
 
-    public function test_admin_can_remove_unused_personnel(): void
+    public function test_super_admin_can_remove_unused_personnel(): void
     {
         $personnel = Personnel::factory()->create(['name' => 'Unused personnel']);
         $this->withoutVite();
-        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create());
 
         $this->get('/admin/settings')
             ->assertOk()
@@ -89,7 +89,7 @@ class AdminConfigurationTest extends TestCase
         $assignedPersonnel = Personnel::factory()->create();
         Appointment::factory()->create(['personnel_id' => $assignedPersonnel->id]);
         $rotationPersonnel = Personnel::factory()->rotationPosition(1)->create();
-        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create());
 
         $this->delete('/admin/personnel/'.$assignedPersonnel->id)
             ->assertRedirect()
@@ -105,9 +105,9 @@ class AdminConfigurationTest extends TestCase
     public function test_super_admin_can_configure_staff_permissions_without_granting_role_management(): void
     {
         $super = User::factory()->superAdmin()->withTwoFactor()->create();
-        $staff = User::factory()->staff()->create();
+        $staff = User::factory()->admin()->create();
 
-        $this->verified($super)->put('/admin/permissions', ['password' => 'password', 'permissions' => ['staff' => ['appointments.view']]])->assertSessionHasNoErrors();
+        $this->verified($super)->put('/admin/permissions', ['password' => 'password', 'permissions' => ['admin' => ['appointments.view']]])->assertSessionHasNoErrors();
 
         $this->assertTrue($staff->can('appointments.view'));
         $this->assertFalse($staff->can('payments.manage'));
@@ -117,7 +117,7 @@ class AdminConfigurationTest extends TestCase
 
     public function test_settings_validate_operating_hours_and_keep_missing_months_explicit(): void
     {
-        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create());
         $data = [...config('office.defaults'), 'analytics_start' => '2020-01-01', 'missing_months_text' => '2020-03, 2020-04'];
         unset($data['missing_months']);
 
@@ -127,10 +127,10 @@ class AdminConfigurationTest extends TestCase
         $this->assertSame(['2020-03', '2020-04'], OfficeSettings::all()['missing_months']);
     }
 
-    public function test_admin_can_control_appointment_venue_availability(): void
+    public function test_super_admin_can_control_appointment_venue_availability(): void
     {
         $this->withoutVite();
-        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create());
         $existingAppointment = Appointment::factory()->create([
             'preferred_church' => 'San Isidro Labrador Chapel',
         ]);
@@ -195,7 +195,7 @@ class AdminConfigurationTest extends TestCase
 
     public function test_service_changes_preserve_existing_fee_and_document_snapshot(): void
     {
-        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create());
         $service = ServiceType::query()->where('slug', 'baptism')->firstOrFail();
         $appointment = Appointment::factory()->create(['fee_cents' => 15000, 'requirements' => $service->requirements]);
 
@@ -209,7 +209,7 @@ class AdminConfigurationTest extends TestCase
 
     public function test_unavailable_time_cannot_overwrite_confirmed_service(): void
     {
-        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create());
         Appointment::factory()->create(['status' => 'confirmed', 'starts_at' => '2026-11-01 10:00', 'ends_at' => '2026-11-01 11:00', 'reserved_until' => '2026-11-01 11:30', 'confirmed_church' => 'San Isidro Labrador Chapel']);
 
         $this->post('/admin/schedule-blocks', ['title' => 'Maintenance', 'church' => 'San Isidro Labrador Chapel', 'starts_at' => '2026-11-01T10:45', 'ends_at' => '2026-11-01T12:00'])->assertSessionHasErrors('starts_at');

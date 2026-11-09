@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Models\Appointment;
 use App\Models\Payment;
+use App\Models\PaymentAdjustment;
 use App\Support\OfficeAudit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +16,9 @@ class RecordPayment
     {
         return DB::transaction(function () use ($appointment, $data): Payment {
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
+            if ($data['kind'] === 'payment') {
+                abort_if(PaymentAdjustment::query()->where('idempotency_key', $data['idempotency_key'])->exists(), 409);
+            }
             $existing = Payment::query()->where('idempotency_key', $data['idempotency_key'])->first();
             $cents = self::cents($data['amount']);
             if ($existing) {
@@ -30,17 +34,7 @@ class RecordPayment
                 return $existing;
             }
             if ($data['kind'] === 'refund') {
-                $original = Payment::query()->where('appointment_id', $locked->id)->where('kind', 'payment')->find($data['original_payment_id']);
-                if ($original?->method === 'xendit_sandbox' && $data['method'] !== 'xendit_sandbox') {
-                    throw ValidationException::withMessages(['original_payment_id' => 'Choose Xendit Sandbox to record a demonstration refund for this test payment.']);
-                }
-                if ($original !== null && $original->method !== 'xendit_sandbox' && $data['method'] === 'xendit_sandbox') {
-                    throw ValidationException::withMessages(['method' => 'Sandbox refunds must reference a sandbox payment.']);
-                }
-                $refunded = Payment::query()->where('original_payment_id', $original?->id)->where('kind', 'refund')->sum('amount_cents');
-                if (! $original || $cents > $original->amount_cents - $refunded || $data['paid_at'] < $original->paid_at->format('Y-m-d\TH:i')) {
-                    throw ValidationException::withMessages(['amount' => 'Refunds must reference a payment, follow its date, and not exceed its unrefunded amount.']);
-                }
+                self::validateRefund($locked, $data);
             }
             $payment = $locked->payments()->create([
                 'recorded_by' => auth()->id(), 'idempotency_key' => $data['idempotency_key'],
@@ -61,6 +55,22 @@ class RecordPayment
 
             return $payment;
         });
+    }
+
+    /** @param array<string, mixed> $data */
+    public static function validateRefund(Appointment $appointment, array $data): void
+    {
+        $original = Payment::query()->where('appointment_id', $appointment->id)->where('kind', 'payment')->find($data['original_payment_id']);
+        if ($original?->method === 'xendit_sandbox' && $data['method'] !== 'xendit_sandbox') {
+            throw ValidationException::withMessages(['original_payment_id' => 'Choose Xendit Sandbox to record a demonstration refund for this test payment.']);
+        }
+        if ($original !== null && $original->method !== 'xendit_sandbox' && $data['method'] === 'xendit_sandbox') {
+            throw ValidationException::withMessages(['method' => 'Sandbox refunds must reference a sandbox payment.']);
+        }
+        $refunded = Payment::query()->where('original_payment_id', $original?->id)->where('kind', 'refund')->sum('amount_cents');
+        if (! $original || self::cents($data['amount']) > $original->amount_cents - $refunded || $data['paid_at'] < $original->paid_at->format('Y-m-d\TH:i')) {
+            throw ValidationException::withMessages(['amount' => 'Refunds must reference a payment, follow its date, and not exceed its unrefunded amount.']);
+        }
     }
 
     public static function cents(string $amount): int

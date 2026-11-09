@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateOfficeAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\Personnel;
+use App\Models\Schedule;
 use App\Models\ScheduleBlock;
 use App\Models\ServiceType;
 use App\Support\OfficeAccess;
@@ -59,6 +60,7 @@ class AdminAppointmentController extends Controller
         Gate::authorize('appointments.manage');
 
         return view('admin.appointments.create', [
+            'groupSessions' => Schedule::publicGroupSessions(),
             'services' => ServiceType::query()->where('active', true)->orderBy('name')->get(),
             'churches' => OfficeSettings::activeVenues(),
         ]);
@@ -78,7 +80,8 @@ class AdminAppointmentController extends Controller
         OfficeAccess::appointment($request->user(), $appointment);
         $appointment->load(['participants', 'personnel', 'serviceRecord']);
         if ($request->user()->can('finance.view')) {
-            $appointment->load(['payments.originalPayment', 'paymentTransactions' => fn ($query) => $query->latest('id')]);
+            $appointment->load(['payments.originalPayment', 'paymentTransactions' => fn ($query) => $query->latest('id'),
+                'paymentAdjustments' => fn ($query) => $query->with(['requestedBy', 'reviewedBy'])->latest('id')]);
         }
 
         return view('admin.appointments.show', [

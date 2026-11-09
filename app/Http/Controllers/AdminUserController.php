@@ -24,7 +24,7 @@ class AdminUserController extends Controller
         Gate::authorize('manage-admin-roles');
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255', 'unique:users'],
-            'role' => ['required', Rule::in(['staff', 'priest', 'admin', 'super_admin'])],
+            'role' => ['required', Rule::in(User::OFFICE_ROLES)],
             'new_password' => ['required', 'string', 'max:72', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers()->symbols()],
             'password' => ['required', 'current_password:web'],
         ]);

@@ -4,7 +4,7 @@
 @section('content')
     <section class="rounded-2xl border border-navy/10 bg-white p-5 sm:p-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
-            <div><p class="text-sm text-muted">{{ $service->name }}</p><h2 class="mt-1 text-2xl">{{ $appointment->client_full_name }}</h2></div>
+            <div><p class="text-sm text-muted">{{ $appointment->group_baptism_session_id ? 'Group Baptism' : $service->name }}</p><h2 class="mt-1 text-2xl">{{ $appointment->client_full_name }}</h2></div>
             <p class="text-sm text-muted">{{ ($appointment->starts_at ?? $appointment->preferred_date)->format('F j, Y') }}<br>{{ $appointment->confirmed_church ?? $appointment->preferred_church }}</p>
         </div>
         <p class="mt-4 text-sm leading-6 text-muted" data-appointment-status-summary>{{ match ($appointment->status) {
@@ -18,7 +18,7 @@
             <a class="admin-secondary" href="#appointment-schedule">Schedule</a>
             @can('documents.manage')<a class="admin-secondary" href="#appointment-documents">Documents</a>@endcan
             @can('finance.view')<a class="admin-secondary" href="#appointment-payments">Payments</a>@endcan
-            @canany(['appointments.manage', 'appointments.approve'])@if(in_array($appointment->status, ['pending', 'confirmed']))<a class="admin-secondary" href="#appointment-status" data-appointment-status-link>Update status</a>@endif @endcanany
+            @can('appointments.manage')@if(in_array($appointment->status, ['pending', 'confirmed']))<a class="admin-secondary" href="#appointment-status" data-appointment-status-link>Update status</a>@endif @endcan
             <a class="admin-secondary" href="#appointment-history">History</a>
         </nav>
     </section>

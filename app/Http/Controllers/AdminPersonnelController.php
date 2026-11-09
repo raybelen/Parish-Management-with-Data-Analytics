@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\Personnel;
 use App\Models\Schedule;
 use App\Models\ScheduleBlock;
+use App\Models\User;
 use App\Support\OfficeAudit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,7 +62,7 @@ class AdminPersonnelController extends Controller
         Gate::authorize('settings.manage');
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'], 'active' => ['required', 'boolean'],
-            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('role', 'priest'), Rule::unique('personnel', 'user_id')->ignore($personnel)],
+            'user_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('role', User::ROLE_SUPER_ADMIN), Rule::unique('personnel', 'user_id')->ignore($personnel)],
         ]);
         DB::transaction(function () use ($personnel, $data): void {
             $before = $personnel->toArray();

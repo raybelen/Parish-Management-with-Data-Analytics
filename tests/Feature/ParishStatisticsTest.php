@@ -58,10 +58,11 @@ class ParishStatisticsTest extends TestCase
         ], app(ParishStatistics::class)->history('baptism'));
     }
 
-    public function test_staff_can_prepare_drafts_but_cannot_confirm_or_change_confirmed_totals(): void
+    public function test_admin_without_forecast_permission_can_prepare_drafts_but_cannot_confirm_or_change_confirmed_totals(): void
     {
         $this->travelTo('2026-10-21');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        config(['office.permissions.admin' => ['records.manage', 'reports.view']]);
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $data = $this->entry();
         $this->post('/admin/statistics', [...$data, 'status' => 'draft'])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('monthly_statistics', ['status' => 'draft', 'count' => 0]);
@@ -114,7 +115,7 @@ class ParishStatisticsTest extends TestCase
         $this->get('/admin/statistics')->assertRedirect();
         $user = User::factory()->admin()->withTwoFactor()->create();
         $this->actingAs($user)->get('/admin/statistics')->assertRedirect();
-        $this->verified(User::factory()->priest()->withTwoFactor()->create());
+        $this->verified(User::factory()->state(['role' => 'priest'])->withTwoFactor()->create());
         $this->get('/admin/statistics')->assertForbidden();
         $this->post('/admin/statistics', $this->entry())->assertForbidden();
         $this->post('/admin/statistics/import')->assertForbidden();

@@ -9,6 +9,14 @@ use Illuminate\Database\Eloquent\Builder;
 
 class OfficeAccess
 {
+    public const SUPER_ADMIN_ABILITIES = ['settings.manage', 'audit.view', 'payments.approve'];
+
+    /** @return list<string> */
+    public static function configurableAbilities(): array
+    {
+        return array_values(array_diff(config('office.permissions.admin'), self::SUPER_ADMIN_ABILITIES));
+    }
+
     public static function allows(User $user, string $ability): bool
     {
         if ($ability === 'forecasts.manage' && ! config('office.analytics_enabled')) {
@@ -17,7 +25,10 @@ class OfficeAccess
         if ($user->role === User::ROLE_SUPER_ADMIN) {
             return true;
         }
-        if (! in_array($user->role, ['admin', 'staff', 'priest'], true)) {
+        if (in_array($ability, self::SUPER_ADMIN_ABILITIES, true)) {
+            return false;
+        }
+        if ($user->role !== User::ROLE_ADMIN) {
             return false;
         }
 
@@ -31,7 +42,7 @@ class OfficeAccess
     public static function appointments(User $user): Builder
     {
         return Appointment::query()->where('source', OfficeSettings::source())
-            ->when($user->role === 'priest', fn (Builder $query) => $query->whereHas('personnel', fn (Builder $personnel) => $personnel->where('user_id', $user->id)));
+            ->when(! $user->isAdmin(), fn (Builder $query) => $query->whereRaw('1 = 0'));
     }
 
     public static function appointment(User $user, Appointment $appointment): void
@@ -42,6 +53,6 @@ class OfficeAccess
     public static function schedules(User $user): Builder
     {
         return Schedule::query()->where('source', OfficeSettings::source())
-            ->when($user->role === 'priest', fn (Builder $query) => $query->whereHas('personnel', fn (Builder $personnel) => $personnel->where('user_id', $user->id)));
+            ->when(! $user->isAdmin(), fn (Builder $query) => $query->whereRaw('1 = 0'));
     }
 }

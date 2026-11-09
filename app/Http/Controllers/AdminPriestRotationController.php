@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\ParishSetting;
 use App\Models\Personnel;
+use App\Models\Schedule;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
 use App\Support\PriestRotation;
@@ -46,6 +47,11 @@ class AdminPriestRotationController extends Controller
                 'priest_rotation_anchor_position' => 1,
             ])]);
             OfficeSettings::forgetMemoizedValues();
+            if ($anchor->group_baptism_session_id) {
+                Schedule::query()->whereKey($anchor->group_baptism_session_id)->update(['personnel_id' => (int) $data['priests'][1]]);
+            }
+            Schedule::query()->where('category', 'Group Baptism')->where('priest_required', true)->where('status', 'scheduled')->where('starts_at', '>=', now())
+                ->orderBy('starts_at')->get()->each(fn (Schedule $schedule) => $rotation->assignSchedule($schedule));
             Appointment::query()->whereIn('status', ['pending', 'confirmed'])->where('starts_at', '>=', now())
                 ->whereKeyNot($anchor->id)->orderBy('starts_at')->orderBy('id')->get()
                 ->each(fn (Appointment $appointment) => $rotation->assignAppointment($appointment));

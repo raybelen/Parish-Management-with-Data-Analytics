@@ -23,7 +23,7 @@ class AdminRecordsAnalyticsTest extends TestCase
     public function test_archival_entry_cannot_opt_into_analytics_or_link_itself_to_an_appointment(): void
     {
         $this->travelTo('2026-10-04');
-        $admin = User::factory()->staff()->withTwoFactor()->create();
+        $admin = User::factory()->admin()->withTwoFactor()->create();
         $data = ServiceRecord::factory()->make()->only(['record_number', 'service_type', 'service_date', 'participant_names', 'church']);
         $data['service_date'] = '2020-01-01';
 

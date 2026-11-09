@@ -19,8 +19,8 @@ class AppointmentAvailabilityController extends Controller
                 && ($appointment->status === 'pending' || $appointment->starts_at?->isFuture()), 403);
         }
         $data = $request->validate([
-            'group_baptism_session_id' => ['prohibited'],
-            'baptism_mode' => ['nullable', Rule::in(['private'])],
+            'group_baptism_session_id' => [$appointment === null ? 'nullable' : 'prohibited', 'required_if:baptism_mode,shared', 'prohibited_unless:baptism_mode,shared', 'integer', Rule::exists('schedules', 'id')],
+            'baptism_mode' => ['nullable', Rule::in($appointment === null && $request->input('service_type') === 'baptism' ? ['private', 'shared'] : ['private'])],
             'suggest' => ['nullable', 'boolean'],
             'times' => ['sometimes', 'array', 'max:12'],
             'times.*' => ['required', 'date_format:H:i', 'distinct'],
@@ -33,8 +33,8 @@ class AppointmentAvailabilityController extends Controller
             ? new Appointment([...array_intersect_key($data, array_flip(['service_type', 'preferred_date', 'preferred_time', 'preferred_church', 'group_baptism_session_id'])), 'source' => OfficeSettings::source()])
             : (clone $appointment)->fill(array_intersect_key($data, array_flip(['preferred_date', 'preferred_time', ...($appointment->group_baptism_session_id ? ['group_baptism_session_id', 'preferred_church'] : [])])));
         $message = $request->input('baptism_mode') === 'shared' && ! $candidate->group_baptism_session_id
-            ? 'Please choose an authorized Sunday group baptism session.'
-            : $slots->conflictMessage($candidate, memoize: true);
+            ? 'Please choose a group baptism session opened by the parish office.'
+            : $slots->conflictMessage($candidate, memoize: true, requireOpenGroupSession: $appointment === null);
         $alternatives = [];
         if ($message !== null && $request->boolean('suggest') && ! $candidate->group_baptism_session_id) {
             foreach (['08:00', '08:30', '09:00', '09:30', '10:00', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30'] as $time) {
@@ -48,7 +48,7 @@ class AppointmentAvailabilityController extends Controller
         $timeSlots = [];
         foreach ($data['times'] ?? [] as $time) {
             $slot = (clone $candidate)->forceFill(['preferred_time' => $time]);
-            $conflict = $slots->conflictMessage($slot, memoize: true);
+            $conflict = $slots->conflictMessage($slot, memoize: true, requireOpenGroupSession: $appointment === null);
             $timeSlots[] = ['time' => $time, 'available' => $conflict === null, 'message' => $conflict];
         }
 

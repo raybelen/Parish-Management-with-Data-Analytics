@@ -122,14 +122,14 @@ class AppointmentAvailabilityTest extends TestCase
         }
     }
 
-    public function test_shared_baptism_controls_and_requests_are_disabled(): void
+    public function test_group_baptism_controls_are_hidden_without_open_sessions_and_unknown_sessions_are_rejected(): void
     {
         $this->travelTo('2026-10-01');
         $this->get(route('appointments.create'))->assertDontSee('Shared Sunday baptism')->assertDontSee('Baptism arrangement');
         $this->postJson(route('appointments.availability'), [...$this->payload(), 'baptism_mode' => 'shared', 'group_baptism_session_id' => 1])
-            ->assertInvalid(['baptism_mode', 'group_baptism_session_id']);
+            ->assertInvalid(['group_baptism_session_id']);
         $this->postJson(route('appointments.store'), [...$this->payload(), 'baptism_mode' => 'shared', 'group_baptism_session_id' => 1])
-            ->assertInvalid(['baptism_mode', 'group_baptism_session_id']);
+            ->assertInvalid(['group_baptism_session_id']);
     }
 
     public function test_time_buttons_report_each_conflict_even_when_the_selected_time_is_available(): void

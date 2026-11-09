@@ -276,6 +276,7 @@ function initializeCalendar(root) {
         find('[data-recurrence-fields]').disabled = false;
         find('[data-occurrence-notice]').hidden = true;
         updateRecurrence();
+        updateGroupSession();
         showDialog();
     }
 
@@ -302,6 +303,9 @@ function initializeCalendar(root) {
             details.append(row);
         });
         if (event.series_id) details.append(element('p', 'text-sm text-muted', `${titleCase(event.recurrence)} series through ${event.recurrence_until}. Actions affect this occurrence only.`));
+        if (event.category === 'Group Baptism') {
+            details.append(element('p', 'text-sm font-semibold', `${event.group_booking_open ? 'Open for bookings' : 'Registration closed'} · No family limit`));
+        }
         const actions = element('div', 'flex flex-wrap gap-2');
         if (event.edit_url) {
             actions.append(button('Edit / Reschedule', 'admin-button', () => editEvent()));
@@ -325,6 +329,9 @@ function initializeCalendar(root) {
         find('#schedule-dialog-title').textContent = 'Edit schedule';
         ['title', 'starts_at', 'ends_at', 'location', 'department', 'category', 'description', 'notes', 'personnel_id', 'status'].forEach((name) => { form.elements[name].value = currentEvent[name] ?? ''; });
         form.querySelector('input[type="checkbox"][name="priest_required"]').checked = Boolean(currentEvent.priest_required);
+        form.querySelector('input[type="checkbox"][name="group_booking_open"]').checked = Boolean(currentEvent.group_booking_open);
+        form.elements.group_fee.value = currentEvent.group_fee ?? '';
+        updateGroupSession();
         find('[data-recurrence-fields]').hidden = true;
         find('[data-recurrence-fields]').disabled = true;
         find('[data-occurrence-notice]').hidden = !currentEvent.series_id;
@@ -337,6 +344,15 @@ function initializeCalendar(root) {
         form.elements.recurrence_until.required = repeats;
         form.elements.recurrence_until.disabled = !repeats;
     }
+
+    function updateGroupSession() {
+        const isGroup = form.elements.category.value.trim().toLowerCase() === 'group baptism';
+        const settings = find('[data-group-session-settings]');
+        settings.hidden = !isGroup;
+        settings.disabled = !isGroup;
+        if (isGroup) form.querySelector('input[type="checkbox"][name="priest_required"]').checked = true;
+    }
+    form.elements.category.addEventListener('input', updateGroupSession);
 
     function setBusy(value) {
         busy = value;

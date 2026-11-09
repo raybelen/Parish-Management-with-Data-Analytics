@@ -92,7 +92,7 @@ class AppointmentSchedulingRulesTest extends TestCase
         ];
     }
 
-    public function test_shared_baptism_requests_are_rejected_and_ordinary_baptisms_cannot_overlap(): void
+    public function test_unknown_group_sessions_are_rejected_and_ordinary_baptisms_cannot_overlap(): void
     {
         $this->travelTo('2026-10-01');
         config(['parish.regular_schedules' => []]);
@@ -101,7 +101,7 @@ class AppointmentSchedulingRulesTest extends TestCase
         $data['service'] = $data['service_details'];
         try {
             app(CreateAppointment::class)->handle([...$data, 'group_baptism_session_id' => 123]);
-            $this->fail('Shared bookings must be rejected.');
+            $this->fail('Unknown group sessions must be rejected.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('group_baptism_session_id', $exception->errors());
         }
@@ -132,17 +132,18 @@ class AppointmentSchedulingRulesTest extends TestCase
         $this->assertNotNull(app(ReserveAppointmentSlot::class)->conflictMessage($candidate));
     }
 
-    public function test_staff_cannot_create_shared_sessions_and_existing_history_is_protected(): void
+    public function test_admin_can_create_group_sessions_on_sundays_and_occasions_and_existing_history_is_protected(): void
     {
         $this->travelTo('2026-10-01');
         config(['parish.regular_schedules' => []]);
-        $user = User::factory()->staff()->withTwoFactor()->create();
+        $user = User::factory()->admin()->withTwoFactor()->create();
         $this->actingAs($user)->withSession(['admin.mfa_user_id' => $user->id, 'admin.mfa_fingerprint' => $user->adminSessionFingerprint()]);
         $payload = ['title' => 'Sunday group baptism', 'category' => 'Group Baptism', 'location' => 'St. John Nepomucene Parish', 'starts_at' => '2026-11-08T09:00', 'ends_at' => '2026-11-08T10:00', 'status' => 'scheduled', 'recurrence' => 'none', 'group_capacity' => 5];
 
-        $this->postJson('/admin/schedules', [...$payload, 'starts_at' => '2026-11-07T09:00', 'ends_at' => '2026-11-07T10:00'])->assertInvalid('category');
-        $this->postJson('/admin/schedules', $payload)->assertInvalid('category');
-        $this->assertDatabaseEmpty('schedules');
+        $this->postJson('/admin/schedules', [...$payload, 'starts_at' => '2026-11-07T09:00', 'ends_at' => '2026-11-07T10:00'])->assertCreated();
+        $this->postJson('/admin/schedules', $payload)->assertCreated();
+        $this->assertDatabaseCount('schedules', 2);
+        $this->assertFalse(Schedule::query()->firstOrFail()->group_booking_open);
         $session = Schedule::factory()->create(['category' => 'Group Baptism']);
         Appointment::factory()->create(['group_baptism_session_id' => $session->id]);
         unset($payload['recurrence']);

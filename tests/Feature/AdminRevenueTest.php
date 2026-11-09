@@ -17,8 +17,8 @@ class AdminRevenueTest extends TestCase
     public function test_finance_page_requires_login_mfa_and_finance_permission(): void
     {
         $this->get('/admin/revenue')->assertRedirect('/login');
-        $this->actingAs(User::factory()->staff()->create())->get('/admin/revenue')->assertRedirect('/admin/security');
-        $this->verified(User::factory()->priest()->withTwoFactor()->create())->get('/admin/revenue')->assertForbidden();
+        $this->actingAs(User::factory()->admin()->create())->get('/admin/revenue')->assertRedirect('/admin/security');
+        $this->verified(User::factory()->state(['role' => 'priest'])->withTwoFactor()->create())->get('/admin/revenue')->assertForbidden();
         $this->get('/admin/revenue?export=collections')->assertForbidden();
     }
 
@@ -111,8 +111,8 @@ class AdminRevenueTest extends TestCase
     {
         $this->withoutVite();
         $this->travelTo('2026-11-06');
-        config(['office.permissions.staff' => ['finance.view']]);
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        config(['office.permissions.admin' => ['finance.view']]);
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create(['fee_cents' => 300000]);
         Payment::factory()->count(21)->for($appointment)->create(['amount_cents' => 10000]);
 
@@ -163,16 +163,15 @@ class AdminRevenueTest extends TestCase
         $this->get('/admin/revenue?method=xendit_sandbox')->assertViewHas('totals', ['received' => 10000, 'refunded' => 2500, 'net' => 7500]);
     }
 
-    public function test_financial_reports_follow_the_same_assigned_appointment_scope_as_revenue(): void
+    public function test_head_priest_reports_follow_the_same_dataset_scope_as_revenue(): void
     {
         $this->withoutVite();
         $this->travelTo('2026-11-07 12:00');
-        config(['office.permissions.priest' => ['appointments.view', 'finance.view', 'reports.view']]);
-        $priest = User::factory()->priest()->withTwoFactor()->create();
+        $priest = User::factory()->superAdmin()->withTwoFactor()->create();
         $personnel = Personnel::factory()->create(['user_id' => $priest->id]);
         $assigned = Appointment::factory()->create(['personnel_id' => $personnel->id, 'fee_cents' => 10000,
             'status' => 'completed', 'completed_at' => '2026-11-06']);
-        $other = Appointment::factory()->create(['fee_cents' => 900000, 'client_full_name' => 'Unassigned Private Client',
+        $other = Appointment::factory()->create(['source' => 'synthetic', 'fee_cents' => 900000, 'client_full_name' => 'Unassigned Private Client',
             'status' => 'completed', 'completed_at' => '2026-11-06']);
         Payment::factory()->for($assigned)->create(['amount_cents' => 4000, 'reference' => 'ASSIGNED-PAYMENT']);
         Payment::factory()->for($other)->create(['amount_cents' => 800000, 'reference' => 'UNASSIGNED-PAYMENT']);

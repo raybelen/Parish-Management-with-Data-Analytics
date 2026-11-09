@@ -19,7 +19,7 @@ class AdminCalendar
     {
         $schedules = $this->range(OfficeAccess::schedules($user), $from, $to)->with('personnel')->get()
             ->map(fn (Schedule $schedule): array => [
-                ...$schedule->only(['title', 'description', 'notes', 'location', 'department', 'category', 'personnel_id', 'priest_required', 'status', 'version', 'recurrence', 'series_id', 'group_capacity', 'group_fee']),
+                ...$schedule->only(['title', 'description', 'notes', 'location', 'department', 'category', 'personnel_id', 'priest_required', 'status', 'version', 'recurrence', 'series_id', 'group_capacity', 'group_fee', 'group_booking_open']),
                 'id' => 'schedule-'.$schedule->id,
                 'starts_at' => $schedule->starts_at->format('Y-m-d\TH:i'),
                 'ends_at' => $schedule->ends_at->format('Y-m-d\TH:i'),
@@ -49,7 +49,6 @@ class AdminCalendar
                 ]);
         }
         $blocks = $this->range(ScheduleBlock::query(), $from, $to)
-            ->when($user->role === 'priest', fn (Builder $query) => $query->whereHas('personnel', fn (Builder $personnel) => $personnel->where('user_id', $user->id)))
             ->with('personnel')->get()->map(fn (ScheduleBlock $block): array => [
                 'id' => 'block-'.$block->id, 'title' => $block->title,
                 'starts_at' => $block->starts_at->format('Y-m-d\TH:i'), 'ends_at' => $block->ends_at->format('Y-m-d\TH:i'),

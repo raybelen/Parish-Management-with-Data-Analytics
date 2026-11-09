@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Appointment;
 use App\Models\Payment;
+use App\Models\PaymentAdjustment;
 use App\Models\ServiceType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -61,7 +62,7 @@ class ParishBillingTest extends TestCase
         $appointment = Appointment::factory()->create();
         $url = route('admin.appointments.billing', $appointment);
         $this->get($url)->assertRedirect('/login');
-        $this->verified(User::factory()->priest()->withTwoFactor()->create())->get($url)->assertForbidden();
+        $this->verified(User::factory()->state(['role' => 'priest'])->withTwoFactor()->create())->get($url)->assertForbidden();
         $this->verified(User::factory()->admin()->withTwoFactor()->create())->get($url)->assertSee('Billing statement');
         $demo = Appointment::factory()->create(['source' => 'synthetic']);
         $this->get(route('admin.appointments.billing', $demo))->assertNotFound();
@@ -70,7 +71,7 @@ class ParishBillingTest extends TestCase
     public function test_real_refund_of_sandbox_payment_is_rejected_without_ledger_change(): void
     {
         $this->travelTo('2026-11-06 12:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create(['fee_cents' => 10000]);
         $payment = Payment::factory()->for($appointment)->create(['method' => 'xendit_sandbox', 'paid_at' => '2026-11-05']);
 
@@ -98,7 +99,7 @@ class ParishBillingTest extends TestCase
     public function test_walk_in_and_sandbox_payments_share_one_balance_without_changing_appointment_status(): void
     {
         $this->travelTo('2026-11-06 12:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create(['fee_cents' => 10000, 'status' => 'pending', 'payment_status' => 'paid']);
         Payment::factory()->for($appointment)->create(['method' => 'xendit_sandbox', 'amount_cents' => 6000]);
 
@@ -125,7 +126,7 @@ class ParishBillingTest extends TestCase
     public function test_demo_refund_updates_balance_once_and_cannot_create_manual_gateway_payments(): void
     {
         $this->travelTo('2026-11-06 12:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create(['fee_cents' => 10000, 'payment_status' => 'paid']);
         $payment = Payment::factory()->for($appointment)->create(['method' => 'xendit_sandbox', 'amount_cents' => 10000, 'paid_at' => '2026-11-05']);
         $payload = ['idempotency_key' => (string) Str::uuid(), 'kind' => 'refund', 'amount' => '25.00', 'original_payment_id' => $payment->id,
@@ -134,6 +135,9 @@ class ParishBillingTest extends TestCase
         $this->post(route('admin.payments.store', $appointment), $payload)->assertSessionHasNoErrors();
         $this->post(route('admin.payments.store', $appointment), $payload)->assertSessionHasNoErrors();
 
+        $this->assertDatabaseCount('payments', 1);
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create())
+            ->patch(route('admin.payment-adjustments.update', PaymentAdjustment::query()->sole()), ['decision' => 'approved', 'reason' => 'Demo refund reviewed'])->assertSessionHasNoErrors();
         $this->assertDatabaseCount('payments', 2);
         $this->assertDatabaseHas('payments', ['appointment_id' => $appointment->id, 'kind' => 'refund', 'method' => 'xendit_sandbox', 'amount_cents' => 2500]);
         $this->assertSame(2500, $appointment->refresh()->balanceCents());
@@ -148,7 +152,7 @@ class ParishBillingTest extends TestCase
     public function test_demo_refunds_cannot_reduce_walk_in_collections(): void
     {
         $this->travelTo('2026-11-06 12:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $payment = Payment::factory()->create(['method' => 'cash', 'paid_at' => '2026-11-05']);
 
         $this->post(route('admin.payments.store', $payment->appointment), [
@@ -167,7 +171,7 @@ class ParishBillingTest extends TestCase
     public function test_reused_submission_key_rejects_changed_payment_details(): void
     {
         $this->travelTo('2026-11-07 12:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create(['fee_cents' => 10000]);
         $payload = ['idempotency_key' => (string) Str::uuid(), 'kind' => 'payment', 'amount' => '25.00',
             'method' => 'cash', 'paid_at' => '2026-11-07T10:00', 'reference' => 'RECEIPT-1', 'notes' => 'Payment received'];
@@ -186,7 +190,7 @@ class ParishBillingTest extends TestCase
     public function test_refund_retry_cannot_silently_switch_the_original_payment(): void
     {
         $this->travelTo('2026-11-07 12:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create();
         $payments = Payment::factory()->count(2)->for($appointment)->create(['paid_at' => '2026-11-06', 'amount_cents' => 10000]);
         $payload = ['idempotency_key' => (string) Str::uuid(), 'kind' => 'refund', 'amount' => '25.00',
@@ -195,6 +199,9 @@ class ParishBillingTest extends TestCase
         $this->post(route('admin.payments.store', $appointment), $payload)->assertSessionHasNoErrors();
         $this->post(route('admin.payments.store', $appointment), [...$payload, 'original_payment_id' => $payments[1]->id])->assertConflict();
 
+        $this->assertDatabaseCount('payments', 2);
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create())
+            ->patch(route('admin.payment-adjustments.update', PaymentAdjustment::query()->sole()), ['decision' => 'approved', 'reason' => 'Original receipt verified'])->assertSessionHasNoErrors();
         $this->assertDatabaseCount('payments', 3);
         $this->assertDatabaseHas('payments', ['kind' => 'refund', 'original_payment_id' => $payments[0]->id, 'amount_cents' => 2500]);
     }
@@ -206,9 +213,12 @@ class ParishBillingTest extends TestCase
         $appointment = Appointment::factory()->create(['fee_cents' => 10000]);
         Payment::factory()->for($appointment)->create(['amount_cents' => 10000]);
 
-        $this->patch(route('admin.payments.fee', $appointment), ['fee' => '0', 'version' => 1, 'reason' => 'Fee waived'])
+        $this->patch(route('admin.payments.fee', $appointment), ['idempotency_key' => (string) Str::uuid(), 'fee' => '0', 'version' => 1, 'reason' => 'Fee waived'])
             ->assertSessionHasNoErrors();
 
+        $this->assertSame(10000, $appointment->refresh()->fee_cents);
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create())
+            ->patch(route('admin.payment-adjustments.update', PaymentAdjustment::query()->sole()), ['decision' => 'approved', 'reason' => 'Waiver authorized'])->assertSessionHasNoErrors();
         $this->assertSame('Overpaid', $appointment->refresh()->billingStatusLabel());
         $this->get(route('admin.appointments.billing', $appointment))->assertSee('Overpaid')->assertSee('Overpayment:')->assertSee('100.00');
     }

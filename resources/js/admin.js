@@ -1,6 +1,7 @@
 import './admin-calendar';
 import './admin-document-verification';
 import './appointment-details';
+import './group-baptisms';
 
 document.querySelectorAll('[data-forecast-form]').forEach((form) => {
     const button = form.querySelector('button');

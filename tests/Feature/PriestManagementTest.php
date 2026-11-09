@@ -20,7 +20,7 @@ class PriestManagementTest extends TestCase
     public function test_staff_can_configure_three_priests_from_the_next_appointment(): void
     {
         $this->travelTo('2026-10-29 08:00:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         [$priestOne, $priestTwo, $priestThree] = $this->priests();
         $anchor = Appointment::factory()->create([
             'status' => 'confirmed', 'service_type' => 'funeral', 'starts_at' => '2026-10-31 15:00',
@@ -76,7 +76,7 @@ class PriestManagementTest extends TestCase
     {
         $this->travelTo('2026-11-03 08:00:00');
         $this->withoutVite();
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         config(['parish.regular_schedules' => []]);
         $firstPeriod = Appointment::factory()->create([
             'status' => 'confirmed',
@@ -145,7 +145,7 @@ class PriestManagementTest extends TestCase
     public function test_unavailable_priest_is_replaced_without_an_overlap(): void
     {
         $this->travelTo('2026-10-29 08:00:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         [$priestOne] = $this->configuredPriests();
         $appointment = Appointment::factory()->create([
             'status' => 'confirmed', 'personnel_id' => $priestOne->id,
@@ -164,7 +164,7 @@ class PriestManagementTest extends TestCase
     public function test_staff_can_save_consecutive_priest_unavailability_dates_and_reassign_affected_activities(): void
     {
         $this->travelTo('2026-10-29 08:00:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         [$priestOne] = $this->configuredPriests();
         $appointments = collect(['2026-11-03', '2026-11-04', '2026-11-05'])->map(fn (string $date): Appointment => Appointment::factory()->create([
             'status' => 'confirmed',
@@ -198,7 +198,7 @@ class PriestManagementTest extends TestCase
     public function test_unavailability_through_date_cannot_be_before_the_start_date(): void
     {
         $this->travelTo('2026-10-29 08:00:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         [$priestOne] = $this->configuredPriests();
 
         $this->post('/admin/priests/unavailabilities', [
@@ -213,7 +213,7 @@ class PriestManagementTest extends TestCase
     public function test_priest_required_calendar_activity_is_one_hour_and_automatically_assigned(): void
     {
         $this->travelTo('2026-10-29 08:00:00');
-        $this->verified(User::factory()->staff()->withTwoFactor()->create());
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $this->configuredPriests();
         config(['parish.regular_schedules' => []]);
         $payload = [
