@@ -16,6 +16,47 @@ Please bring every required physical document to the church office within three 
 
 The service fee can be paid separately. Payment is not required to confirm your appointment and does not affect document verification or the reservation.
 
+@if($invoice)
+## Your appointment invoice
+
+**Parish:** {{ $invoice->parish_name }}
+
+**Invoice number:** {{ $invoice->number }}
+
+**Issued:** {{ $invoice->issued_at->timezone(config('office.timezone'))->format('F j, Y \a\t g:i A') }} (Philippine time)
+
+**Billed to:** {{ $invoice->client_name }}
+
+**Appointment reference:** {{ $invoice->appointment_reference }}
+
+**Service:** {{ $invoice->service_label }}
+
+**Invoice total:** PHP {{ number_format($invoice->amount_cents / 100, 2) }}
+
+@if($invoice->integrity_seal)
+**Verification code:** {{ $invoice->integrity_seal }}
+
+Check the invoice number, printed client name, and code at {{ route('documents.verify') }}. Compare the amount and status returned there with this email.
+@else
+**Unverified legacy copy:** No integrity seal was recorded when this invoice was issued. Ask the parish office to check its original records.
+@endif
+
+@if($invoice->amount_cents === 0)
+No payment is due for this invoice.
+@else
+This invoice records the charge issued when you booked; it is not a payment receipt. Once your online payment is confirmed, your payment receipt and current balance will be available on your appointment's billing page.
+@endif
+
+Online checkout currently uses Xendit Sandbox for testing. No real money is collected through the sandbox.
+
+@if($invoice->source === 'synthetic')
+**DEMO — This invoice is for a simulated appointment.**
+@endif
+
+To view or print your invoice, use **View appointment** below, verify your appointment reference and contact information, then select **View / print billing statement**. That page shows your latest invoice and any recorded payments or fee changes.
+
+@endif
+
 <x-mail::button :url="$manageUrl">
 View appointment
 </x-mail::button>

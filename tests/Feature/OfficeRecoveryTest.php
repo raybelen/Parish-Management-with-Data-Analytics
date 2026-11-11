@@ -70,7 +70,7 @@ class OfficeRecoveryTest extends TestCase
         $appointment = Appointment::factory()->create();
         $path = app(CreateOfficeBackup::class)->handle();
         $payload = json_decode(Crypt::decryptString(Storage::disk('local')->get($path)), true);
-        unset($payload['tables']['payment_adjustments']);
+        unset($payload['tables']['payment_adjustments'], $payload['tables']['appointment_invoices']);
         Storage::disk('local')->put($path, Crypt::encryptString(json_encode($payload)));
         foreach (array_reverse(CreateOfficeBackup::TABLES) as $table) {
             DB::table($table)->delete();
@@ -80,6 +80,7 @@ class OfficeRecoveryTest extends TestCase
 
         $this->assertModelExists($appointment);
         $this->assertDatabaseEmpty('payment_adjustments');
+        $this->assertDatabaseEmpty('appointment_invoices');
     }
 
     public function test_recovery_never_overwrites_existing_documents(): void

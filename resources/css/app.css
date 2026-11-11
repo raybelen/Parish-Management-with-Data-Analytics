@@ -1,5 +1,10 @@
 @import 'tailwindcss';
 
+@media print {
+    body[data-printing-document] > [data-billing-document]:not([data-print-selected]) { display: none !important; }
+    body[data-printing-document] > [data-print-selected] { break-before: auto !important; }
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 

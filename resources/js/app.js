@@ -3,7 +3,20 @@ import './group-baptisms';
 import './appointment-details';
 import './psgc-address';
 
-document.querySelector('[data-print-billing]')?.addEventListener('click', () => window.print());
+document.querySelectorAll('[data-print-billing]').forEach((button) => {
+    button.addEventListener('click', () => {
+        const selectedDocument = button.closest('[data-billing-document]');
+        document.querySelectorAll('[data-billing-document]').forEach((documentSection) => {
+            documentSection.toggleAttribute('data-print-selected', documentSection === selectedDocument);
+        });
+        document.body.toggleAttribute('data-printing-document', selectedDocument !== null);
+        window.print();
+    });
+});
+window.addEventListener('afterprint', () => {
+    document.body.removeAttribute('data-printing-document');
+    document.querySelectorAll('[data-print-selected]').forEach((section) => section.removeAttribute('data-print-selected'));
+});
 
 const menuToggle = document.getElementById('menu-toggle');
 const mobileNavigation = document.getElementById('mobile-navigation');

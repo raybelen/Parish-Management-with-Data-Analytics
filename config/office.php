@@ -22,6 +22,6 @@ return [
         'priest_rotation_anchor_position' => null,
     ],
     'permissions' => [
-        'admin' => ['schedules.view', 'schedules.manage', 'appointments.view', 'appointments.manage', 'documents.manage', 'payments.manage', 'records.view', 'records.manage', 'reports.view', 'finance.view', 'forecasts.manage', 'content.manage', 'notifications.manage'],
+        'admin' => ['schedules.view', 'schedules.manage', 'appointments.view', 'appointments.manage', 'documents.manage', 'payments.manage', 'donations.view', 'donations.manage', 'records.view', 'records.manage', 'reports.view', 'finance.view', 'forecasts.manage', 'content.manage', 'notifications.manage'],
     ],
 ];

@@ -2,6 +2,12 @@
     <div class="mb-5 flex flex-wrap items-center gap-3"><span class="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold">{{ $appointment->billingStatusLabel() }}</span><a class="admin-secondary" href="{{ route('admin.appointments.billing', $appointment) }}" target="_blank" rel="noopener">View / print billing statement</a><a class="admin-secondary" href="{{ route('admin.revenue.index') }}">Parish Revenue</a></div>
     @if($appointment->netPaidCents() > $appointment->fee_cents)<p class="mb-5 text-sm text-amber-900">Overpayment: ₱{{ number_format(($appointment->netPaidCents() - $appointment->fee_cents) / 100, 2) }}. Review the ledger before recording a refund.</p>@endif
     @can('payments.manage')
+        <form class="mb-5 flex flex-wrap items-center gap-3" method="POST" action="{{ route('admin.invoices.store', $appointment) }}">
+            @csrf
+            <input type="hidden" name="fee_cents" value="{{ $appointment->fee_cents }}">
+            <button class="admin-secondary">Issue / view invoice</button>
+            <p class="text-sm text-muted">Saves the current approved fee. A changed fee creates a replacement invoice and retains the earlier copy.</p>
+        </form>
         <p class="mb-4 text-sm text-muted">Payments are recorded immediately. Refunds and fee adjustments remain pending until a different super administrator approves them.</p>
         <details class="mb-5"><summary class="cursor-pointer text-sm font-semibold">Request fee adjustment / waiver</summary><form class="mt-4 grid items-end gap-3 sm:grid-cols-3" method="POST" action="{{ route('admin.payments.fee', $appointment) }}">@csrf @method('PATCH')<input type="hidden" name="idempotency_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}"><input type="hidden" name="version" value="{{ $appointment->version }}"><x-admin.field label="Requested fee (PHP)" name="fee" type="number" step="0.01" min="0" :value="number_format($appointment->fee_cents / 100, 2, '.', '')" required /><x-admin.field label="Reason" name="reason" required /><button class="admin-secondary">Request fee adjustment</button></form></details>
         <form class="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-3" method="POST" action="{{ route('admin.payments.store', $appointment) }}" data-confirm="Submit this entry? Payments are recorded immediately; refund requests require separate approval.">@csrf<input type="hidden" name="idempotency_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}">

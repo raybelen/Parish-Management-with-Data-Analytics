@@ -55,35 +55,7 @@
         <div class="mt-4 flex items-center justify-between gap-2"><button type="button" class="admin-secondary" data-agenda-prev>Previous</button><span data-agenda-page class="text-sm"></span><button type="button" class="admin-secondary" data-agenda-next>Next</button></div>
     </section>
     <noscript><p class="admin-alert">Enable JavaScript to view and manage the interactive calendar.</p></noscript>
-    <dialog data-schedule-dialog class="calendar-dialog" aria-labelledby="schedule-dialog-title">
-        <div class="flex items-center justify-between gap-4 border-b border-navy/10 p-5"><h2 id="schedule-dialog-title" class="text-2xl">Schedule details</h2><button type="button" class="admin-secondary" data-dialog-close aria-label="Close schedule details">✕</button></div>
-        <div data-schedule-details class="grid gap-4 p-5"></div>
-        <form data-schedule-form class="grid gap-4 p-5">
-            @csrf
-            <p data-schedule-errors role="alert" tabindex="-1" class="calendar-errors" hidden></p>
-            <label class="grid gap-1 text-sm">Event title<input class="admin-input" name="title" required maxlength="255"></label>
-            <div class="grid gap-4 sm:grid-cols-2"><label class="grid gap-1 text-sm">Start date & time<input class="admin-input" name="starts_at" type="datetime-local" required></label><label class="grid gap-1 text-sm">End date & time<input class="admin-input" name="ends_at" type="datetime-local" required></label></div>
-            <div class="grid gap-4 sm:grid-cols-2"><label class="grid gap-1 text-sm">Location<input class="admin-input" name="location" maxlength="255" list="calendar-locations"></label><label class="grid gap-1 text-sm">Category<input class="admin-input" name="category" required maxlength="80" list="calendar-categories"></label></div>
-            <datalist id="calendar-locations">@foreach($churches as $church)<option value="{{ $church }}">@endforeach</datalist>
-            <datalist id="calendar-categories">@foreach($categories->merge(['Group Baptism', 'Meeting', 'Liturgy', 'Formation', 'Community', 'Other'])->unique() as $category)<option value="{{ $category }}">@endforeach</datalist>
-            <fieldset data-group-session-settings class="grid gap-3 rounded-xl border border-navy/10 p-4" hidden disabled>
-                <legend class="px-1 text-sm font-semibold">Group baptism registration</legend>
-                <p class="text-sm text-muted">Usually held on Sunday; other available days may be opened for occasions. Each session lasts one hour, with no family limit. Each family completes the existing baptism form.</p>
-                <input type="hidden" name="group_booking_open" value="0">
-                <label class="flex items-start gap-3 text-sm"><input type="checkbox" name="group_booking_open" value="1" class="mt-1"><span><span class="block font-semibold">Open for bookings</span><span class="mt-1 block text-xs text-muted">Clients can select this date, time, and venue only while registration is open. Closing registration keeps existing family appointments.</span></span></label>
-                <label class="grid gap-1 text-sm">Fee per family (optional)<input class="admin-input" type="number" name="group_fee" min="0" step="0.01" max="99999999.99"><span class="text-xs text-muted">Leave blank to use the standard baptism fee.</span></label>
-            </fieldset>
-            <div class="grid gap-4 sm:grid-cols-2"><label class="grid gap-1 text-sm">Assigned personnel<select class="admin-input" name="personnel_id"><option value="">Unassigned</option>@foreach($personnel as $person)<option value="{{ $person->id }}" @disabled(! $person->active)>{{ $person->name }}{{ $person->active ? '' : ' (inactive)' }}</option>@endforeach</select></label><label class="grid gap-1 text-sm">Department<input class="admin-input" name="department" maxlength="255"></label></div>
-            <input type="hidden" name="priest_required" value="0">
-            <label class="flex items-start gap-3 rounded-xl border border-navy/10 p-4 text-sm"><input class="mt-1" type="checkbox" name="priest_required" value="1"><span><span class="block font-semibold">This activity requires a priest</span><span class="mt-1 block text-xs text-muted">The system assigns an available priest automatically. Priest-required activities must last exactly one hour.</span></span></label>
-            <label class="grid gap-1 text-sm">Description<textarea class="admin-input" name="description" rows="3" maxlength="10000"></textarea></label>
-            <label class="grid gap-1 text-sm">Internal notes<textarea class="admin-input" name="notes" rows="2" maxlength="10000"></textarea></label>
-            <label class="grid gap-1 text-sm">Status<select class="admin-input" name="status"><option value="scheduled">Scheduled (upcoming / ongoing by time)</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
-            <fieldset data-recurrence-fields class="grid gap-3 rounded-xl border border-navy/10 p-4"><legend class="px-1 text-sm font-semibold">Repeat schedule</legend><label class="grid gap-1 text-sm">Frequency<select class="admin-input" name="recurrence">@foreach(['none' => 'Does not repeat', 'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly', 'yearly' => 'Yearly'] as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach</select></label><label data-recurrence-until class="grid gap-1 text-sm" hidden>Repeat through<input class="admin-input" type="date" name="recurrence_until"></label><p class="text-xs text-muted">Up to 366 occurrences. Each occurrence can be edited or cancelled separately. Monthly and yearly schedules use the last valid day when needed.</p></fieldset>
-            <p data-occurrence-notice class="text-sm text-muted" hidden>Changes apply only to this occurrence, including rescheduling or cancellation.</p>
-            <div class="flex flex-wrap justify-end gap-2"><button type="button" class="admin-secondary" data-dialog-close>Close</button><button type="submit" class="admin-button" data-schedule-save>Save schedule</button></div>
-        </form>
-    </dialog>
+    @include('admin.partials.schedule-dialog')
     <dialog data-delete-dialog class="calendar-dialog calendar-confirm" aria-labelledby="delete-schedule-title"><div class="grid gap-4 p-6"><h2 id="delete-schedule-title" class="text-2xl">Delete this schedule?</h2><p>This permanently removes this occurrence. Other occurrences in the series are kept. The audit trail is retained.</p><p data-delete-error role="alert" class="calendar-errors" hidden></p><div class="flex justify-end gap-2"><button type="button" class="admin-secondary" data-delete-dismiss>Keep schedule</button><button type="button" class="admin-button" data-delete-confirm>Delete schedule</button></div></div></dialog>
 </div>
 @endsection

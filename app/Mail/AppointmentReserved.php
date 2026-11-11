@@ -3,6 +3,8 @@
 namespace App\Mail;
 
 use App\Models\Appointment;
+use App\Models\AppointmentInvoice;
+use App\Support\FinancialDocumentSeal;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -15,7 +17,13 @@ class AppointmentReserved extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public Appointment $appointment) {}
+    public ?AppointmentInvoice $invoice = null;
+
+    public function __construct(public Appointment $appointment, ?AppointmentInvoice $invoice = null)
+    {
+        $this->invoice = $invoice;
+        $this->afterCommit();
+    }
 
     /**
      * Get the message envelope.
@@ -32,6 +40,10 @@ class AppointmentReserved extends Mailable implements ShouldQueue
      */
     public function content(): Content
     {
+        if ($this->invoice?->integrity_seal !== null && ! FinancialDocumentSeal::valid($this->invoice)) {
+            throw new \LogicException('Invoice integrity check failed. Email delivery stopped.');
+        }
+
         return new Content(
             markdown: 'mail.appointments.reserved',
             with: [

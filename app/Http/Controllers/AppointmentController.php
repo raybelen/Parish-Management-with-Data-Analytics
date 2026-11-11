@@ -49,7 +49,10 @@ class AppointmentController extends Controller
 
         if ($appointment->wantsEmailNotifications()) {
             Mail::to($appointment->client_email)->queue(
-                (new AppointmentReserved($appointment))->onConnection('deferred'),
+                (new AppointmentReserved(
+                    $appointment,
+                    $appointment->payment_option === 'online' ? $appointment->invoices()->orderBy('revision')->first() : null,
+                ))->onConnection('deferred'),
             );
         }
 

@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 
 class CreateAppointment
 {
-    public function __construct(private ReserveAppointmentSlot $reserveAppointmentSlot) {}
+    public function __construct(private ReserveAppointmentSlot $reserveAppointmentSlot, private IssueAppointmentInvoice $issueInvoice) {}
 
     /**
      * @param  array<string, mixed>  $validated
@@ -61,6 +61,9 @@ class CreateAppointment
 
             AppointmentParticipants::sync($appointment);
             $this->reserveAppointmentSlot->handle($appointment);
+            if ($appointment->payment_option === 'online') {
+                $this->issueInvoice->handle($appointment, $feeCents);
+            }
             OfficeAudit::record('appointment.created', $appointment, [], ['reference_number' => $appointment->reference_number, 'service_type' => $appointment->service_type]);
             OfficeAudit::notify($appointment, 'new', 'New appointment awaiting documents: '.$appointment->reference_number);
 

@@ -1,12 +1,15 @@
 <?php
 
 use App\Http\Controllers\AdminAppointmentController;
+use App\Http\Controllers\AdminAppointmentInvoiceController;
 use App\Http\Controllers\AdminAppointmentStatusController;
 use App\Http\Controllers\AdminAuditController;
 use App\Http\Controllers\AdminBackupController;
 use App\Http\Controllers\AdminCalendarController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminDocumentController;
+use App\Http\Controllers\AdminDonationAdjustmentController;
+use App\Http\Controllers\AdminDonationController;
 use App\Http\Controllers\AdminForecastController;
 use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\AdminPasswordController;
@@ -37,6 +40,7 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AppointmentLookupController;
 use App\Http\Controllers\AppointmentReferenceRecoveryController;
 use App\Http\Controllers\AppointmentScheduleController;
+use App\Http\Controllers\FinancialDocumentVerificationController;
 use App\Http\Controllers\ParishCalendarController;
 use App\Http\Controllers\ParishPageController;
 use App\Http\Controllers\XenditPaymentController;
@@ -85,6 +89,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::post('appointments/{appointment}/documents', [AdminDocumentController::class, 'store'])->name('documents.store');
         Route::get('appointments/{appointment}/documents/{type}/{index}', [AdminDocumentController::class, 'show'])->whereNumber('index')->name('documents.show');
         Route::post('appointments/{appointment}/payments', [AdminPaymentController::class, 'store'])->name('payments.store');
+        Route::post('appointments/{appointment}/invoices', [AdminAppointmentInvoiceController::class, 'store'])
+            ->middleware('throttle:admin-sensitive')->block()->name('invoices.store');
         Route::patch('appointments/{appointment}/fee', [AdminPaymentController::class, 'update'])->name('payments.fee');
         Route::get('records/import-template', [AdminRecordImportController::class, 'create'])->name('records.template');
         Route::post('records/import', [AdminRecordImportController::class, 'store'])->middleware('throttle:10,1')->name('records.import');
@@ -94,6 +100,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::resource('records', AdminRecordController::class)->parameters(['records' => 'record'])->except('edit');
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
         Route::get('revenue', [AdminRevenueController::class, 'index'])->name('revenue.index');
+        Route::get('donations/{donation}/receipt', [AdminDonationController::class, 'receipt'])->name('donations.receipt');
+        Route::resource('donations', AdminDonationController::class)->except('destroy')->middleware('throttle:60,1');
+        Route::post('donations/{donation}/void', [AdminDonationAdjustmentController::class, 'store'])
+            ->middleware('throttle:admin-sensitive')->block()->name('donations.void');
+        Route::patch('donation-adjustments/{adjustment}', [AdminDonationAdjustmentController::class, 'update'])
+            ->middleware('throttle:admin-sensitive')->block()->name('donation-adjustments.update');
         Route::get('payment-adjustments', [AdminPaymentAdjustmentController::class, 'index'])->name('payment-adjustments.index');
         Route::patch('payment-adjustments/{adjustment}', [AdminPaymentAdjustmentController::class, 'update'])
             ->middleware('throttle:admin-sensitive')->block()->name('payment-adjustments.update');
@@ -144,6 +156,8 @@ Route::get('/contact', ParishPageController::class)->defaults('page', 'contact')
 Route::get('/calendar', ParishCalendarController::class)->name('calendar');
 
 Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+Route::get('/verify-document', [FinancialDocumentVerificationController::class, 'create'])->name('documents.verify');
+Route::post('/verify-document', [FinancialDocumentVerificationController::class, 'store'])->middleware('throttle:10,1')->name('documents.verify.store');
 Route::post('/appointments/availability', AppointmentAvailabilityController::class)->middleware('throttle:60,1')->name('appointments.availability');
 Route::post('/appointments/{appointment}/availability', AppointmentAvailabilityController::class)->middleware(['signed', 'throttle:60,1'])->name('appointments.availability.update');
 Route::get('/appointments/new', [AppointmentController::class, 'create'])->name('appointments.create');

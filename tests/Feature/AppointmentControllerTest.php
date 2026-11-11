@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\AppointmentConfirmed;
 use App\Mail\AppointmentReserved;
 use App\Models\Appointment;
+use App\Models\AppointmentInvoice;
 use App\Models\ParishSetting;
 use App\Models\PaymentTransaction;
 use DOMDocument;
@@ -316,7 +317,86 @@ class AppointmentControllerTest extends TestCase
         $transaction = PaymentTransaction::query()->sole();
         $this->assertSame($appointment->id, $transaction->appointment_id);
         $this->assertSame(10000, $transaction->amount_cents);
-        Mail::assertQueued(AppointmentReserved::class);
+        $invoice = AppointmentInvoice::query()->sole();
+        $this->assertSame($appointment->id, $invoice->appointment_id);
+        $this->assertSame(10000, $invoice->amount_cents);
+        $this->assertNull($invoice->issued_by);
+        Mail::assertQueued(AppointmentReserved::class, fn (AppointmentReserved $mail): bool => $mail->invoice?->is($invoice)
+            && $mail->hasTo('maria@example.com') && $mail->afterCommit === true);
+        Mail::assertQueuedCount(1);
+    }
+
+    public function test_online_booking_keeps_invoice_and_email_when_checkout_is_unavailable(): void
+    {
+        $this->travelTo('2026-09-27 09:00:00');
+        Mail::fake();
+        config(['services.xendit.sandbox_enabled' => false]);
+
+        $this->post(route('appointments.store'), [...$this->validPayload('baptism'), 'payment_option' => 'online'])
+            ->assertRedirect()->assertSessionHas('payment_error');
+
+        $invoice = AppointmentInvoice::query()->sole();
+        $this->assertSame(10000, $invoice->amount_cents);
+        Mail::assertQueued(AppointmentReserved::class, fn (AppointmentReserved $mail): bool => $mail->invoice?->is($invoice));
+    }
+
+    public function test_online_booking_with_phone_preference_creates_invoice_without_email(): void
+    {
+        $this->travelTo('2026-09-27 09:00:00');
+        Mail::fake();
+        config(['services.xendit.sandbox_enabled' => false]);
+
+        $this->post(route('appointments.store'), [...$this->validPayload('baptism'), 'payment_option' => 'online', 'preferred_contact_method' => 'phone'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('appointment_invoices', 1);
+        Mail::assertNothingQueued();
+    }
+
+    public function test_online_booking_conflict_does_not_leave_an_invoice_or_send_email(): void
+    {
+        $this->travelTo('2026-09-27 09:00:00');
+        Mail::fake();
+        config(['services.xendit.sandbox_enabled' => false]);
+        $payload = [...$this->validPayload('baptism'), 'payment_option' => 'online'];
+        $this->post(route('appointments.store'), $payload)->assertSessionHasNoErrors();
+        Mail::fake();
+
+        $this->post(route('appointments.store'), $payload)->assertSessionHasErrors('preferred_time');
+
+        $this->assertDatabaseCount('appointments', 1);
+        $this->assertDatabaseCount('appointment_invoices', 1);
+        Mail::assertNothingQueued();
+    }
+
+    public function test_reservation_email_keeps_original_invoice_after_queue_serialization_and_fee_change(): void
+    {
+        $this->freezeTime();
+        $appointment = Appointment::factory()->create(['payment_option' => 'online', 'starts_at' => now()->addDays(7), 'documents_due_at' => now()->addDays(3)]);
+        $invoice = AppointmentInvoice::factory()->for($appointment)->create(['client_name' => '<script>bad()</script>', 'amount_cents' => 12345]);
+        $serializedMail = serialize(new AppointmentReserved($appointment, $invoice));
+        $appointment->update(['fee_cents' => 50000]);
+        AppointmentInvoice::factory()->for($appointment)->create(['revision' => 2, 'amount_cents' => 50000]);
+
+        $mail = unserialize($serializedMail);
+
+        $mail->assertSeeInHtml($invoice->number);
+        $mail->assertSeeInText('PHP 123.45');
+        $mail->assertDontSeeInText('PHP 500.00');
+        $mail->assertSeeInText('not a payment receipt');
+        $mail->assertSeeInText('No real money is collected');
+        $mail->assertSeeInHtml(route('appointments.lookup.create'));
+        $this->assertStringNotContainsString('<script>bad()</script>', $mail->render());
+        $this->assertDatabaseCount('appointment_invoices', 2);
+    }
+
+    public function test_zero_fee_email_shows_no_payment_due_and_walk_in_email_omits_invoice(): void
+    {
+        $appointment = Appointment::factory()->create(['starts_at' => now()->addDays(7), 'documents_due_at' => now()->addDays(3)]);
+        $invoice = AppointmentInvoice::factory()->for($appointment)->create(['amount_cents' => 0]);
+
+        (new AppointmentReserved($appointment, $invoice))->assertSeeInText('No payment is due for this invoice.');
+        (new AppointmentReserved($appointment))->assertDontSeeInText('Your appointment invoice');
     }
 
     public function test_non_email_contact_method_does_not_queue_a_reservation_email(): void

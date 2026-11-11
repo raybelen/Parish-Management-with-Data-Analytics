@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Appointment;
 use App\Support\AppointmentAccess;
+use App\Support\FinancialDocumentSeal;
 use App\Support\OfficeAccess;
 use App\Support\OfficeSettings;
 use Illuminate\Http\RedirectResponse;
@@ -33,7 +34,10 @@ class AppointmentBillingController extends Controller
 
     private function statement(Appointment $appointment, ?string $manageUrl = null): Response
     {
-        $appointment->load('payments.originalPayment');
+        $appointment->load(['payments.originalPayment', 'invoices' => fn ($query) => $query->orderByDesc('revision')]);
+        foreach ($appointment->invoices->concat($appointment->payments) as $document) {
+            abort_if($document->integrity_seal !== null && ! FinancialDocumentSeal::valid($document), 409, 'A financial document failed its integrity check. Contact the parish administrator.');
+        }
 
         return response()->view('client-side.appointments.billing', [
             'appointment' => $appointment,

@@ -32,15 +32,23 @@ class AdminRevenueController extends Controller
             'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
             'service' => ['nullable', 'string', Rule::exists('service_types', 'slug')],
             'method' => ['nullable', Rule::in(['cash', 'bank_transfer', 'gcash', 'check', 'other', 'xendit_sandbox'])],
-            'export' => ['nullable', Rule::in(['collections', 'outstanding'])],
+            'export' => ['nullable', Rule::in(['collections', 'outstanding', 'revenue'])],
         ]);
         $payments = $revenue->payments($request->user(), $filters);
         $outstanding = $revenue->outstanding($request->user(), $filters['service'] ?? null);
+        $overview = $revenue->overview($payments, $filters);
         if ($request->filled('export')) {
             Gate::authorize('reports.view');
             $type = $filters['export'];
             $dataset = OfficeSettings::demo() ? 'DEMO - simulated data' : 'Demonstration collections - includes sandbox payments';
-            if ($type === 'outstanding') {
+            if ($type === 'revenue') {
+                $columns = ['dataset', 'month', 'net_service_payments_php', 'individual_donations_php', 'mass_collections_php', 'combined_revenue_php'];
+                $rows = collect($overview['monthly'])->map(fn (array $row): array => [
+                    $dataset, $row['month'], number_format($row['services'] / 100, 2, '.', ''),
+                    number_format($row['donations'] / 100, 2, '.', ''), number_format($row['masses'] / 100, 2, '.', ''),
+                    number_format($row['total'] / 100, 2, '.', ''),
+                ]);
+            } elseif ($type === 'outstanding') {
                 $columns = ['dataset', 'appointment', 'client', 'service', 'fee', 'outstanding'];
                 $rows = $outstanding->orderBy('appointments.id')->lazy()->map(fn ($appointment): array => [
                     $dataset, $appointment->reference_number, $appointment->client_full_name, $appointment->service_type,
@@ -71,6 +79,7 @@ class AdminRevenueController extends Controller
 
         return view('admin.revenue', [
             'filters' => $filters,
+            'overview' => $overview,
             'totals' => $revenue->totals($payments),
             'sandboxTotals' => $revenue->totals($revenue->payments($request->user(), $filters, true)),
             'outstandingTotal' => (int) $outstandingTotal,

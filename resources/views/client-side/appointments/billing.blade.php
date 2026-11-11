@@ -9,7 +9,7 @@
 </head>
 <body class="bg-slate-50 p-4 font-sans text-navy sm:p-8 print:bg-white print:p-0">
     @if($manageUrl)<div hidden data-one-time-appointment-access data-manage-url="{{ $manageUrl }}"></div>@endif
-    <main class="mx-auto max-w-4xl rounded-xl border border-navy/15 bg-white p-5 sm:p-10 print:max-w-none print:border-0 print:p-0">
+    <main data-billing-document class="mx-auto max-w-4xl rounded-xl border border-navy/15 bg-white p-5 sm:p-10 print:max-w-none print:border-0 print:p-0">
         <div class="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-navy/15 pb-6">
             <div><p class="text-sm text-muted">{{ $parishName }}</p><h1 class="mt-2 text-3xl">Billing statement</h1></div>
             <button type="button" data-print-billing class="rounded-lg bg-navy px-5 py-3 text-sm font-semibold text-white print:hidden">Print / Save PDF</button>
@@ -25,7 +25,18 @@
         <dl class="mt-4 grid grid-cols-3 gap-3">@foreach(['Service fee' => $appointment->fee_cents, 'Paid after refunds' => $appointment->netPaidCents(), 'Balance' => $appointment->balanceCents()] as $label => $cents)<div class="rounded-lg border border-navy/10 p-3"><dt class="text-xs text-muted">{{ $label }}</dt><dd class="mt-2 text-lg font-semibold">₱{{ number_format($cents / 100, 2) }}</dd></div>@endforeach</dl>
         <p class="mt-4 text-sm leading-6 text-muted">The service fee reflects any adjustments or waiver recorded by the parish office. Payment can be made separately and does not block appointment confirmation.</p>
         @include('client-side.appointments.partials.billing-ledger', ['appointment' => $appointment])
+        <nav aria-label="Billing documents" class="mt-6 flex flex-wrap gap-3 print:hidden">
+            @foreach($appointment->invoices as $invoice)<a class="underline" href="#invoice-{{ $invoice->id }}">Invoice {{ $invoice->number }}</a>@endforeach
+            @foreach($appointment->payments->where('kind', 'payment') as $payment)<a class="break-all underline" href="#receipt-{{ $payment->id }}">Payment receipt {{ $payment->receiptNumber() }}</a>@endforeach
+        </nav>
+        @if($appointment->invoices->isEmpty())<p class="mt-4 text-sm text-muted">No invoice has been issued yet. Contact the parish office to request one.</p>@endif
         <p class="mt-7 border-t border-navy/15 pt-5 text-xs leading-5 text-muted">This statement shows the current fee and acknowledges payments and refunds recorded in the parish ledger as of the prepared date. Keep your appointment reference when contacting the parish office.</p>
     </main>
+    @foreach($appointment->invoices as $invoice)
+        @include('client-side.appointments.partials.invoice', ['invoice' => $invoice])
+    @endforeach
+    @foreach($appointment->payments->where('kind', 'payment')->sortBy('id') as $payment)
+        @include('client-side.appointments.partials.payment-receipt', ['payment' => $payment])
+    @endforeach
 </body>
 </html>

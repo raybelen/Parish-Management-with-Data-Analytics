@@ -60,7 +60,7 @@ class XenditPaymentControllerTest extends TestCase
         $this->get(route('admin.appointments.show', $appointment))->assertSee('Paid')->assertSee('PH_GCASH')->assertSee('ps-sandbox-session-123')->assertSee('py-sandbox-payment-123');
         $this->get(route('admin.revenue.index'))->assertViewHas('totals', ['received' => 10000, 'refunded' => 0, 'net' => 10000])
             ->assertViewHas('sandboxTotals', ['received' => 6000, 'refunded' => 0, 'net' => 6000])->assertViewHas('outstandingTotal', 0)
-            ->assertSee('PH_GCASH')->assertSee('py-sandbox-payment-123')->assertSee('Sandbox');
+            ->assertSee('PH_GCASH')->assertSee('py-sandbox-payment-123')->assertSee('Test payments included');
     }
 
     public function test_expiring_an_older_checkout_does_not_unpay_a_settled_appointment(): void

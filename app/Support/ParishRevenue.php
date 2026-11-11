@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Donation;
 use App\Models\Payment;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -10,6 +11,41 @@ use Illuminate\Database\Query\JoinClause;
 
 class ParishRevenue
 {
+    /** @param array{from: string, to: string, service?: ?string, method?: ?string} $filters
+     * @return array{sources: array<string, int>, monthly: list<array{month: string, services: int, donations: int, masses: int, total: int}>, combined: int}
+     */
+    public function overview(Builder $payments, array $filters): array
+    {
+        $donations = Donation::query()->where('source', OfficeSettings::source())->where('status', 'recorded')
+            ->whereNull('mass_collection_id')->whereDate('donated_on', '>=', $filters['from'])->whereDate('donated_on', '<=', $filters['to'])
+            ->when($filters['method'] ?? null, fn (Builder $query, string $method): Builder => $query->where('method', $method));
+        $paymentMonth = 'SUBSTR(CAST(paid_at AS CHAR(19)), 1, 7)';
+        $donationMonth = 'SUBSTR(CAST(donated_on AS CHAR(10)), 1, 7)';
+        $serviceRows = (clone $payments)->toBase()->selectRaw($paymentMonth." AS month, SUM(CASE WHEN kind = 'refund' THEN -amount_cents ELSE amount_cents END) AS cents")
+            ->groupByRaw($paymentMonth)->get();
+        $donationRows = $donations->toBase()->selectRaw($donationMonth.' AS month, kind, SUM(amount_cents) AS cents')
+            ->groupByRaw($donationMonth)->groupBy('kind')->get();
+        $months = [];
+        foreach ($serviceRows as $row) {
+            $months[$row->month]['services'] = (int) $row->cents;
+        }
+        foreach ($donationRows as $row) {
+            $months[$row->month][$row->kind === 'mass_collection' ? 'masses' : 'donations'] = (int) $row->cents;
+        }
+        ksort($months);
+        $sources = ['services' => 0, 'donations' => 0, 'masses' => 0];
+        $monthly = [];
+        foreach ($months as $month => $values) {
+            $values = array_replace(['services' => 0, 'donations' => 0, 'masses' => 0], $values);
+            foreach ($values as $key => $cents) {
+                $sources[$key] += $cents;
+            }
+            $monthly[] = ['month' => $month, ...$values, 'total' => array_sum($values)];
+        }
+
+        return ['sources' => $sources, 'monthly' => $monthly, 'combined' => array_sum($sources)];
+    }
+
     /** @param array{from: string, to: string, service?: ?string, method?: ?string} $filters */
     public function payments(User $user, array $filters, bool $sandbox = false): Builder
     {

@@ -49,6 +49,22 @@ function initializeCalendar(root) {
     const errors = find('[data-schedule-errors]');
     const canManage = root.dataset.canManage === '1';
     const csrf = form.elements._token.value;
+    const priestRequired = form.querySelector('input[type="checkbox"][name="priest_required"]');
+    const registration = form.querySelector('input[type="checkbox"][name="group_booking_open"]');
+    const customCategory = find('[data-custom-category]');
+    const locationInput = form.elements.location;
+    const locationCombobox = find('[data-location-combobox]');
+    const locationPopup = find('[data-location-popup]');
+    const locationToggle = find('[data-location-toggle]');
+    const locationOptions = [...form.querySelectorAll('[data-location-option]')];
+    let activeLocation = null;
+    const saveButton = find('[data-schedule-save]');
+    let groupWasSelected = false;
+    let activityRequiresPriest = false;
+    let previousStart = '';
+    let defaultedGroupTitle = false;
+    const categoryValue = () => form.elements.category.value === '__custom__' ? customCategory.value.trim() : form.elements.category.value;
+    const isGroupSession = () => categoryValue().toLowerCase() === 'group baptism';
 
     function range() {
         if (view === 'year') return [new Date(selected.getFullYear(), 0, 1, 12), new Date(selected.getFullYear() + 1, 0, 1, 12)];
@@ -119,7 +135,11 @@ function initializeCalendar(root) {
     async function readResponse(response) {
         if ([401, 419].includes(response.status) || response.redirected) throw new Error('Your session expired. Sign in again or reload this page.');
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload.errors ? Object.values(payload.errors).flat().join('\n') : (payload.message || 'The request failed. Please try again.'));
+        if (!response.ok) {
+            const error = new Error(payload.errors ? Object.values(payload.errors).flat().join('\n') : (payload.message || 'The request failed. Please try again.'));
+            error.fields = payload.errors || {};
+            throw error;
+        }
         return payload;
     }
 
@@ -264,6 +284,12 @@ function initializeCalendar(root) {
     function openCreate(day) {
         currentEvent = null;
         form.reset();
+        closeLocations();
+        clearFormErrors();
+        form.querySelectorAll('details').forEach(node => { node.open = false; });
+        groupWasSelected = false;
+        activityRequiresPriest = false;
+        defaultedGroupTitle = false;
         form.hidden = false;
         errors.hidden = true;
         find('[data-schedule-details]').replaceChildren();
@@ -271,13 +297,16 @@ function initializeCalendar(root) {
         find('#schedule-dialog-title').textContent = 'Add schedule';
         form.elements.starts_at.value = `${day}T09:00`;
         form.elements.ends_at.value = `${day}T10:00`;
-        form.elements.category.value = 'Meeting';
+        previousStart = form.elements.starts_at.value;
+        form.elements.category.value = '';
         find('[data-recurrence-fields]').hidden = false;
         find('[data-recurrence-fields]').disabled = false;
         find('[data-occurrence-notice]').hidden = true;
         updateRecurrence();
-        updateGroupSession();
+        updateFormOptions();
         showDialog();
+        dialog.scrollTop = 0;
+        form.elements.category.focus({preventScroll: true});
     }
 
     function openDetails(event) {
@@ -309,7 +338,7 @@ function initializeCalendar(root) {
         const actions = element('div', 'flex flex-wrap gap-2');
         if (event.edit_url) {
             actions.append(button('Edit / Reschedule', 'admin-button', () => editEvent()));
-            if (event.status !== 'cancelled') actions.append(button('Cancel event', 'admin-secondary', () => { editEvent(); form.elements.status.value = 'cancelled'; }));
+            if (event.status !== 'cancelled') actions.append(button('Cancel event', 'admin-secondary', () => { editEvent(); form.elements.status.value = 'cancelled'; find('[data-schedule-extra]').open = true; updateRegistration(); updatePreview(); }));
             actions.append(button('Delete', 'admin-secondary', () => { find('[data-delete-error]').hidden = true; deletion.showModal(); }));
         }
         if (event.detail_url) {
@@ -323,19 +352,31 @@ function initializeCalendar(root) {
 
     function editEvent() {
         form.reset();
+        closeLocations();
+        clearFormErrors();
+        groupWasSelected = false;
+        activityRequiresPriest = Boolean(currentEvent.priest_required);
+        defaultedGroupTitle = false;
         errors.hidden = true;
         find('[data-schedule-details]').hidden = true;
         form.hidden = false;
         find('#schedule-dialog-title').textContent = 'Edit schedule';
+        if (![...form.elements.category.options].some(option => option.value === currentEvent.category)) {
+            form.elements.category.add(new Option(currentEvent.category, currentEvent.category));
+        }
         ['title', 'starts_at', 'ends_at', 'location', 'department', 'category', 'description', 'notes', 'personnel_id', 'status'].forEach((name) => { form.elements[name].value = currentEvent[name] ?? ''; });
+        previousStart = form.elements.starts_at.value;
         form.querySelector('input[type="checkbox"][name="priest_required"]').checked = Boolean(currentEvent.priest_required);
         form.querySelector('input[type="checkbox"][name="group_booking_open"]').checked = Boolean(currentEvent.group_booking_open);
         form.elements.group_fee.value = currentEvent.group_fee ?? '';
-        updateGroupSession();
+        updateFormOptions(false);
+        find('[data-schedule-extra]').open = Boolean(currentEvent.description || currentEvent.notes || currentEvent.department || currentEvent.status !== 'scheduled');
         find('[data-recurrence-fields]').hidden = true;
         find('[data-recurrence-fields]').disabled = true;
         find('[data-occurrence-notice]').hidden = !currentEvent.series_id;
-        form.elements.title.focus();
+        updatePreview();
+        dialog.scrollTop = 0;
+        form.elements.title.focus({preventScroll: true});
     }
 
     function updateRecurrence() {
@@ -343,19 +384,226 @@ function initializeCalendar(root) {
         find('[data-recurrence-until]').hidden = !repeats;
         form.elements.recurrence_until.required = repeats;
         form.elements.recurrence_until.disabled = !repeats;
+        find('[data-recurrence-summary]').textContent = form.elements.recurrence.selectedOptions[0].textContent;
+        if (repeats) find('[data-recurrence-fields] details').open = true;
+        updatePreview();
     }
 
-    function updateGroupSession() {
-        const isGroup = form.elements.category.value.trim().toLowerCase() === 'group baptism';
+    function updateFormOptions(adjustEnd = true) {
+        const custom = form.elements.category.value === '__custom__';
+        find('[data-custom-category-field]').hidden = !custom;
+        customCategory.disabled = !custom;
+        customCategory.required = custom;
+        const isGroup = isGroupSession();
         const settings = find('[data-group-session-settings]');
         settings.hidden = !isGroup;
         settings.disabled = !isGroup;
-        if (isGroup) form.querySelector('input[type="checkbox"][name="priest_required"]').checked = true;
+        if (isGroup && !groupWasSelected) {
+            activityRequiresPriest = priestRequired.checked;
+            priestRequired.checked = true;
+        } else if (!isGroup && groupWasSelected) {
+            priestRequired.checked = activityRequiresPriest;
+            if (defaultedGroupTitle) form.elements.title.value = '';
+            defaultedGroupTitle = false;
+        }
+        groupWasSelected = isGroup;
+        find('[data-priest-required-control]').hidden = isGroup;
+        updateLocation();
+        form.elements.title.placeholder = isGroup ? 'e.g. Sunday group baptism' : 'e.g. Parish council meeting';
+        if (isGroup && !form.elements.title.value) {
+            form.elements.title.value = 'Group baptism';
+            defaultedGroupTitle = true;
+        }
+        updateDuration(adjustEnd);
+        updateRegistration();
+        updatePreview();
     }
-    form.elements.category.addEventListener('input', updateGroupSession);
+
+    function updateLocation() {
+        const isGroup = isGroupSession();
+        locationInput.required = isGroup;
+        find('[data-group-location-required]').hidden = !isGroup;
+        find('[data-schedule-location-help]').textContent = isGroup ? 'Choose a listed church or chapel for group baptism. Type to search the list.' : 'Optional. Choose a parish venue or type another location in this field.';
+        closeLocations();
+    }
+
+    function activateLocation(option) {
+        activeLocation = option;
+        locationOptions.forEach(item => item.setAttribute('aria-selected', String(item === option)));
+        if (option) {
+            locationInput.setAttribute('aria-activedescendant', option.id);
+            option.scrollIntoView({ block: 'nearest' });
+        } else {
+            locationInput.removeAttribute('aria-activedescendant');
+        }
+    }
+
+    function closeLocations() {
+        locationPopup.hidden = true;
+        locationInput.setAttribute('aria-expanded', 'false');
+        locationToggle.setAttribute('aria-expanded', 'false');
+        locationToggle.setAttribute('aria-label', 'Show locations');
+        activateLocation(null);
+    }
+
+    function showLocations(filter = '') {
+        if (busy) return;
+        const query = filter.trim().toLowerCase();
+        locationOptions.forEach(option => { option.hidden = !option.dataset.value.toLowerCase().includes(query); });
+        const empty = find('[data-location-empty]');
+        empty.hidden = locationOptions.some(option => !option.hidden);
+        empty.textContent = isGroupSession() ? 'No matching venues. Choose a listed church or chapel for group baptism.' : 'No matching parish venues. You can keep the location you typed.';
+        locationPopup.hidden = false;
+        locationInput.setAttribute('aria-expanded', 'true');
+        locationToggle.setAttribute('aria-expanded', 'true');
+        locationToggle.setAttribute('aria-label', 'Hide locations');
+        activateLocation(null);
+    }
+
+    function selectLocation(option) {
+        locationInput.value = option.dataset.value;
+        locationInput.dispatchEvent(new Event('input', { bubbles: true }));
+        locationInput.dispatchEvent(new Event('change', { bubbles: true }));
+        closeLocations();
+        locationInput.focus({ preventScroll: true });
+    }
+
+    function updateDuration(adjustEnd = true) {
+        const fixedHour = isGroupSession() || priestRequired.checked;
+        const start = new Date(form.elements.starts_at.value);
+        if (adjustEnd && fixedHour && Number.isFinite(start.getTime())) {
+            const end = new Date(start.getTime() + 60 * 60 * 1000);
+            form.elements.ends_at.value = `${dateKey(end)}T${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+        }
+        form.elements.ends_at.readOnly = fixedHour;
+        form.elements.ends_at.min = form.elements.starts_at.value;
+        form.elements.recurrence_until.min = form.elements.starts_at.value.slice(0, 10);
+        const end = new Date(form.elements.ends_at.value);
+        const duration = (end - start) / 60000;
+        form.elements.ends_at.setCustomValidity(Number.isFinite(duration) && duration <= 0 ? 'The end must be after the start.' : '');
+        find('[data-schedule-duration]').textContent = fixedHour
+            ? 'One-hour service · End time is set automatically. An available priest is assigned automatically.'
+            : Number.isFinite(duration) && duration > 0 ? `Duration: ${duration >= 60 ? `${Math.floor(duration / 60)}h ` : ''}${duration % 60 ? `${duration % 60}m` : ''}`.trim() : 'Choose an end time after the start.';
+        form.elements.personnel_id.disabled = fixedHour && !currentEvent;
+        find('[data-schedule-personnel-help]').textContent = fixedHour
+            ? currentEvent ? 'The automatic assignment keeps this priest when available.' : 'An available priest will be assigned when you save.'
+            : 'Optional for activities that do not require a priest.';
+    }
+
+    function updateRegistration() {
+        const scheduled = form.elements.status.value === 'scheduled';
+        registration.disabled = !scheduled;
+        find('[data-registration-help]').textContent = !scheduled
+            ? 'Registration is closed for completed or cancelled activities.'
+            : registration.checked ? 'Families can book this session as soon as you save.' : 'Registration stays closed. You can open it later by editing this schedule.';
+    }
+
+    function updatePreview() {
+        const start = form.elements.starts_at.value;
+        const end = form.elements.ends_at.value;
+        const category = categoryValue();
+        const preview = [category || 'Choose an activity'];
+        if (start && Number.isFinite(new Date(start).getTime())) preview.push(`${readableDate(start)} · ${time(start)}`);
+        if (end && Number.isFinite(new Date(end).getTime())) preview.push(`to ${end.slice(0, 10) !== start.slice(0, 10) ? readableDate(end) + ' ' : ''}${time(end)}`);
+        if (isGroupSession()) preview.push(form.elements.status.value === 'scheduled' && registration.checked ? 'Registration opens on save' : 'Registration closed');
+        if (!currentEvent && form.elements.recurrence.value !== 'none') preview.push(`${titleCase(form.elements.recurrence.value)} repeat`);
+        find('[data-schedule-preview]').textContent = preview.join(' · ');
+        if (!busy) saveButton.textContent = currentEvent ? 'Save changes' : isGroupSession() ? 'Create group baptism' : 'Create schedule';
+    }
+
+    function clearFormErrors() {
+        errors.hidden = true;
+        errors.textContent = '';
+        form.querySelectorAll('[data-field-error]').forEach(node => node.remove());
+        form.querySelectorAll('[aria-invalid="true"]').forEach(field => {
+            field.removeAttribute('aria-invalid');
+            const descriptions = (field.getAttribute('aria-describedby') || '').split(' ').filter(id => !id.startsWith('schedule-error-'));
+            if (descriptions.length) field.setAttribute('aria-describedby', descriptions.join(' '));
+            else field.removeAttribute('aria-describedby');
+        });
+    }
+
+    function showFormErrors(error) {
+        errors.textContent = error.message;
+        errors.hidden = false;
+        Object.entries(error.fields || {}).forEach(([name, messages]) => {
+            const field = name === 'category' && form.elements.category.value === '__custom__' ? customCategory
+                : form.querySelector(`[name="${CSS.escape(name)}"]:not([type="hidden"])`);
+            if (!field || field.disabled) return;
+            const detail = field.closest('details');
+            if (detail) detail.open = true;
+            const hint = element('span', 'text-xs text-red-700', messages.join(' '));
+            hint.id = `schedule-error-${name}`;
+            hint.dataset.fieldError = '';
+            field.setAttribute('aria-invalid', 'true');
+            field.setAttribute('aria-describedby', [field.getAttribute('aria-describedby'), hint.id].filter(Boolean).join(' '));
+            field.after(hint);
+        });
+        errors.focus();
+    }
+
+    form.elements.category.addEventListener('change', () => updateFormOptions());
+    customCategory.addEventListener('input', () => updateFormOptions());
+    locationInput.addEventListener('input', () => showLocations(locationInput.value));
+    locationInput.addEventListener('click', () => showLocations(locationInput.value));
+    locationToggle.addEventListener('mousedown', event => event.preventDefault());
+    locationToggle.addEventListener('click', () => {
+        if (locationPopup.hidden) showLocations();
+        else closeLocations();
+        locationInput.focus({ preventScroll: true });
+    });
+    locationOptions.forEach(option => {
+        option.addEventListener('mousedown', event => event.preventDefault());
+        option.addEventListener('click', () => { if (!busy) selectLocation(option); });
+    });
+    locationInput.addEventListener('keydown', event => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (locationPopup.hidden) showLocations();
+            const visible = locationOptions.filter(option => !option.hidden);
+            if (!visible.length) return;
+            const index = visible.indexOf(activeLocation);
+            const next = index < 0 ? (event.key === 'ArrowDown' ? 0 : visible.length - 1) : (index + (event.key === 'ArrowDown' ? 1 : -1) + visible.length) % visible.length;
+            activateLocation(visible[next]);
+        } else if (event.key === 'Enter' && !locationPopup.hidden && activeLocation) {
+            event.preventDefault();
+            selectLocation(activeLocation);
+        } else if (event.key === 'Escape' && !locationPopup.hidden) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeLocations();
+        } else if (event.key === 'Tab') closeLocations();
+    });
+    locationCombobox.addEventListener('focusout', event => {
+        if (!locationCombobox.contains(event.relatedTarget)) closeLocations();
+    });
+    document.addEventListener('click', event => {
+        if (!locationCombobox.contains(event.target)) closeLocations();
+    });
+    priestRequired.addEventListener('change', () => { updateDuration(); updatePreview(); });
+    form.elements.starts_at.addEventListener('change', () => {
+        const oldStart = new Date(previousStart);
+        const start = new Date(form.elements.starts_at.value);
+        const oldEnd = new Date(form.elements.ends_at.value);
+        if (!isGroupSession() && !priestRequired.checked && Number.isFinite(start.getTime()) && oldEnd > oldStart) {
+            const end = new Date(start.getTime() + (oldEnd - oldStart));
+            form.elements.ends_at.value = `${dateKey(end)}T${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+        }
+        previousStart = form.elements.starts_at.value;
+        updateDuration();
+        updatePreview();
+    });
+    form.elements.title.addEventListener('input', () => { defaultedGroupTitle = false; });
+    form.elements.ends_at.addEventListener('change', () => { updateDuration(false); updatePreview(); });
+    registration.addEventListener('change', () => { updateRegistration(); updatePreview(); });
+    form.elements.status.addEventListener('change', () => { updateRegistration(); updatePreview(); });
+    form.addEventListener('input', () => { clearFormErrors(); updatePreview(); });
+    form.addEventListener('invalid', event => { const detail = event.target.closest('details'); if (detail) detail.open = true; }, true);
 
     function setBusy(value) {
         busy = value;
+        form.setAttribute('aria-busy', String(value));
+        saveButton.textContent = value ? 'Saving…' : currentEvent ? 'Save changes' : isGroupSession() ? 'Create group baptism' : 'Create schedule';
         form.querySelectorAll('button').forEach((node) => { node.disabled = value; });
         deletion.querySelectorAll('button').forEach((node) => { node.disabled = value; });
         dialog.querySelector('[data-dialog-close]').disabled = value;
@@ -369,10 +617,14 @@ function initializeCalendar(root) {
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (busy) return;
+        closeLocations();
+        clearFormErrors();
         setBusy(true);
         errors.hidden = true;
         const payload = Object.fromEntries(new FormData(form));
         delete payload._token;
+        payload.category = categoryValue();
+        payload.location = locationInput.value.trim();
         if (currentEvent) payload.version = currentEvent.version;
         try {
             const result = await mutate(currentEvent?.edit_url || root.dataset.store, currentEvent ? 'PUT' : 'POST', payload);
@@ -382,9 +634,7 @@ function initializeCalendar(root) {
             await refresh();
             message.textContent = result.message + ' ' + message.textContent;
         } catch (error) {
-            errors.textContent = error.message;
-            errors.hidden = false;
-            errors.focus();
+            showFormErrors(error);
         } finally { setBusy(false); }
     });
 
@@ -404,7 +654,7 @@ function initializeCalendar(root) {
     find('[data-delete-dismiss]').addEventListener('click', () => deletion.close());
     root.querySelectorAll('[data-dialog-close]').forEach((node) => node.addEventListener('click', () => { if (!busy) dialog.close(); }));
     [dialog, deletion].forEach((node) => node.addEventListener('cancel', (event) => { if (busy) event.preventDefault(); }));
-    dialog.addEventListener('close', () => lastTrigger?.isConnected && lastTrigger.focus());
+    dialog.addEventListener('close', () => { closeLocations(); if (lastTrigger?.isConnected) lastTrigger.focus(); });
     form.elements.recurrence.addEventListener('change', updateRecurrence);
     document.querySelector('[data-calendar-add]')?.addEventListener('click', () => openCreate(dateKey(selected)));
     find('[data-calendar-view-select]').addEventListener('change', (event) => { view = event.target.value; refresh(); });

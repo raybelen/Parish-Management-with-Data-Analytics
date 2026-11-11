@@ -52,6 +52,11 @@
 .calendar-agenda-meta { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin-top: .4rem; font-size: .8rem; color: #475569; overflow-wrap: anywhere; }
 .calendar-dialog { border: 1px solid #e2e8f0; border-radius: 1rem; padding: 0; margin: auto; width: min(680px, calc(100% - 1.5rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; color: #18324e; background: white; box-shadow: 0 24px 64px #0f172a40; }
 .calendar-dialog::backdrop { background: #0f172a99; }
+.calendar-schedule-dialog { width: min(800px, calc(100% - 1.5rem)); scroll-padding-block: 6rem; }
+.calendar-schedule-dialog .admin-input { scroll-margin-block: 6rem; }
+.calendar-schedule-dialog .admin-input[readonly] { background: #f8fafc; color: #475569; }
+.calendar-schedule-dialog [aria-invalid="true"] { border-color: #be123c; }
+.calendar-schedule-dialog [data-location-option][aria-selected="true"] { background: #f1f5f9; outline: 2px solid #d6a446; outline-offset: -2px; }
 .calendar-confirm { max-width: 460px; }
 .calendar-errors { background: #fff1f2; color: #9f1239; border: 1px solid #fecdd3; border-radius: .6rem; padding: .8rem; white-space: pre-line; }
 [data-admin-calendar] [hidden] { display: none !important; }

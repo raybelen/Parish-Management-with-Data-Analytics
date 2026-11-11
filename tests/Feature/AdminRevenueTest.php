@@ -118,7 +118,7 @@ class AdminRevenueTest extends TestCase
 
         $this->get('/admin/revenue?page=2')->assertViewHas('totals', ['received' => 210000, 'refunded' => 0, 'net' => 210000])
             ->assertViewHas('payments', fn ($payments): bool => $payments->count() === 1 && $payments->total() === 21)
-            ->assertDontSee('Download collections CSV');
+            ->assertDontSee('Download payment report (CSV)');
         $this->get('/admin/revenue?export=collections')->assertForbidden();
     }
 
