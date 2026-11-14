@@ -187,14 +187,27 @@ document.addEventListener('invalid', (event) => {
 }, true);
 
 document.querySelectorAll('[data-walkin-service]').forEach((select) => {
-    const update = () => document.querySelectorAll('[data-walkin-fields]').forEach((section) => {
-        const active = section.dataset.walkinFields === select.value;
-        section.hidden = !active;
-        section.querySelectorAll('input, select, textarea').forEach((input) => {
-            input.disabled = !active;
-            if (input.dataset.required !== undefined) input.required = active && input.dataset.required === 'true';
+    const update = () => {
+        const venue = select.form.querySelector('[data-service-venue]');
+        if (venue) {
+            const otherService = select.value === 'others';
+            const addressOption = venue.querySelector('[data-other-service-venue]');
+            venue.disabled = otherService;
+            venue.required = !otherService;
+            addressOption.hidden = !otherService;
+            addressOption.disabled = !otherService;
+            if (otherService) venue.value = addressOption.value;
+            else if (venue.value === addressOption.value) venue.value = '';
+        }
+        document.querySelectorAll('[data-walkin-fields]').forEach((section) => {
+            const active = section.dataset.walkinFields === select.value;
+            section.hidden = !active;
+            section.querySelectorAll('input, select, textarea').forEach((input) => {
+                input.disabled = !active;
+                if (input.dataset.required !== undefined) input.required = active && input.dataset.required === 'true';
+            });
         });
-    });
+    };
     select.addEventListener('change', update);
     update();
 });

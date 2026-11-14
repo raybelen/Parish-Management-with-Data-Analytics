@@ -38,6 +38,7 @@
                 'description' => $websiteContent['service_communion_description'],
             ],
             [
+                'service_type' => 'confirmation',
                 'title' => $websiteContent['service_confirmation_title'],
                 'description' => $websiteContent['service_confirmation_description'],
             ],
@@ -90,6 +91,7 @@
                                 <span>View Requirements</span>
                                 <span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-gold/40" aria-hidden="true"><x-parish.icon name="arrow" class="size-4" /></span>
                             </button>
+                            <x-parish.button :href="route('appointments.create', ['service' => $service['service_type']])" class="mt-3 w-full">Book {{ $service['title'] }}</x-parish.button>
                         </div>
                     </article>
                 @endforeach
@@ -110,6 +112,10 @@
                         <p class="section-label mb-5 text-muted">Parish Service</p>
                         <h3 class="text-2xl leading-tight">{{ $service['title'] }}</h3>
                         <p class="mt-4 text-sm leading-7 text-muted">{{ $service['description'] }}</p>
+                        @if(($service['service_type'] ?? null) === 'confirmation')
+                            <p class="mt-4 text-sm text-muted">Requirement: Baptismal Certificate.</p>
+                            <a href="{{ route('appointments.create', ['service' => 'confirmation']) }}" class="text-link mt-5">Book Confirmation <x-parish.icon name="arrow" class="size-4" /></a>
+                        @endif
                     </article>
                 @endforeach
             </div>

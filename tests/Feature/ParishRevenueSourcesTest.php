@@ -81,7 +81,7 @@ class ParishRevenueSourcesTest extends TestCase
         Donation::factory()->create(['amount_cents' => 90000]);
         Donation::factory()->create(['source' => 'synthetic', 'amount_cents' => 10000]);
         Donation::factory()->create(['source' => 'synthetic', 'kind' => 'mass_collection', 'amount_cents' => 20000]);
-        $this->get('/admin/revenue')->assertViewHas('overview', fn (array $data): bool => $data['combined'] === 30000)->assertSee('Demo workspace');
+        $this->get('/admin/revenue')->assertViewHas('overview', fn (array $data): bool => $data['combined'] === 30000)->assertSee('Practice workspace');
         $this->get('/admin/revenue?export=revenue')->assertDownload('DEMO-parish-revenue-2026-11-01-2026-11-10.csv');
     }
 

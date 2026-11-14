@@ -67,7 +67,7 @@ class AppointmentController extends Controller
 
                 return redirect()->to($appointmentUrl)->with(
                     'payment_error',
-                    'Xendit Sandbox checkout could not be started. Your appointment is still reserved, and you may pay at the parish office.',
+                    'Online payment could not be started. Your appointment is still reserved, and you may pay at the parish office.',
                 );
             }
         }

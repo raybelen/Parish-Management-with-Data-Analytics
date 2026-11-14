@@ -10,6 +10,7 @@ use App\Models\ServiceRecord;
 use App\Support\AppointmentParticipants;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
+use App\Support\PriestRotation;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -55,11 +56,14 @@ class ManageAppointment
             };
             $this->require(in_array($status, $allowed, true), 'status', 'This status transition is not permitted.');
             if ($status === 'confirmed') {
+                if ($locked->requiresOfficeApproval()) {
+                    $this->require($locked->personnel_id !== null && Personnel::query()->whereKey($locked->personnel_id)->where('active', true)->exists(), 'personnel_id', 'Assign an active priest before approving this request.');
+                }
                 $this->require($locked->physicalDocumentsComplete(), 'status', 'Verify every required physical document before confirmation.');
                 $this->require($locked->documents_due_at === null || $locked->documents_due_at->isFuture(), 'status', 'The document submission deadline has passed.');
                 $this->require($locked->starts_at !== null && $locked->starts_at->isFuture(), 'status', 'Save a future confirmed schedule first.');
                 $this->require($locked->ends_at !== null && $locked->reserved_until !== null && $locked->confirmed_church !== null, 'status', 'Save a complete schedule before confirmation.');
-                $this->require(OfficeSettings::venueIsActive($locked->confirmed_church), 'status', 'The assigned venue is currently unavailable. Choose another venue before confirmation.');
+                $this->require($locked->requiresOfficeApproval() || OfficeSettings::venueIsActive($locked->confirmed_church), 'status', 'The assigned venue is currently unavailable. Choose another venue before confirmation.');
                 $this->require($locked->ends_at->equalTo($locked->starts_at->addHour()), 'starts_at', 'Save a one-hour service schedule before confirmation.');
                 $this->validateSchedule($locked, $locked->starts_at, $locked->confirmed_church, $locked->personnel_id);
             }
@@ -113,6 +117,13 @@ class ManageAppointment
         ]);
         $message = $this->slots->conflictMessage($candidate, $personnelId);
         $this->require($message === null, 'starts_at', $message ?? 'This schedule is unavailable.');
+        if ($appointment->requiresOfficeApproval() && $personnelId !== null) {
+            $massConflict = collect(app(PriestRotation::class)->regularMassAssignments($start->startOfDay()))
+                ->contains(fn (array $mass): bool => $mass['personnel_id'] === $personnelId
+                    && $mass['starts_at'] < $start->addHour() && $mass['ends_at'] > $start);
+            $this->require(! $massConflict, 'personnel_id', 'This priest is assigned to Mass at that time. Choose another priest or schedule.');
+        }
+
     }
 
     private function require(bool $condition, string $field, string $message): void

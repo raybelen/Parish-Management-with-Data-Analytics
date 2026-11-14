@@ -36,7 +36,7 @@ class AppointmentBillingController extends Controller
     {
         $appointment->load(['payments.originalPayment', 'invoices' => fn ($query) => $query->orderByDesc('revision')]);
         foreach ($appointment->invoices->concat($appointment->payments) as $document) {
-            abort_if($document->integrity_seal !== null && ! FinancialDocumentSeal::valid($document), 409, 'A financial document failed its integrity check. Contact the parish administrator.');
+            abort_if($document->integrity_seal !== null && ! FinancialDocumentSeal::valid($document), 409, 'An invoice or receipt could not be verified. Contact the parish administrator.');
         }
 
         return response()->view('client-side.appointments.billing', [

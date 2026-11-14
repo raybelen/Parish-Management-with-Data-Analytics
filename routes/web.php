@@ -10,6 +10,8 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminDocumentController;
 use App\Http\Controllers\AdminDonationAdjustmentController;
 use App\Http\Controllers\AdminDonationController;
+use App\Http\Controllers\AdminFacilityBookingController;
+use App\Http\Controllers\AdminFacilityController;
 use App\Http\Controllers\AdminForecastController;
 use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\AdminPasswordController;
@@ -40,6 +42,7 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AppointmentLookupController;
 use App\Http\Controllers\AppointmentReferenceRecoveryController;
 use App\Http\Controllers\AppointmentScheduleController;
+use App\Http\Controllers\FacilityBookingController;
 use App\Http\Controllers\FinancialDocumentVerificationController;
 use App\Http\Controllers\ParishCalendarController;
 use App\Http\Controllers\ParishPageController;
@@ -78,6 +81,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::get('calendar', [AdminCalendarController::class, 'index'])->name('calendar.index');
         Route::get('calendar/events', [AdminCalendarController::class, 'events'])->name('calendar.events');
         Route::get('priests', AdminPriestController::class)->name('priests.index');
+        Route::resource('facilities', AdminFacilityController::class)->except('destroy')->middleware('throttle:60,1');
+        Route::post('facilities/{facility}/bookings', [AdminFacilityBookingController::class, 'store'])->middleware('throttle:60,1')->block()->name('facilities.bookings.store');
+        Route::patch('facilities/{facility}/bookings/{booking}', [AdminFacilityBookingController::class, 'update'])->middleware('throttle:60,1')->block()->name('facilities.bookings.update');
+        Route::delete('facilities/{facility}/bookings/{booking}', [AdminFacilityBookingController::class, 'destroy'])->middleware('throttle:60,1')->block()->name('facilities.bookings.destroy');
         Route::put('priests/rotation', [AdminPriestRotationController::class, 'update'])->name('priests.rotation.update');
         Route::post('priests/unavailabilities', [AdminPriestUnavailabilityController::class, 'store'])->name('priests.unavailabilities.store');
         Route::delete('priests/unavailabilities/{unavailability}', [AdminPriestUnavailabilityController::class, 'destroy'])->name('priests.unavailabilities.destroy');
@@ -145,6 +152,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
             ->middleware('throttle:admin-sensitive')->block()->name('roles.update');
     });
 });
+
+Route::get('/facilities', [FacilityBookingController::class, 'index'])->name('facilities.index');
+Route::post('/facilities/requests/recover', [FacilityBookingController::class, 'recover'])->middleware('throttle:5,60')->name('facilities.bookings.recover');
+Route::get('/facilities/requests/{booking:reference}', [FacilityBookingController::class, 'show'])->middleware('signed')->name('facilities.bookings.show');
+Route::get('/facilities/requests/{booking:reference}/verify', [FacilityBookingController::class, 'verify'])->middleware(['signed', 'throttle:10,1'])->block()->name('facilities.bookings.verify');
+Route::delete('/facilities/requests/{booking:reference}', [FacilityBookingController::class, 'destroy'])->middleware(['signed', 'throttle:5,1'])->block()->name('facilities.bookings.destroy');
+Route::post('/facilities/{facility}/bookings', [FacilityBookingController::class, 'store'])->middleware('throttle:5,60')->block()->name('facilities.bookings.store');
 
 Route::get('/', ParishPageController::class)->name('home');
 Route::get('/about', ParishPageController::class)->defaults('page', 'about')->name('about');

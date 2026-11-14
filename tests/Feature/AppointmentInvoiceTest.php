@@ -61,7 +61,7 @@ class AppointmentInvoiceTest extends TestCase
         $this->post(route('admin.invoices.store', $appointment), ['fee_cents' => 5000])->assertRedirect();
         $this->assertDatabaseHas('appointment_invoices', ['id' => $original->id, 'amount_cents' => 10000, 'client_name' => 'Original Client']);
         $this->assertDatabaseHas('appointment_invoices', ['appointment_id' => $appointment->id, 'amount_cents' => 5000, 'revision' => 2, 'client_name' => 'Updated Client']);
-        $this->get(route('admin.appointments.billing', $appointment))->assertSee('SUPERSEDED')->assertSee('50.00')->assertSee('Original Client');
+        $this->get(route('admin.appointments.billing', $appointment))->assertSee('REPLACED')->assertSee('50.00')->assertSee('Original Client');
     }
 
     public function test_stale_or_invalid_fee_cannot_issue_an_invoice_or_change_charges(): void
@@ -121,7 +121,7 @@ class AppointmentInvoiceTest extends TestCase
         Payment::factory()->for($appointment)->create(['method' => 'xendit_sandbox']);
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
 
-        $this->get(route('admin.appointments.billing', $appointment))->assertSee('No actual funds received for this entry.')->assertSee('Demonstration balance includes sandbox entries.');
+        $this->get(route('admin.appointments.billing', $appointment))->assertSee('Test transaction')->assertSee('Includes test transactions.');
     }
 
     public function test_waived_fee_invoice_shows_no_payment_due_without_creating_receipt(): void

@@ -96,6 +96,6 @@ class OfficeRecoveryTest extends TestCase
         $this->artisan('office:restore', ['path' => $path])->assertFailed();
 
         $this->assertSame('Existing original', Storage::disk('local')->get($document));
-        $this->assertDatabaseCount('service_types', 3);
+        $this->assertDatabaseCount('service_types', 5);
     }
 }

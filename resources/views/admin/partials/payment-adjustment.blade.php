@@ -16,7 +16,7 @@
         @if($adjustment->reviewed_at)
             <dt class="text-muted">Reviewed by</dt><dd>{{ $adjustment->reviewedBy->name }} · {{ $adjustment->reviewed_at->format('M j, Y g:i A') }}</dd>
             <dt class="text-muted">Review reason</dt><dd class="whitespace-pre-line break-words">{{ $adjustment->review_reason }}</dd>
-            @if($adjustment->payment_id)<dt class="text-muted">Ledger entry</dt><dd>#{{ $adjustment->payment_id }}</dd>@endif
+            @if($adjustment->payment_id)<dt class="text-muted">Payment record</dt><dd>#{{ $adjustment->payment_id }}</dd>@endif
         @endif
     </dl>
     @if($adjustment->status === 'pending')

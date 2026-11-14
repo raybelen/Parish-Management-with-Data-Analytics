@@ -26,9 +26,9 @@ class Schedule extends Model
     public static function publicGroupSessions(): Collection
     {
         return self::query()->where('source', OfficeSettings::source())
-            ->where('category', 'Group Baptism')->where('status', 'scheduled')->where('group_booking_open', true)->where('starts_at', '>', now())
+            ->whereIn('category', ['Group Baptism', 'Group Wedding', 'Group Confirmation'])->where('status', 'scheduled')->where('group_booking_open', true)->where('starts_at', '>', now())
             ->whereIn('location', OfficeSettings::activeVenues())->orderBy('starts_at')->limit(100)
-            ->get(['id', 'starts_at', 'ends_at', 'location', 'group_capacity', 'group_fee']);
+            ->get(['id', 'category', 'starts_at', 'ends_at', 'location', 'group_capacity', 'group_fee']);
     }
 
     public function personnel(): BelongsTo

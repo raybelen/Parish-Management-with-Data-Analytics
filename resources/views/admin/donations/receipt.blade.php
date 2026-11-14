@@ -13,7 +13,7 @@
             <div><p class="text-lg">{{ $parishName }}</p><h1 class="mt-2 text-3xl">{{ $donation->isMassCollection() ? 'Mass collection receipt' : 'Donation receipt' }}</h1></div>
             <button type="button" data-print-billing class="rounded-lg bg-navy px-5 py-3 text-sm font-semibold text-white print:hidden">Print / Save PDF</button>
         </div>
-        @if($donation->source === 'synthetic')<p class="mt-5 text-lg font-bold">DEMO — Simulated donation. No actual funds received.</p>@endif
+        @if($donation->source === 'synthetic')<p class="mt-5 text-lg font-bold">Test transaction</p>@endif
         @if($donation->status === 'voided')<p class="mt-5 border-2 border-red-800 p-4 text-2xl font-bold text-red-800">CANCELED — This receipt is no longer valid.</p>@endif
         <dl class="mt-6 grid gap-5 sm:grid-cols-2 print:grid-cols-2">
             <div class="min-w-0"><dt class="text-sm text-muted">Receipt number</dt><dd class="mt-1 break-all font-semibold">{{ $donation->receipt_number }}</dd></div>

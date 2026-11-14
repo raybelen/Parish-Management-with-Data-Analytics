@@ -16,7 +16,11 @@ Your reservation will expire if verification is not completed before the deadlin
 Your appointment schedule has been updated. Please use the new schedule and venue below.
 
 @if($details['status'] === 'pending')
+@if($details['requires_office_approval'] ?? false)
+Your revised request awaits office approval and manual priest assignment. It will appear on the calendars after approval.
+@else
 Your slot is reserved while the required physical documents await verification; it is not yet confirmed.
+@endif
 @else
 Your appointment remains confirmed.
 @endif
@@ -28,7 +32,11 @@ Your appointment has been cancelled and its reserved slot has been released. Con
 The parish office could not approve your appointment. Its reserved slot has been released. Please contact the office for clarification and help with the requirements before booking again.
 @break
 @case('expired')
+@if($details['requires_office_approval'] ?? false)
+Your requested service time passed before office approval. The slot has been released. Please contact the parish office to arrange another date.
+@else
 Your reservation expired because physical document verification was not completed before the document deadline or scheduled start, whichever came first. The slot has been released. Please contact the parish office before making a new booking.
+@endif
 @break
 @endswitch
 

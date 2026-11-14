@@ -19,11 +19,11 @@ class AdminPaymentController extends Controller
         if ($request->validated('kind') === 'refund') {
             $adjustments->handle($appointment, 'refund', $request->validated());
 
-            return back()->with('status', 'Refund request submitted. A different super administrator must approve it before the ledger changes.');
+            return back()->with('status', 'Refund request submitted. A different super administrator must approve it before payment records change.');
         }
         $record->handle($appointment, $request->validated());
 
-        return back()->with('status', 'Payment ledger entry saved.');
+        return back()->with('status', 'Payment recorded.');
     }
 
     public function update(Request $request, Appointment $appointment, RequestPaymentAdjustment $adjustments): RedirectResponse

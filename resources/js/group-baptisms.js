@@ -9,7 +9,10 @@ document.querySelectorAll('[data-group-baptism]').forEach((section) => {
     let wasShared = false;
 
     function update() {
-        const baptism = service.value === 'baptism';
+        const matching = [...session.options].filter(option => option.dataset.service === service.value);
+        const baptism = ['baptism', 'wedding', 'confirmation'].includes(service.value) && matching.length > 0;
+        [...session.options].forEach(option => { option.hidden = Boolean(option.value) && option.dataset.service !== service.value; option.disabled = option.hidden; });
+        if (session.selectedOptions[0]?.disabled) session.value = '';
         const shared = baptism && mode.value === 'shared';
         section.hidden = !baptism;
         mode.disabled = !baptism;

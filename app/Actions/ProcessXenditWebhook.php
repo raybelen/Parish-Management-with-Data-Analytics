@@ -81,7 +81,7 @@ class ProcessXenditWebhook
                     'amount_cents' => $transaction->amount_cents,
                     'method' => 'xendit_sandbox',
                     'reference' => $data['payment_id'],
-                    'notes' => 'Automatically confirmed by a verified Xendit Sandbox webhook.',
+                    'notes' => 'Online test payment confirmed automatically.',
                     'paid_at' => $eventAt,
                 ]);
             }

@@ -18,7 +18,7 @@
     </header>
     <main id="main-content" class="mx-auto grid w-full max-w-5xl flex-1 content-center gap-5 px-5 py-6 sm:px-8 sm:py-10" tabindex="-1">
         @if(\App\Support\OfficeSettings::demo())
-            <p role="status" class="admin-alert border-amber-300 bg-amber-50 text-sm text-amber-950">Demo workspace — simulated records do not describe actual parish activity.</p>
+            <p role="status" class="admin-alert border-amber-300 bg-amber-50 text-sm text-amber-950">Practice workspace — test records</p>
         @endif
         <div class="grid overflow-hidden rounded-2xl border border-navy/10 bg-white shadow-sm md:grid-cols-[0.9fr_1.1fr]">
             <section aria-label="Parish office" class="flex flex-col justify-between gap-8 bg-navy p-6 text-white sm:p-8 md:p-10">

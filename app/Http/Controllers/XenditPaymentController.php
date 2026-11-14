@@ -21,10 +21,10 @@ class XenditPaymentController extends Controller
             report($exception);
 
             return response()->view('client-side.appointments.payment-return', [
-                'pageTitle' => 'Online Payment Unavailable',
+                'pageTitle' => 'Online payment unavailable',
                 'appointment' => $appointment,
                 'transaction' => null,
-                'error' => 'Xendit Sandbox checkout could not be started. Your appointment is still reserved, and you may pay at the parish office.',
+                'error' => 'Online payment could not be started. Your appointment is still reserved, and you may pay at the parish office.',
             ], 503)->withHeaders($this->privateHeaders());
         }
 
@@ -41,11 +41,11 @@ class XenditPaymentController extends Controller
         if ($paymentTransaction->status === 'paid') {
             return redirect()->to(
                 $appointmentAccess->issue($request, $paymentTransaction->appointment),
-            )->with('appointment_message', 'Sandbox payment confirmed. Test payment status is now Paid; no real money was collected.');
+            )->with('appointment_message', 'Payment confirmed. Status: Paid · Test transaction.');
         }
 
         return response()->view('client-side.appointments.payment-return', [
-            'pageTitle' => 'Sandbox Payment Status',
+            'pageTitle' => 'Payment status',
             'appointment' => $paymentTransaction->appointment,
             'transaction' => $paymentTransaction,
             'error' => null,

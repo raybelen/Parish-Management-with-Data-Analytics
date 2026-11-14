@@ -18,7 +18,7 @@ class AppointmentUpdate extends Mailable implements ShouldQueue
     /** @var list<int> */
     public array $backoff = [60, 300, 900];
 
-    /** @var array{name: string, reference: string, service: string, schedule: ?string, church: string, status: string, deadline: ?string} */
+    /** @var array{name: string, reference: string, service: string, schedule: ?string, church: string, status: string, deadline: ?string, requires_office_approval: bool} */
     public array $details;
 
     public function __construct(Appointment $appointment, public string $event)
@@ -31,6 +31,7 @@ class AppointmentUpdate extends Mailable implements ShouldQueue
             'schedule' => $appointment->starts_at?->timezone($timezone)->format('F j, Y \a\t g:i A'),
             'church' => $appointment->confirmed_church ?? $appointment->preferred_church,
             'status' => $appointment->status,
+            'requires_office_approval' => $appointment->requiresOfficeApproval(),
             'deadline' => $appointment->documentVerificationDeadline()?->timezone($timezone)->format('F j, Y \a\t g:i A'),
         ];
         $this->afterCommit();

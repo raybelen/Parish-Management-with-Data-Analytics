@@ -79,7 +79,7 @@ class FinancialDocumentSecurityTest extends TestCase
         Payment::factory()->for($payment->appointment)->create(['kind' => 'refund', 'original_payment_id' => $payment->id, 'method' => 'xendit_sandbox', 'amount_cents' => 2500]);
 
         $this->post(route('documents.verify.store'), $this->details($payment))->assertOk()
-            ->assertSee('DEMO')->assertSee('with recorded refunds')->assertSee('25.00');
+            ->assertSee('Test transaction')->assertSee('with recorded refunds')->assertSee('25.00');
     }
 
     public function test_unsealed_refund_history_is_not_reported_as_verified(): void

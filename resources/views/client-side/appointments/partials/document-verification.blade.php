@@ -4,6 +4,6 @@
         <p class="mt-2">Verification code: <span class="break-all font-mono">{{ $document->integrity_seal }}</span></p>
         <p class="mt-2 text-muted">A copied code does not verify altered details. Keep this code private with your document.</p>
     @else
-        <p class="font-semibold">UNVERIFIED LEGACY COPY — No integrity seal was recorded at issuance. Ask the parish office to check the original records.</p>
+        <p class="font-semibold">OFFICE VERIFICATION REQUIRED — This older copy has no verification code. Ask the parish office to check the original records.</p>
     @endif
 </div>

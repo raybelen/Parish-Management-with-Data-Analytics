@@ -18,7 +18,7 @@ class IssueAppointmentInvoice
             $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
             abort_unless($locked->fee_cents === $expectedFeeCents, 409, 'The fee has changed. Refresh the appointment before issuing the invoice.');
             $previous = $locked->invoices()->latest('revision')->first();
-            abort_if($previous?->integrity_seal !== null && ! FinancialDocumentSeal::valid($previous), 409, 'Invoice integrity check failed. Contact the parish administrator.');
+            abort_if($previous?->integrity_seal !== null && ! FinancialDocumentSeal::valid($previous), 409, 'This invoice could not be verified. Contact the parish administrator.');
             if ($previous && $previous->integrity_seal !== null && $previous->amount_cents === $locked->fee_cents) {
                 return $previous;
             }

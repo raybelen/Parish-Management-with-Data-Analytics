@@ -111,7 +111,7 @@ class AdminDocumentController extends Controller
             if (! $isVerified) {
                 $locked->status = 'declined';
                 $locked->outcome = 'A submitted physical document was declined by the parish office.';
-            } elseif ($locked->status === 'pending' && $locked->physicalDocumentsComplete()) {
+            } elseif ($locked->status === 'pending' && ! $locked->requiresOfficeApproval() && $locked->physicalDocumentsComplete()) {
                 $locked->status = 'confirmed';
                 $locked->outcome = null;
             }

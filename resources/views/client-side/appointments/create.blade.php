@@ -2,7 +2,8 @@
 
 @section('content')
     @php
-        $selectedService = old('service_type', '');
+        $requestedService = request()->query('service', '');
+        $selectedService = old('service_type', is_string($requestedService) && isset($services[$requestedService]) && ($services[$requestedService]['active'] ?? false) ? $requestedService : '');
 
         $inputClass = 'min-h-12 w-full rounded-lg border border-navy/20 bg-white px-4 py-3 text-sm text-navy outline-none transition-colors placeholder:text-muted/55 focus:border-gold focus:ring-1 focus:ring-gold disabled:bg-navy/5 disabled:text-muted';
         $selectClass = $inputClass.' parish-select appearance-none pr-10 forced-colors:appearance-auto';
@@ -107,7 +108,7 @@
                                 <option value="">Select Baptism, Wedding, or Funeral</option>
                                 @foreach ($services as $serviceKey => $service)
                                     @if($service['active'] ?? true)
-                                    <option value="{{ $serviceKey }}" data-fee-cents="{{ $service['fee_cents'] ?? 0 }}" @selected($selectedService === $serviceKey)>{{ $service['label'] }} — ₱{{ number_format(($service['fee_cents'] ?? 0) / 100, 2) }}</option>
+                                    <option value="{{ $serviceKey }}" data-fee-cents="{{ $service['fee_cents'] ?? 0 }}" @selected($selectedService === $serviceKey)>{{ $service['label'] }}</option>
                                     @endif
                                 @endforeach
                             </select>
@@ -122,7 +123,8 @@
                             </x-parish.form-field>
 
                             <x-parish.form-field id="preferred_church" name="preferred_church" label="Preferred church / chapel" :required="true" class="self-start">
-                                <select id="preferred_church" name="preferred_church" required class="{{ $selectClass }}">
+                                <select id="preferred_church" name="preferred_church" data-service-venue @disabled($selectedService === 'others') @required($selectedService !== 'others') class="{{ $selectClass }}">
+                                    <option value="{{ \App\Models\Appointment::OTHER_SERVICE_LOCATION }}" data-other-service-venue @selected($selectedService === 'others') @if($selectedService !== 'others') hidden disabled @endif>Use the service address below</option>
                                     <option value="">{{ $churches === [] ? 'No venues currently available' : 'Select a location' }}</option>
                                     @foreach ($churches as $church)
                                         <option value="{{ $church }}" @selected(old('preferred_church') === $church)>{{ $church }}</option>
@@ -169,7 +171,7 @@
                     </div>
                 </section>
 
-                @foreach (['baptism' => 'Baptism details', 'wedding' => 'Marriage details', 'funeral' => 'Death and funeral details'] as $serviceKey => $heading)
+                @foreach (['baptism' => 'Baptism details', 'wedding' => 'Marriage details', 'funeral' => 'Death and funeral details', 'confirmation' => 'Confirmation details'] as $serviceKey => $heading)
                     @php($active = $selectedService === $serviceKey)
                     <section data-service-fields="{{ $serviceKey }}" @if (! $active) hidden @endif aria-labelledby="{{ $serviceKey }}-heading" class="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-9">
                         <p class="section-label text-muted">03 · Service Details</p>
@@ -183,10 +185,15 @@
                 @endforeach
 
                 @foreach($services as $serviceKey => $service)
-                    @if(!in_array($serviceKey, ['baptism', 'wedding', 'funeral']) && ($service['active'] ?? true))
+                    @if(!in_array($serviceKey, ['baptism', 'wedding', 'funeral', 'confirmation']) && ($service['active'] ?? true))
                         <section data-service-fields="{{ $serviceKey }}" @if($selectedService !== $serviceKey) hidden @endif class="rounded-2xl border border-navy/10 bg-white p-6 shadow-sm sm:p-9">
                             <h2 class="mb-5 text-2xl">{{ $service['label'] }} details</h2>
-                            <label class="grid gap-2 text-sm"><span>Recipient full name <span class="text-red-700" aria-hidden="true">*</span></span><input name="service[recipient_full_name]" value="{{ old('service.recipient_full_name') }}" data-required="true" @required($selectedService === $serviceKey) @disabled($selectedService !== $serviceKey) class="{{ $inputClass }}"></label>
+                            @if(config('appointments.details.'.$serviceKey))
+                                <p class="text-sm leading-7 text-muted">The parish office will review your request and assign a priest before approval. Enter the actual service location below.</p>
+                                <x-appointment-service-fields :service-type="$serviceKey" :active="$selectedService === $serviceKey" :input-class="$inputClass" :select-class="$selectClass" />
+                            @else
+                                <label class="grid gap-2 text-sm"><span>Recipient full name <span class="text-red-700" aria-hidden="true">*</span></span><input name="service[recipient_full_name]" value="{{ old('service.recipient_full_name') }}" data-required="true" @required($selectedService === $serviceKey) @disabled($selectedService !== $serviceKey) class="{{ $inputClass }}"></label>
+                            @endif
                             @include('client-side.appointments.partials.documents', ['documents' => $service['documents'], 'serviceType' => $serviceKey, 'active' => $selectedService === $serviceKey])
                         </section>
                     @endif
@@ -196,17 +203,23 @@
                     <p class="section-label text-muted">04 · Payment Option</p>
                     <h2 id="payment-option-heading" class="mt-4 scroll-mt-32 text-3xl">How would you like to pay?</h2>
                     <p class="mt-3 max-w-3xl text-sm leading-7 text-muted">The service fee is payable separately. Payment is not required to confirm your appointment and does not affect document verification or your reserved schedule.</p>
-                    <p class="mt-5 rounded-lg bg-ivory p-4 text-sm" aria-live="polite">Service fee: <strong data-service-fee>{{ isset($services[$selectedService]) ? '₱'.number_format(($services[$selectedService]['fee_cents'] ?? 0) / 100, 2) : 'Select a service to see the fee.' }}</strong></p>
+                    <div class="mt-5" data-offering-fields @if($selectedService !== 'others') hidden @endif>
+                        <label for="offering_amount" class="block text-sm font-semibold">Voluntary offering (₱)</label>
+                        <p id="offering-help" class="mt-2 text-sm text-muted">Give any amount you can. Enter 0 if you cannot give an offering. No payment is needed for ₱0. Online payments require a whole-peso amount.</p>
+                        <input id="offering_amount" name="offering_amount" type="number" min="0" max="999999.99" step="0.01" value="{{ old('offering_amount', '0') }}" aria-describedby="offering-help" class="{{ $inputClass }}" @disabled($selectedService !== 'others') @required($selectedService === 'others')>
+                        @error('offering_amount')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
+                    </div>
+                    <p class="mt-5 rounded-lg bg-ivory p-4 text-sm" aria-live="polite"><span data-service-fee-label>{{ $selectedService === 'others' ? 'Voluntary offering' : 'Service fee' }}</span>: <strong data-service-fee>{{ $selectedService === 'others' ? '₱'.number_format((float) old('offering_amount', 0), 2) : (isset($services[$selectedService]) ? '₱'.number_format(($services[$selectedService]['fee_cents'] ?? 0) / 100, 2) : 'Select a service to see the fee.') }}</strong></p>
 
                     <fieldset class="mt-7 grid gap-4 sm:grid-cols-2">
                         <legend class="sr-only">Payment option</legend>
                         <label class="flex min-h-36 cursor-pointer gap-4 rounded-xl border border-navy/15 bg-ivory p-5 transition-colors has-checked:border-gold has-checked:bg-gold/10">
-                            <input type="radio" name="payment_option" value="online" required data-payment-label="Online via Xendit Sandbox" @checked(old('payment_option') === 'online') @disabled(! $xenditSandboxAvailable) class="mt-1 size-5 shrink-0 accent-[#9b7b34]">
+                            <input type="radio" name="payment_option" value="online" required data-payment-label="Online payment" @checked(old('payment_option') === 'online') @disabled(! $xenditSandboxAvailable) class="mt-1 size-5 shrink-0 accent-[#9b7b34]">
                             <span>
-                                <span class="block font-semibold text-navy">Online via Xendit Sandbox</span>
-                                <span class="mt-2 block text-sm leading-6 text-muted">Test checkout only. Xendit shows GCash, Maya, cards, and any other methods enabled for the sandbox account.</span>
+                                <span class="block font-semibold text-navy">Online payment</span>
+                                <span class="mt-2 block text-sm leading-6 text-muted">Choose from the available payment methods at checkout. Test transaction.</span>
                                 @unless($xenditSandboxAvailable)
-                                    <span class="mt-2 block text-xs font-medium text-amber-800">Temporarily unavailable until sandbox credentials are configured.</span>
+                                    <span class="mt-2 block text-xs font-medium text-amber-800">Online payment is temporarily unavailable. Please pay at the parish office.</span>
                                 @endunless
                             </span>
                         </label>
@@ -215,7 +228,7 @@
                             <input type="radio" name="payment_option" value="walk_in" required data-payment-label="Walk-in at the parish office" @checked(old('payment_option', 'walk_in') === 'walk_in') class="mt-1 size-5 shrink-0 accent-[#9b7b34]">
                             <span>
                                 <span class="block font-semibold text-navy">Walk-in at the parish office</span>
-                                <span class="mt-2 block text-sm leading-6 text-muted">Pay in person at the parish office. Staff will record the receipt in your appointment ledger.</span>
+                                <span class="mt-2 block text-sm leading-6 text-muted">Pay in person at the parish office. Staff will record your payment and provide a receipt.</span>
                             </span>
                         </label>
                     </fieldset>
@@ -223,7 +236,7 @@
                     @error('payment_option')
                         <p class="mt-4 text-sm text-red-700">{{ $message }}</p>
                     @enderror
-                    <p class="mt-5 border-l-4 border-sky-700 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950"><strong>Sandbox notice:</strong> Online checkout uses test credentials only. No live charge can be created by this application.</p>
+                    <p class="mt-5 border-l-4 border-sky-700 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950"><strong>Payment processing:</strong> Your balance updates after payment confirmation.</p>
                 </section>
 
                 <div class="flex flex-col-reverse gap-4 border border-navy/15 bg-navy p-6 text-ivory sm:flex-row sm:items-center sm:justify-between sm:p-8">
@@ -260,7 +273,7 @@
                     <dd data-review-schedule></dd>
                 </div>
                 <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
-                    <dt class="font-medium text-navy">Church / chapel</dt>
+                    <dt class="font-medium text-navy">Service location</dt>
                     <dd data-review-church></dd>
                 </div>
                 <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
@@ -268,7 +281,7 @@
                     <dd data-review-payment></dd>
                 </div>
                 <div class="grid gap-1 py-4 sm:grid-cols-[9rem_1fr] sm:gap-5">
-                    <dt class="font-medium text-navy">Service fee</dt>
+                    <dt class="font-medium text-navy" data-service-fee-label>Service fee</dt>
                     <dd data-review-fee></dd>
                 </div>
             </dl>

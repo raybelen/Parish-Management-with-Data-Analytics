@@ -41,7 +41,7 @@
     @if($totals)
         <details class="admin-card">
             <summary class="cursor-pointer text-lg font-semibold">Financial summary <span class="ml-2 text-sm font-normal text-muted">Collections, refunds & balances</span></summary>
-        <p class="mt-4 text-sm text-muted">Demonstration totals include verified sandbox payments. <a class="underline" href="{{ route('admin.revenue.index') }}">Parish Revenue</a> shows sandbox labels and transaction details.</p>
+        <p class="mt-4 text-sm text-muted">Totals include confirmed test payments. <a class="underline" href="{{ route('admin.revenue.index') }}">Parish Revenue</a> shows payment types and details.</p>
         <div class="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
             @foreach(['cash_collected' => 'Collected this month', 'refunds' => 'Refunded this month', 'completed_revenue' => 'Completed-service collections', 'outstanding' => 'Outstanding · all dates'] as $key => $label)
                 <div class="min-w-0"><p class="text-sm text-muted">{{ $label }}</p><p class="mt-2 break-words text-2xl font-semibold tabular-nums">₱{{ number_format($totals[$key], 2) }}</p></div>

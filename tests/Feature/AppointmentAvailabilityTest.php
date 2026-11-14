@@ -87,11 +87,11 @@ class AppointmentAvailabilityTest extends TestCase
         $this->postJson($url, $this->payload())->assertJsonPath('available', true);
     }
 
-    public function test_all_services_require_thirty_minutes_before_mass_at_the_selected_venue(): void
+    public function test_church_services_require_thirty_minutes_before_mass_at_the_selected_venue(): void
     {
         $this->travelTo('2026-10-01');
 
-        foreach (ServiceType::query()->pluck('slug') as $service) {
+        foreach (ServiceType::query()->where('slug', '!=', 'others')->pluck('slug') as $service) {
             foreach ([['2026-11-08', '08:00', 'San Fernando Chapel'], ['2026-11-07', '15:00', 'Nuestra Señora de los Desamparados']] as [$date, $time, $venue]) {
                 $this->postJson(route('appointments.availability'), [...$this->payload(), 'service_type' => $service, 'preferred_date' => $date, 'preferred_time' => $time, 'preferred_church' => $venue])
                     ->assertJsonPath('available', false)
@@ -113,6 +113,7 @@ class AppointmentAvailabilityTest extends TestCase
         config(['parish.regular_schedules' => []]);
 
         foreach (ServiceType::query()->pluck('slug') as $service) {
+            $this->travel(1)->minutes();
             foreach (config('parish.churches') as $venue) {
                 foreach (['15:30' => true, '15:31' => false, '16:00' => false] as $time => $available) {
                     $this->postJson(route('appointments.availability'), [...$this->payload(), 'service_type' => $service, 'preferred_church' => $venue, 'preferred_time' => $time])

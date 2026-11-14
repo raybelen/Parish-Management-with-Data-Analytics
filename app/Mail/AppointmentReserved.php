@@ -31,7 +31,7 @@ class AppointmentReserved extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Appointment reserved: '.$this->appointment->reference_number,
+            subject: ($this->appointment->requiresOfficeApproval() ? 'Service request awaiting approval: ' : 'Appointment reserved: ').$this->appointment->reference_number,
         );
     }
 

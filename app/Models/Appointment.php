@@ -99,6 +99,10 @@ class Appointment extends Model
 
     public function documentVerificationDeadline(): ?CarbonImmutable
     {
+        if ($this->requiresOfficeApproval()) {
+            return null;
+        }
+
         if ($this->documents_due_at === null) {
             return $this->starts_at;
         }
@@ -147,6 +151,13 @@ class Appointment extends Model
     public function documentRequirements(): array
     {
         return $this->requirements ?? config('appointments.services.'.$this->service_type.'.documents', []);
+    }
+
+    public const OTHER_SERVICE_LOCATION = 'Service address provided';
+
+    public function requiresOfficeApproval(): bool
+    {
+        return $this->service_type === 'others';
     }
 
     public function physicalDocumentsComplete(): bool

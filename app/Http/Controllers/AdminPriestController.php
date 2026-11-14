@@ -45,7 +45,7 @@ class AdminPriestController extends Controller
             'personnel' => Personnel::query()->where('active', true)->orderBy('name')->get(),
             'rotationPriests' => $rotation->priests()->keyBy('rotation_position'),
             'anchorDate' => OfficeSettings::all()['priest_rotation_anchor_date'] ?? null,
-            'nextAppointment' => Appointment::query()->whereIn('status', ['pending', 'confirmed'])->where('starts_at', '>=', now())
+            'nextAppointment' => Appointment::query()->where('service_type', '!=', 'others')->whereIn('status', ['pending', 'confirmed'])->where('starts_at', '>=', now())
                 ->with('personnel')->orderBy('starts_at')->orderBy('id')->first(),
             'unavailabilities' => PriestUnavailability::query()->with('personnel')->whereDate('unavailable_on', '>=', $from)
                 ->orderBy('unavailable_on')->orderBy('personnel_id')->get(),

@@ -62,10 +62,10 @@ class RecordPayment
     {
         $original = Payment::query()->where('appointment_id', $appointment->id)->where('kind', 'payment')->find($data['original_payment_id']);
         if ($original?->method === 'xendit_sandbox' && $data['method'] !== 'xendit_sandbox') {
-            throw ValidationException::withMessages(['original_payment_id' => 'Choose Xendit Sandbox to record a demonstration refund for this test payment.']);
+            throw ValidationException::withMessages(['original_payment_id' => 'Choose Online Payment to record a refund for this test payment.']);
         }
         if ($original !== null && $original->method !== 'xendit_sandbox' && $data['method'] === 'xendit_sandbox') {
-            throw ValidationException::withMessages(['method' => 'Sandbox refunds must reference a sandbox payment.']);
+            throw ValidationException::withMessages(['method' => 'Test refunds must be linked to a test payment.']);
         }
         $refunded = Payment::query()->where('original_payment_id', $original?->id)->where('kind', 'refund')->sum('amount_cents');
         if (! $original || self::cents($data['amount']) > $original->amount_cents - $refunded || $data['paid_at'] < $original->paid_at->format('Y-m-d\TH:i')) {

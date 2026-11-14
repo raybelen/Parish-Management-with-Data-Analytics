@@ -27,7 +27,7 @@ class GroupBaptismBookingTest extends TestCase
         $this->groupSession(['source' => 'demo']);
 
         $this->get(route('appointments.create'))
-            ->assertSee('Baptism arrangement')
+            ->assertSee('Appointment arrangement')
             ->assertSee('name="service[child_full_name]"', false)
             ->assertSee('name="service[parents_current_residence]"', false)
             ->assertViewHas('groupSessions', fn ($sessions): bool => $sessions->modelKeys() === [$open->id]);
@@ -145,7 +145,7 @@ class GroupBaptismBookingTest extends TestCase
         unset($payload['service']['child_full_name']);
 
         $this->postJson(route('appointments.store'), $payload)->assertInvalid('service.child_full_name');
-        $this->postJson(route('appointments.store'), [...$this->payload($session), 'service_type' => 'wedding'])->assertInvalid('baptism_mode');
+        $this->postJson(route('appointments.store'), [...$this->payload($session), 'service_type' => 'funeral'])->assertInvalid('baptism_mode');
         $this->postJson(route('appointments.store'), [...$this->payload($session), 'group_baptism_session_id' => null])->assertInvalid('group_baptism_session_id');
         $this->assertDatabaseEmpty('appointments');
     }
@@ -215,6 +215,47 @@ class GroupBaptismBookingTest extends TestCase
 
                 return $events->where('name', 'Group Baptism')->count() === 1;
             });
+    }
+
+    public function test_group_weddings_share_the_session_and_reject_closed_or_mismatched_sessions(): void
+    {
+        $this->travelTo('2026-10-01');
+        config(['parish.regular_schedules' => []]);
+        $priest = Personnel::factory()->create();
+        $this->admin();
+        $this->postJson(route('admin.schedules.store'), [...$this->schedulePayload(), 'category' => 'Group Wedding', 'group_booking_open' => true, 'recurrence' => 'none'])->assertCreated();
+        $session = Schedule::query()->where('category', 'Group Wedding')->firstOrFail();
+        $this->assertTrue($session->priest_required);
+        $this->get(route('appointments.create'))
+            ->assertViewHas('groupSessions', fn ($sessions): bool => $sessions->contains('id', $session->id))
+            ->assertSee('value="'.$session->id.'" data-service="wedding"', false);
+        $payload = [...$this->payload($session), 'service_type' => 'wedding', 'service' => ['groom_full_name' => 'Juan Reyes',
+            'groom_status' => 'single',
+            'groom_age' => 28,
+            'groom_origin' => 'Cebu City',
+            'groom_address' => '123 Parish Road, Cebu City',
+            'groom_father_name' => 'Pedro Reyes',
+            'groom_mother_maiden_name' => 'Luz Cruz',
+            'bride_full_name' => 'Maria Santos',
+            'bride_status' => 'single',
+            'bride_age' => 26,
+            'bride_origin' => 'Cebu City',
+            'bride_address' => '456 Parish Road, Cebu City',
+            'bride_father_name' => 'Jose Santos',
+            'bride_mother_maiden_name' => 'Ana Cruz',
+            'godfather_name' => 'Carlo Cruz',
+            'godmother_name' => 'Rosa Cruz',
+            'godfather_address' => '789 Parish Road, Cebu City',
+            'godmother_address' => '789 Parish Road, Cebu City',
+        ]];
+        foreach (range(1, 3) as $couple) {
+            $this->post(route('appointments.store'), $payload)->assertRedirect()->assertSessionHasNoErrors();
+        }
+        $this->assertSame(3, Appointment::query()->where('group_baptism_session_id', $session->id)->where('personnel_id', $session->personnel_id)->count());
+        $this->postJson(route('appointments.availability'), $payload)->assertJsonPath('available', true);
+        $this->postJson(route('appointments.store'), $this->payload($session))->assertInvalid('group_baptism_session_id');
+        $session->update(['group_booking_open' => false]);
+        $this->postJson(route('appointments.store'), $payload)->assertInvalid('group_baptism_session_id');
     }
 
     private function groupSession(array $attributes = []): Schedule

@@ -10,7 +10,7 @@
     @if($result)
         <section aria-label="Verification result" class="mt-6 rounded-lg border border-navy/20 bg-white p-6">
             <h2 class="text-2xl">Record verified</h2>
-            @if($result['demo'])<p class="mt-3 font-bold">DEMO — No actual funds received for this test document.</p>@endif
+            @if($result['demo'])<p class="mt-3 font-bold">Test transaction</p>@endif
             <dl class="mt-4 grid gap-3">
                 <div><dt class="text-sm text-muted">Parish / service</dt><dd>{{ $result['parish'] }} · {{ $result['service'] }}</dd></div>
                 @if($result['method'])<div><dt class="text-sm text-muted">Payment method</dt><dd>{{ $result['method'] }}</dd></div>@endif

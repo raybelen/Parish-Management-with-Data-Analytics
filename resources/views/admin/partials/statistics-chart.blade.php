@@ -6,7 +6,7 @@
 @if($hasValues)
     <figure class="mt-6">
         <div class="overflow-x-auto pb-2" tabindex="0" aria-label="{{ $chartLabel }}; scroll horizontally on small screens">
-            <div class="grid min-w-[32rem] items-end gap-2" style="grid-template-columns: repeat({{ count($points) }}, minmax(0, 1fr))" role="list" aria-label="{{ $chartLabel }}">
+            <div class="grid min-w-[32rem] auto-cols-fr grid-flow-col items-end gap-2" role="list" aria-label="{{ $chartLabel }}">
                 @foreach($points as $point)
                     <div class="grid gap-2 text-center" role="listitem" aria-label="{{ $point['label'] }}: {{ $point['value'] === null ? 'Not available' : number_format($point['value']).($point['partial'] ? ', partial total' : '') }}{{ $comparisonYear !== null ? '; '.$comparisonYear.': '.(($point['previous'] ?? null) === null ? 'Not available' : number_format($point['previous'])) : '' }}">
                         <span class="text-xs font-semibold tabular-nums">{{ $point['value'] === null ? '—' : number_format($point['value']).($point['partial'] ? '*' : '') }}</span>
@@ -14,10 +14,15 @@
                             @if($point['value'] === null)
                                 <div class="h-full w-full max-w-12 rounded-t-md border border-dashed border-navy/15 bg-slate-50"></div>
                             @else
-                                <div @class(['w-full max-w-12 rounded-t-md', 'bg-navy/85' => !$point['partial'], 'bg-gold/70' => $point['partial']]) style="height: {{ $point['value'] === 0 ? '2px' : round($point['value'] / $maximum * 100, 2).'%' }}"></div>
+                                <svg class="h-full w-full max-w-12" viewBox="0 0 48 144" preserveAspectRatio="none" focusable="false">
+                                    <rect @class(['fill-navy/85' => !$point['partial'], 'fill-gold/70' => $point['partial']]) x="0" y="{{ 144 - ($point['value'] === 0 ? 2 : round($point['value'] / $maximum * 144, 2)) }}" width="48" height="{{ $point['value'] === 0 ? 2 : round($point['value'] / $maximum * 144, 2) }}" rx="3" />
+                                </svg>
                             @endif
                             @if($comparisonYear !== null && ($point['previous'] ?? null) !== null)
-                                <div class="w-full max-w-12 rounded-t-md bg-gold/60" title="{{ $comparisonYear }}: {{ number_format($point['previous']) }}" style="height: {{ $point['previous'] === 0 ? '2px' : round($point['previous'] / $maximum * 100, 2).'%' }}"></div>
+                                <svg class="h-full w-full max-w-12 fill-gold/60" viewBox="0 0 48 144" preserveAspectRatio="none" focusable="false">
+                                    <title>{{ $comparisonYear }}: {{ number_format($point['previous']) }}</title>
+                                    <rect x="0" y="{{ 144 - ($point['previous'] === 0 ? 2 : round($point['previous'] / $maximum * 144, 2)) }}" width="48" height="{{ $point['previous'] === 0 ? 2 : round($point['previous'] / $maximum * 144, 2) }}" rx="3" />
+                                </svg>
                             @endif
                         </div>
                         <span class="text-xs text-muted">{{ $point['label'] }}</span>

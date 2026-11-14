@@ -46,7 +46,7 @@ class AppointmentScheduleController extends Controller
             'appointment_message',
             $appointment->refresh()->status === 'confirmed'
                 ? 'Your new date, time, and venue are confirmed and shown on the parish calendar.'
-                : 'Your new date, time, and venue are reserved. Please submit the required physical documents within three days.',
+                : ($appointment->requiresOfficeApproval() ? 'Your revised request awaits office approval and manual priest assignment.' : 'Your new date, time, and venue are reserved. Please submit the required physical documents within three days.'),
         );
     }
 }

@@ -19,14 +19,16 @@
                 <label class="grid gap-2 text-sm" for="schedule-category">
                     <span class="font-medium">Category <span class="text-red-700">*</span></span>
                     <select id="schedule-category" class="admin-input" name="category" required aria-describedby="schedule-category-help" autofocus>
-                        <option value="">Choose an activity</option>
-                        <option value="Group Baptism">Group Baptism — family registration</option>
-                        @foreach(collect(['Meeting', 'Liturgy', 'Formation', 'Community', 'Other'])->merge($categories)->reject(fn ($category) => in_array($category, ['Group Baptism', '__custom__'], true))->unique() as $category)
+                        <option value="">Select category</option>
+                        <option value="Group Wedding">Group Wedding</option>
+                        <option value="Group Confirmation">Group Confirmation</option>
+                        <option value="Group Baptism">Group Baptism</option>
+                        @foreach(collect(['Meeting', 'Liturgy', 'Formation', 'Community', 'Other'])->merge($categories)->reject(fn ($category) => in_array($category, ['Group Baptism', 'Group Wedding', 'Group Confirmation', '__custom__'], true))->unique() as $category)
                             <option value="{{ $category }}">{{ $category }}</option>
                         @endforeach
                         <option value="__custom__">Add a custom category…</option>
                     </select>
-                    <span id="schedule-category-help" class="text-xs text-muted">Choose Group Baptism to manage family registration.</span>
+                    <span id="schedule-category-help" class="text-xs text-muted">Choose Group Baptism, Group Wedding, or Group Confirmation to open session bookings.</span>
                 </label>
                 <label data-custom-category-field class="grid gap-2 text-sm" hidden>
                     <span class="font-medium">Custom category <span class="text-red-700">*</span></span>
@@ -68,15 +70,15 @@
             </section>
 
             <fieldset data-group-session-settings class="grid gap-4 rounded-xl border border-gold/40 bg-ivory p-4 sm:p-5" hidden disabled>
-                <legend class="px-2 font-sans text-sm font-semibold">Group baptism registration</legend>
-                <p class="text-sm leading-6 text-muted">Use the date above for the baptism itself. Sundays and special occasion dates are supported, with no family limit.</p>
+                <legend class="px-2 font-sans text-sm font-semibold">Group session registration</legend>
+                <p class="text-sm leading-6 text-muted">Use the date above for the ceremony itself. Choose an available ceremony date, with no participant limit.</p>
                 <input type="hidden" name="group_booking_open" value="0">
                 <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-navy/15 bg-white p-4 text-sm">
                     <input type="checkbox" name="group_booking_open" value="1" class="mt-1 size-5 shrink-0 accent-navy" aria-describedby="schedule-registration-help">
-                    <span><span class="block font-semibold">Open for bookings</span><span id="schedule-registration-help" class="mt-1 block text-xs leading-5 text-muted" data-registration-help>Leave off to keep registration closed. Turn on to let families book as soon as you save.</span></span>
+                    <span><span class="block font-semibold">Open for bookings</span><span id="schedule-registration-help" class="mt-1 block text-xs leading-5 text-muted" data-registration-help>Leave off to keep registration closed. Turn on to let parishioners book as soon as you save.</span></span>
                 </label>
-                <p class="text-xs leading-5 text-muted">Closing registration keeps existing bookings. Families use the same baptism form and document requirements.</p>
-                <label class="grid gap-2 text-sm"><span class="font-medium">Fee per family <span class="font-normal text-muted">(optional)</span></span><input class="admin-input" type="number" name="group_fee" min="0" step="0.01" max="99999999.99" placeholder="Use the standard baptism fee"><span class="text-xs text-muted">Amount in PHP. Leave blank for the standard fee; enter 0 for no fee.</span></label>
+                <p class="text-xs leading-5 text-muted">Closing registration keeps existing bookings. Families use the same appointment form and document requirements.</p>
+                <label class="grid gap-2 text-sm"><span class="font-medium">Fee per family or couple <span class="font-normal text-muted">(optional)</span></span><input class="admin-input" type="number" name="group_fee" min="0" step="0.01" max="99999999.99" placeholder="Use the standard service fee"><span class="text-xs text-muted">Amount in PHP. Leave blank for the standard fee; enter 0 for no fee.</span></label>
             </fieldset>
 
             <fieldset data-recurrence-fields class="min-w-0">
@@ -97,7 +99,7 @@
                     <label class="grid gap-2 text-sm">Department<input class="admin-input" name="department" maxlength="255" placeholder="e.g. Parish office"></label>
                     <label class="grid gap-2 text-sm sm:col-span-2">Description<textarea class="admin-input" name="description" rows="2" maxlength="10000" placeholder="What is this activity about?"></textarea></label>
                     <label class="grid gap-2 text-sm sm:col-span-2">Internal notes<textarea class="admin-input" name="notes" rows="2" maxlength="10000" placeholder="Notes for the parish office"></textarea></label>
-                    <label class="grid gap-2 text-sm sm:col-span-2">Status<select class="admin-input" name="status"><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select><span class="text-xs text-muted">Keep Scheduled for an upcoming activity. Registration is available only for scheduled group baptisms.</span></label>
+                    <label class="grid gap-2 text-sm sm:col-span-2">Status<select class="admin-input" name="status"><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select><span class="text-xs text-muted">Keep Scheduled for an upcoming activity. Registration is available only for scheduled group sessions.</span></label>
                 </div>
             </details>
         </div>

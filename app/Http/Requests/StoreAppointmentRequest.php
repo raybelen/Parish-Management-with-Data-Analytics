@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Appointment;
 use App\Support\OfficeSettings;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -50,10 +51,13 @@ class StoreAppointmentRequest extends FormRequest
             'service_type' => ['required', Rule::in($allowedServices)],
             'preferred_date' => ['required', 'date_format:Y-m-d', ...($this->routeIs('admin.appointments.details') ? [] : ['after_or_equal:today'])],
             'preferred_time' => ['required', 'date_format:H:i'],
-            'preferred_church' => ['required', Rule::in($this->allowedVenues())],
-            'baptism_mode' => ['nullable', Rule::in($serviceType === 'baptism' && ! $this->routeIs('admin.appointments.details') ? ['private', 'shared'] : ['private'])],
+            'preferred_church' => ['required', Rule::in($serviceType === 'others' ? [Appointment::OTHER_SERVICE_LOCATION] : $this->allowedVenues())],
+            'baptism_mode' => ['nullable', Rule::in(in_array($serviceType, ['baptism', 'wedding', 'confirmation'], true) && ! $this->routeIs('admin.appointments.details') ? ['private', 'shared'] : ['private'])],
             'group_baptism_session_id' => ['nullable', 'required_if:baptism_mode,shared', 'prohibited_unless:baptism_mode,shared', 'integer', Rule::exists('schedules', 'id')],
             'additional_notes' => ['nullable', 'string', 'max:2000'],
+            'offering_amount' => $serviceType === 'others' && ! $this->routeIs('admin.appointments.details')
+                ? ['required', 'numeric', 'min:0', 'max:999999.99', $this->input('payment_option') === 'online' ? 'regex:/^\d+(\.0{1,2})?$/' : 'regex:/^\d+(\.\d{1,2})?$/']
+                : ['prohibited'],
             'payment_option' => $this->routeIs('admin.*')
                 ? ['prohibited']
                 : ['required', Rule::in(['online', 'walk_in'])],
@@ -134,6 +138,9 @@ class StoreAppointmentRequest extends FormRequest
             'preferred_church.in' => 'The selected church or chapel is currently unavailable.',
             'payment_option.required' => 'Please choose online payment or walk-in payment.',
             'payment_option.in' => 'Please choose a valid payment option.',
+            'offering_amount.regex' => $this->input('payment_option') === 'online'
+                ? 'Please enter a whole-peso offering for online payment.'
+                : 'Please enter an offering with up to two decimal places.',
             'documents.prohibited' => 'Document uploads are not accepted with appointment requests. Please bring the listed requirements to the church office.',
         ];
     }
@@ -148,6 +155,7 @@ class StoreAppointmentRequest extends FormRequest
             'client_contact_number' => 'contact number',
             'client_email' => 'email address',
             'client_address' => 'address',
+            'offering_amount' => 'voluntary offering',
             'preferred_church' => 'preferred church or chapel',
             'service.child_date_of_birth' => "child's date of birth",
             'service.child_place_of_birth' => "child's place of birth",
@@ -188,6 +196,10 @@ class StoreAppointmentRequest extends FormRequest
                     $service[$field] = $this->normalizeText($service[$field]);
                 }
             }
+        }
+
+        if ($this->input('service_type') === 'others') {
+            $this->merge(['preferred_church' => Appointment::OTHER_SERVICE_LOCATION]);
         }
 
         $this->merge([

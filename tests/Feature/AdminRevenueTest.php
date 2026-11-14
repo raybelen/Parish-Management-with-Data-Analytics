@@ -103,7 +103,7 @@ class AdminRevenueTest extends TestCase
         Payment::factory()->for(Appointment::factory()->create(['source' => 'operational']))->create(['amount_cents' => 70000]);
         Payment::factory()->for(Appointment::factory()->create(['source' => 'synthetic']))->create(['amount_cents' => 20000]);
 
-        $this->get('/admin/revenue')->assertViewHas('totals', ['received' => 20000, 'refunded' => 0, 'net' => 20000])->assertSee('Demo workspace');
+        $this->get('/admin/revenue')->assertViewHas('totals', ['received' => 20000, 'refunded' => 0, 'net' => 20000])->assertSee('Practice workspace');
         $this->get('/admin/revenue?export=collections')->assertDownload('DEMO-parish-collections-2026-11-01-2026-11-06.csv');
     }
 

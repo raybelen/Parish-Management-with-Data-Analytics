@@ -68,7 +68,7 @@ class AdminReportController extends Controller
      */
     private function rows(string $type, array $filters, string $from, string $to, AnalyticsData $analytics, User $user): array
     {
-        $label = OfficeSettings::demo() ? 'DEMO - simulated data' : 'Operational data - includes sandbox demonstration payments';
+        $label = OfficeSettings::demo() ? 'Test records' : 'Parish records - includes test payments';
         if ($type === 'records') {
             $records = ServiceRecord::query()->whereIn('source', ['archival', OfficeSettings::source()])->whereBetween('service_date', [$from, $to])
                 ->when($filters['service'] ?? null, fn ($q, $service) => $q->where('service_type', $service))->orderBy('id')->lazy();

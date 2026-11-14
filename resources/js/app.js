@@ -135,12 +135,32 @@ const serviceSelect = document.querySelector('[data-service-select]');
 const serviceSections = [...document.querySelectorAll('[data-service-fields]')];
 function updateServiceFields() {
     const selectedService = serviceSelect?.value ?? '';
+    const venue = serviceSelect?.form?.querySelector('[data-service-venue]');
+    if (venue) {
+        const otherService = selectedService === 'others';
+        const addressOption = venue.querySelector('[data-other-service-venue]');
+        venue.disabled = otherService;
+        venue.required = !otherService;
+        addressOption.hidden = !otherService;
+        addressOption.disabled = !otherService;
+        if (otherService) venue.value = addressOption.value;
+        else if (venue.value === addressOption.value) venue.value = '';
+    }
     const feeLabel = document.querySelector('[data-service-fee]');
+    const offering = document.querySelector('[name="offering_amount"]');
+    if (offering) {
+        offering.disabled = selectedService !== 'others';
+        offering.required = selectedService === 'others';
+        offering.closest('[data-offering-fields]').hidden = selectedService !== 'others';
+    }
+    document.querySelectorAll('[data-service-fee-label]').forEach((label) => {
+        label.textContent = selectedService === 'others' ? 'Voluntary offering' : 'Service fee';
+    });
     const groupSession = document.querySelector('[name="group_baptism_session_id"]');
     const groupFee = groupSession && !groupSession.disabled ? groupSession.selectedOptions[0]?.dataset.feeCents : '';
     if (feeLabel) {
         feeLabel.textContent = selectedService
-            ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(groupFee || serviceSelect.selectedOptions[0].dataset.feeCents || 0) / 100)
+            ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(selectedService === 'others' ? Number(offering?.value || 0) : Number(groupFee || serviceSelect.selectedOptions[0].dataset.feeCents || 0) / 100)
             : 'Select a service to see the fee.';
     }
 
@@ -158,6 +178,7 @@ function updateServiceFields() {
     });
 }
 serviceSelect?.addEventListener('change', updateServiceFields);
+document.querySelector('[name="offering_amount"]')?.addEventListener('input', updateServiceFields);
 serviceSelect?.closest('form')?.addEventListener('group-session-changed', updateServiceFields);
 if (serviceSelect) updateServiceFields();
 
@@ -325,9 +346,9 @@ function updateAppointmentReview() {
         client: fieldValue('client_full_name'),
         contact: `${selectedOptionText('preferred_contact_method')}: ${fieldValue(fieldValue('preferred_contact_method') === 'email' ? 'client_email' : 'client_contact_number')}`,
         address: fieldValue('client_address'),
-        service: fieldValue('baptism_mode') === 'shared' && serviceSelect?.value === 'baptism' ? 'Group baptism' : selectedOptionText('service_type'),
+        service: fieldValue('baptism_mode') === 'shared' && ['baptism', 'wedding', 'confirmation'].includes(serviceSelect?.value) ? `Group ${serviceSelect.value}` : selectedOptionText('service_type'),
         schedule: `${preferredDate?.value ? new Intl.DateTimeFormat('en-PH', { dateStyle: 'long' }).format(new Date(`${preferredDate.value}T12:00:00`)) : 'Not provided'} at ${preferredTime?.value ? new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(`2000-01-01T${preferredTime.value}:00`)) : 'Not provided'}`,
-        church: selectedOptionText('preferred_church'),
+        church: serviceSelect?.value === 'others' ? fieldValue('service[service_location]') : selectedOptionText('preferred_church'),
         payment: appointmentForm?.querySelector('[name="payment_option"]:checked')?.dataset.paymentLabel ?? 'Not provided',
         fee: document.querySelector('[data-service-fee]')?.textContent ?? 'Not provided',
     };

@@ -49,9 +49,9 @@ class AppointmentControllerTest extends TestCase
             ->assertSee('Marriage License, or, if civilly married, Marriage Contract with registry number')
             ->assertSee('Pre-Cana Seminar')
             ->assertSee('Photocopy of Death Certificate')
-            ->assertSee('Online via Xendit Sandbox')
+            ->assertSee('Online payment')
             ->assertSee('Walk-in at the parish office')
-            ->assertSee('No live charge can be created')
+            ->assertSee('Test transaction.')
             ->assertSee('St. John Nepomucene Parish')
             ->assertSee('San Isidro Labrador Chapel')
             ->assertSee('Nuestra Señora de los Desamparados')
@@ -62,7 +62,7 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame(1, $xpath->query('//label[@for="client_full_name"]//span[normalize-space(.)="*" and contains(@class, "text-red-700")]')->length);
         $this->assertSame(0, $xpath->query('//form[@data-appointment-form]//input[@type="file"]')->length);
         $this->assertSame(0, $xpath->query('//form[@data-appointment-form and @enctype="multipart/form-data"]')->length);
-        $this->assertSame(3, $xpath->query('//section[@data-service-fields and @hidden]')->length);
+        $this->assertSame(5, $xpath->query('//section[@data-service-fields and @hidden]')->length);
         $this->assertSame(0, $xpath->query('//*[@data-date-offset]')->length);
         $this->assertSame(6, $xpath->query('//*[@data-time-value]')->length);
         $this->assertSame(2, $xpath->query('//input[@name="payment_option" and @type="radio"]')->length);
@@ -72,13 +72,13 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame(1, $xpath->query('//*[@data-schedule-fields]')->length);
         $this->assertSame(1, $xpath->query('//*[@data-schedule-fields]//select[@id="preferred_church"]')->length);
         $this->assertSame(1, $xpath->query('//*[@data-schedule-fields]//*[@data-time-controls]')->length);
-        $this->assertSame(8, $xpath->query('//select[contains(concat(" ", normalize-space(@class), " "), " parish-select ") and not(ancestor::*[@data-psgc-address])]')->length);
-        $this->assertSame(11, $xpath->query('//*[@data-psgc-address]')->length);
-        $this->assertSame(11, $xpath->query('//input[@type="hidden" and @data-psgc-address-output]')->length);
-        $this->assertSame(11, $xpath->query('//input[@type="hidden" and @data-required-label]')->length);
-        $this->assertSame(11, $xpath->query('//*[@data-psgc-address-preview]')->length);
-        $this->assertSame(11, $xpath->query('//input[@type="text" and @data-psgc-address-detail]')->length);
-        $this->assertSame(44, $xpath->query('//*[@data-psgc-address]//select')->length);
+        $this->assertSame(9, $xpath->query('//select[contains(concat(" ", normalize-space(@class), " "), " parish-select ") and not(ancestor::*[@data-psgc-address])]')->length);
+        $this->assertSame(12, $xpath->query('//*[@data-psgc-address]')->length);
+        $this->assertSame(12, $xpath->query('//input[@type="hidden" and @data-psgc-address-output]')->length);
+        $this->assertSame(12, $xpath->query('//input[@type="hidden" and @data-required-label]')->length);
+        $this->assertSame(12, $xpath->query('//*[@data-psgc-address-preview]')->length);
+        $this->assertSame(12, $xpath->query('//input[@type="text" and @data-psgc-address-detail]')->length);
+        $this->assertSame(48, $xpath->query('//*[@data-psgc-address]//select')->length);
         foreach (['father_origin_address', 'mother_origin_address', 'parents_current_residence', 'groom_status', 'bride_status', 'groom_mother_maiden_name', 'bride_mother_maiden_name', 'anointing_of_sick', 'cause_of_death'] as $field) {
             $this->assertSame(1, $xpath->query('//*[@name="service['.$field.']"]')->length);
         }
@@ -88,9 +88,9 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame(1, $xpath->query('//*[@name="service[bride_address]"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " sm:col-span-2 ")][1]')->length);
         $this->assertSame(0, $xpath->query('//*[@name="service[godfather_address]"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " sm:col-span-2 ")][1]')->length);
         $this->assertSame(0, $xpath->query('//*[@name="service[godmother_address]"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " sm:col-span-2 ")][1]')->length);
-        $this->assertSame(2, $xpath->query('//*[@name="service[godfather_name]"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " order-1 ") and contains(concat(" ", normalize-space(@class), " "), " sm:order-none ")][1]')->length);
+        $this->assertSame(3, $xpath->query('//*[@name="service[godfather_name]"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " order-1 ") and contains(concat(" ", normalize-space(@class), " "), " sm:order-none ")][1]')->length);
         $this->assertSame(2, $xpath->query('//*[@name="service[godfather_address]"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " order-2 ") and contains(concat(" ", normalize-space(@class), " "), " sm:order-none ")][1]')->length);
-        $this->assertSame(2, $xpath->query('//*[@name="service[godmother_name]"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " order-3 ") and contains(concat(" ", normalize-space(@class), " "), " sm:order-none ")][1]')->length);
+        $this->assertSame(3, $xpath->query('//*[@name="service[godmother_name]"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " order-3 ") and contains(concat(" ", normalize-space(@class), " "), " sm:order-none ")][1]')->length);
         $this->assertSame(2, $xpath->query('//*[@name="service[godmother_address]"]/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " order-4 ") and contains(concat(" ", normalize-space(@class), " "), " sm:order-none ")][1]')->length);
         $this->assertSame(0, $xpath->query('//*[@name="service[parents_address]"]')->length);
         $this->assertSame(0, $xpath->query('//*[@name="service[godparents_address]"]')->length);
@@ -384,7 +384,7 @@ class AppointmentControllerTest extends TestCase
         $mail->assertSeeInText('PHP 123.45');
         $mail->assertDontSeeInText('PHP 500.00');
         $mail->assertSeeInText('not a payment receipt');
-        $mail->assertSeeInText('No real money is collected');
+        $mail->assertSeeInText('Test transaction');
         $mail->assertSeeInHtml(route('appointments.lookup.create'));
         $this->assertStringNotContainsString('<script>bad()</script>', $mail->render());
         $this->assertDatabaseCount('appointment_invoices', 2);

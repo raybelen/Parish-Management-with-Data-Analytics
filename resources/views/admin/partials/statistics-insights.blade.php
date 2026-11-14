@@ -61,7 +61,7 @@
         @if($monthlyService)
             <p>Year comparisons use January through the last completed month of the selected year, with every month verified in both years. Percentages are unavailable when the earlier total is zero. Averages and peak shares use only verified months.</p>
             <p>Unusual-count screening uses the median and median absolute deviation (MAD) of the same calendar month in the previous five years. A count is flagged when its distance from the median exceeds the larger of 3 counts or 3.5 × MAD ÷ 0.6745. The 3-count minimum avoids flagging tiny changes in sparse records and handles zero MAD. This is a descriptive review rule with no guaranteed detection rate; valid changes in schedules can also trigger it.</p>
-            <p>Method reference: <a href="https://itl.nist.gov/div898/handbook/eda/section3/eda35h.htm" class="underline underline-offset-4" target="_blank" rel="noopener noreferrer">NIST guidance on potential outliers</a>. SARIMA remains the forecasting method; these summaries do not change its inputs.</p>
+            <p>Learn more: <a href="https://itl.nist.gov/div898/handbook/eda/section3/eda35h.htm" class="underline underline-offset-4" target="_blank" rel="noopener noreferrer">Understanding unusually high or low totals</a>. These summaries help explain unusual totals and do not change the forecast.</p>
         @else
             <p>Group ceremonies use annual totals and complete-year comparisons. Partial annual totals can reflect ceremony scheduling, so they are not used to infer monthly seasonality or unusual monthly activity.</p>
         @endif

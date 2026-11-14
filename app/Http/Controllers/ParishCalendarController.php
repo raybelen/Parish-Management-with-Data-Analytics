@@ -59,7 +59,7 @@ class ParishCalendarController extends Controller
             $events[$eventDate->toDateString()][] = [
                 'kind' => 'scheduled',
                 'type' => 'Service',
-                'name' => $appointment->group_baptism_session_id ? 'Group Baptism' : config(
+                'name' => $appointment->group_baptism_session_id ? 'Group '.ucfirst($appointment->service_type) : config(
                     "appointments.services.{$appointment->service_type}.label",
                     Str::headline($appointment->service_type),
                 ),

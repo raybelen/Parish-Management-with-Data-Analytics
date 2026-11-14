@@ -5,6 +5,7 @@
             ['route' => 'admin.dashboard', 'label' => 'Overview', 'ability' => null, 'icon' => 'dashboard', 'active' => ['admin.dashboard']],
             ['route' => 'admin.calendar.index', 'label' => 'Calendar & schedules', 'ability' => 'schedules.view', 'icon' => 'calendar', 'active' => ['admin.calendar.*']],
             ['route' => 'admin.priests.index', 'label' => 'Priest management', 'ability' => 'schedules.manage', 'icon' => 'people', 'active' => ['admin.priests.*']],
+            ['route' => 'admin.facilities.index', 'label' => 'Facilities', 'ability' => 'facilities.view', 'icon' => 'calendar', 'active' => ['admin.facilities.*']],
             ['route' => 'admin.appointments.index', 'label' => 'Appointments', 'ability' => 'appointments.view', 'icon' => 'calendar', 'active' => ['admin.appointments.*']],
             ['route' => 'admin.records.index', 'label' => 'Service records', 'ability' => 'records.view', 'icon' => 'book', 'active' => ['admin.records.*']],
             ['route' => 'admin.notifications.index', 'label' => 'Office inbox', 'ability' => 'notifications.manage', 'icon' => 'inbox', 'active' => ['admin.notifications.*']],
@@ -83,7 +84,7 @@
             </aside>
         @endauth
         <main id="main-content" @class(['grid min-w-0 content-start gap-6 px-4 py-7 sm:px-6 sm:py-9 lg:px-8 xl:px-10', 'mx-auto w-full max-w-xl lg:col-span-2 lg:py-14' => ! auth()->check()])>
-            @if(\App\Support\OfficeSettings::demo())<p role="status" class="admin-alert border-amber-300 bg-amber-50 text-amber-950"><span class="font-semibold">Demo workspace</span><span class="text-sm">Simulated records do not describe actual parish activity.</span></p>@endif
+            @if(\App\Support\OfficeSettings::demo())<p role="status" class="admin-alert border-amber-300 bg-amber-50 text-amber-950"><span class="font-semibold">Practice workspace</span><span class="text-sm">Test records</span></p>@endif
             <div class="flex flex-wrap items-end justify-between gap-4 border-b border-navy/10 pb-6">
                 <div class="min-w-0"><h1 class="text-3xl leading-tight sm:text-4xl">@yield('title', 'Administration')</h1></div>
                 <div class="flex flex-wrap items-center gap-2">@yield('actions')</div>

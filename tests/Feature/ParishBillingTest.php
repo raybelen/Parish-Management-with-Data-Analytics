@@ -21,7 +21,7 @@ class ParishBillingTest extends TestCase
         $this->withoutVite();
         ServiceType::query()->where('slug', 'baptism')->update(['fee_cents' => 12345]);
 
-        $this->get('/appointments/new')->assertSee('123.45')->assertSee('data-fee-cents="12345"', false)
+        $this->get('/appointments/new?service=baptism')->assertSee('123.45')->assertSee('data-fee-cents="12345"', false)
             ->assertSee('Payment is not required to confirm your appointment')->assertSee('data-review-fee', false);
     }
 
@@ -37,7 +37,7 @@ class ParishBillingTest extends TestCase
 
         $this->withSession(['appointment_access_tokens' => ['billing-token' => $appointment->id]])->get($url)
             ->assertSee('Billing statement')->assertSee('400.00')->assertSee('600.00')->assertSee('REAL-RECEIPT')
-            ->assertSee('Paid')->assertSee('TEST-REFERENCE')->assertSee('Demonstration statement:')->assertDontSee('PRIVATE STAFF NOTE')
+            ->assertSee('Paid')->assertSee('TEST-REFERENCE')->assertSee('Includes test transactions.')->assertDontSee('PRIVATE STAFF NOTE')
             ->assertHeader('Cache-Control', 'max-age=0, no-store, private');
 
         $this->get($url)->assertRedirect(route('appointments.lookup.create'));

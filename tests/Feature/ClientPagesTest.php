@@ -128,6 +128,22 @@ class ClientPagesTest extends TestCase
         $response->assertDontSee('Requirement list placeholder.');
     }
 
+    public function test_major_service_booking_links_preselect_the_requested_service(): void
+    {
+        $this->withoutVite();
+        $servicesResponse = $this->get(route('services'));
+
+        foreach (['baptism' => 'Baptism', 'wedding' => 'Wedding', 'funeral' => 'Funeral'] as $service => $label) {
+            $bookingUrl = route('appointments.create', ['service' => $service]);
+
+            $servicesResponse->assertSee('href="'.$bookingUrl.'"', false)
+                ->assertSee('Book '.$label);
+            $this->get($bookingUrl)
+                ->assertSee('value="'.$service.'"', false)
+                ->assertSee('value="'.$service.'" data-fee-cents="'.config("appointments.services.{$service}.fee_cents", 0).'" selected', false);
+        }
+    }
+
     public function test_gallery_page_displays_all_photos_and_homepage_keeps_three_photo_preview(): void
     {
         $this->withoutVite();

@@ -4,12 +4,12 @@
 @section('content')
     <section class="rounded-2xl border border-navy/10 bg-white p-5 sm:p-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
-            <div><p class="text-sm text-muted">{{ $appointment->group_baptism_session_id ? 'Group Baptism' : $service->name }}</p><h2 class="mt-1 text-2xl">{{ $appointment->client_full_name }}</h2></div>
+            <div><p class="text-sm text-muted">{{ $appointment->group_baptism_session_id ? 'Group '.ucfirst($appointment->service_type) : $service->name }}</p><h2 class="mt-1 text-2xl">{{ $appointment->client_full_name }}</h2></div>
             <p class="text-sm text-muted">{{ ($appointment->starts_at ?? $appointment->preferred_date)->format('F j, Y') }}<br>{{ $appointment->confirmed_church ?? $appointment->preferred_church }}</p>
         </div>
         <p class="mt-4 text-sm leading-6 text-muted" data-appointment-status-summary>{{ match ($appointment->status) {
-            'pending' => 'The slot is reserved for three days and visible to staff while the physical documents are verified. It is not yet on the public calendar.',
-            'confirmed' => 'All required physical documents are verified. The appointment is confirmed and visible on both parish calendars.',
+            'pending' => $appointment->requiresOfficeApproval() ? 'Awaiting office approval and manual priest assignment. Approve the request to add it to the calendars.' : 'The slot is reserved for three days and visible to staff while the physical documents are verified. It is not yet on the public calendar.',
+            'confirmed' => $appointment->requiresOfficeApproval() ? 'The office approved this request. It is visible on both parish calendars.' : 'All required physical documents are verified. The appointment is confirmed and visible on both parish calendars.',
             'completed' => 'This service is complete. You can review its details and history below.',
             default => 'This appointment is closed. Its details and history are kept for your records.',
         } }}</p>
@@ -74,12 +74,12 @@
                 <div><dt class="text-muted">Venue</dt><dd class="mt-1 font-medium">{{ $appointment->confirmed_church }}</dd></div>
                 <div><dt class="text-muted">Assigned priest / staff</dt><dd class="mt-1 font-medium">{{ $appointment->personnel?->name ?? 'Not assigned yet' }}</dd></div>
             </dl>
-            <p class="mt-5 text-sm text-muted">The client-selected service, date, time, and venue were reserved automatically after the availability check. Staff cannot change them here.</p>
+            <p class="mt-5 text-sm text-muted">{{ $appointment->requiresOfficeApproval() ? 'Assign a priest manually, then choose Approve request under Update appointment status. The actual service location is listed in the full appointment details.' : 'The client-selected service, date, time, and venue were reserved automatically after the availability check. Staff cannot change them here.' }}</p>
             @if($appointment->status === 'pending' && $appointment->documents_due_at)
                 <p class="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900" data-pending-document-notice>Awaiting documents until {{ $appointment->documents_due_at->timezone(config('office.timezone'))->format('F j, Y \a\t g:i A') }}. The slot is shown only on staff calendars until verification is complete.</p>
             @endif
         @else
-            <p class="text-sm text-muted">This legacy request does not have a confirmed schedule.</p>
+            <p class="text-sm text-muted">This earlier request has no confirmed schedule.</p>
         @endif
         @can('appointments.manage')@if(in_array($appointment->status, ['pending', 'confirmed']) && $appointment->starts_at)
             <form method="POST" action="{{ route('admin.appointments.update', $appointment) }}" class="mt-6 grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">@csrf @method('PUT')<input type="hidden" name="version" value="{{ $appointment->version }}">

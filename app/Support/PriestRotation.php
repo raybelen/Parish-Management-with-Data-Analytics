@@ -100,6 +100,10 @@ class PriestRotation
 
     public function assignAppointment(Appointment $appointment): ?Personnel
     {
+        if ($appointment->requiresOfficeApproval()) {
+            return $appointment->personnel;
+        }
+
         if ($appointment->starts_at === null || $appointment->ends_at === null) {
             return null;
         }
@@ -127,7 +131,7 @@ class PriestRotation
 
         $priest = $this->unexpectedPriest($schedule->starts_at, $schedule->ends_at, null, $schedule->id, $schedule->personnel);
         $schedule->forceFill(['personnel_id' => $priest?->id])->save();
-        if ($schedule->category === 'Group Baptism') {
+        if (in_array($schedule->category, ['Group Baptism', 'Group Wedding', 'Group Confirmation'], true)) {
             Appointment::query()->where('group_baptism_session_id', $schedule->id)->whereIn('status', ['pending', 'confirmed'])
                 ->increment('version', 1, ['personnel_id' => $priest?->id]);
         }

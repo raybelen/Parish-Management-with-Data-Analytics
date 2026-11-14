@@ -16,9 +16,11 @@ class ExpirePendingAppointment
             return null;
         }
 
-        $outcome = $expirationReason === 'scheduled_start'
+        $outcome = $appointment->requiresOfficeApproval()
+            ? 'The requested service time passed before office approval.'
+            : ($expirationReason === 'scheduled_start'
             ? 'The scheduled appointment time passed before physical document verification was completed.'
-            : 'The physical document submission deadline passed before verification was completed.';
+            : 'The physical document submission deadline passed before verification was completed.');
 
         $appointment->forceFill([
             'status' => 'expired',

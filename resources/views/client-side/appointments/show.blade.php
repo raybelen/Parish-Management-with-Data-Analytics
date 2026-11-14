@@ -70,11 +70,11 @@
         };
         $latestPaymentTransaction = $appointment->paymentTransactions->first();
         $paymentStatusLabel = match ($latestPaymentTransaction?->status) {
-            'pending' => 'Waiting for sandbox confirmation',
+            'pending' => 'Waiting for payment confirmation',
             'paid' => 'Paid',
-            'failed' => 'Sandbox checkout failed',
-            'expired' => 'Sandbox checkout expired',
-            default => 'No sandbox checkout started',
+            'failed' => 'Online payment failed',
+            'expired' => 'Payment session expired',
+            default => 'Online payment not started',
         };
     @endphp
 
@@ -90,9 +90,9 @@
 
             <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
                 <div class="max-w-3xl">
-                    <p class="section-label text-gold">{{ $appointment->status === 'pending' ? 'Slot Reserved' : 'Appointment Update' }}</p>
-                    <h1 class="mt-5 text-4xl leading-tight text-ivory sm:text-6xl">{{ $appointment->status === 'pending' ? 'Your schedule is held for three days.' : 'Your appointment details.' }}</h1>
-                    <p class="mt-5 max-w-2xl text-base leading-8 text-ivory/70">{{ $appointment->status === 'pending' ? 'Bring the required physical documents to the church office before the deadline. The appointment will appear on the public calendar after verification.' : 'Keep your reference number to review or manage this appointment.' }}</p>
+                    <p class="section-label text-gold">{{ $appointment->status === 'pending' ? ($appointment->requiresOfficeApproval() ? 'Awaiting Approval' : 'Slot Reserved') : 'Appointment Update' }}</p>
+                    <h1 class="mt-5 text-4xl leading-tight text-ivory sm:text-6xl">{{ $appointment->status === 'pending' ? ($appointment->requiresOfficeApproval() ? 'Your request awaits office approval.' : 'Your schedule is held for three days.') : 'Your appointment details.' }}</h1>
+                    <p class="mt-5 max-w-2xl text-base leading-8 text-ivory/70">{{ $appointment->status === 'pending' ? ($appointment->requiresOfficeApproval() ? 'The parish office will assign a priest and approve your request before it appears on the calendar.' : 'Bring the required physical documents to the church office before the deadline. The appointment will appear on the public calendar after verification.') : 'Keep your reference number to review or manage this appointment.' }}</p>
                 </div>
                 <div class="border border-gold/45 bg-ivory/5 p-6 lg:min-w-72">
                     <p class="text-xs font-medium tracking-[0.16em] uppercase text-ivory/60">Reference number</p>
@@ -121,21 +121,21 @@
                     <p class="section-label text-muted">Current Status</p>
                     <div class="mt-5 inline-flex items-center gap-3 px-4 py-2 text-sm font-medium {{ $statusClasses }}">
                         <span class="size-2 rounded-full {{ $statusDotClass }}" aria-hidden="true"></span>
-                        {{ $appointment->status === 'pending' ? 'Awaiting Documents' : str($appointment->status)->replace('_', ' ')->title() }}
+                        {{ $appointment->status === 'pending' ? ($appointment->requiresOfficeApproval() ? 'Awaiting Approval' : 'Awaiting Documents') : str($appointment->status)->replace('_', ' ')->title() }}
                     </div>
                     @if ($appointment->status === 'cancelled')
                         <p class="mt-5 text-sm leading-7 text-muted">This appointment has been cancelled. Its details remain on file, but it is no longer shown on the parish calendar.</p>
                     @elseif ($appointment->status === 'confirmed')
-                        <p class="mt-5 text-sm leading-7 text-muted">The parish office verified all required physical documents. Your appointment now appears on the public parish calendar. Payment may be made later and is not required to keep this schedule.</p>
+                        <p class="mt-5 text-sm leading-7 text-muted">{{ $appointment->requiresOfficeApproval() ? 'The parish office approved your request and assigned a priest.' : 'The parish office verified all required physical documents.' }} Your appointment now appears on the public parish calendar. Payment may be made later and is not required to keep this schedule.</p>
                         @if($appointment->starts_at)<p class="mt-4 text-sm leading-7"><strong>Confirmed schedule:</strong><br>{{ $appointment->starts_at->format('F j, Y · g:i A') }} – {{ $appointment->ends_at->format('g:i A') }}<br>{{ $appointment->confirmed_church }}</p>@endif
                     @elseif ($appointment->status === 'declined')
-                        <p class="mt-5 text-sm leading-7 text-muted">The parish office declined a submitted document, so the reserved slot was released. Please contact the office for guidance.</p>
+                        <p class="mt-5 text-sm leading-7 text-muted">{{ $appointment->requiresOfficeApproval() ? 'The parish office declined your service request and released the reserved slot.' : 'The parish office declined a submitted document, so the reserved slot was released.' }} Please contact the office for guidance.</p>
                     @elseif ($appointment->status === 'expired')
-                        <p class="mt-5 text-sm leading-7 text-muted">The three-day physical document deadline passed before verification was completed, so the reserved slot was released. You may submit a new appointment request.</p>
+                        <p class="mt-5 text-sm leading-7 text-muted">{{ $appointment->requiresOfficeApproval() ? 'The requested service time passed before office approval, so the reserved slot was released.' : 'The three-day physical document deadline passed before verification was completed, so the reserved slot was released.' }} You may submit a new appointment request.</p>
                     @else
                         @if($appointment->status === 'pending')
                             @if($appointment->starts_at)
-                                <p class="mt-5 text-sm leading-7 text-muted">This slot is reserved for staff while the parish office checks every required physical document. It is not yet shown on the public calendar. The fee can be paid separately and does not affect verification.</p>
+                                <p class="mt-5 text-sm leading-7 text-muted">{{ $appointment->requiresOfficeApproval() ? 'Your request is pending office approval and manual priest assignment. It will appear on the calendars after approval. Payment can be made separately.' : 'This slot is reserved for staff while the parish office checks every required physical document. It is not yet shown on the public calendar. The fee can be paid separately and does not affect verification.' }}</p>
                                 <p class="mt-4 text-sm leading-7"><strong>Reserved schedule:</strong><br>{{ $appointment->starts_at->format('F j, Y · g:i A') }} – {{ $appointment->ends_at->format('g:i A') }}<br>{{ $appointment->confirmed_church }}</p>
                                 @if($appointment->documents_due_at)<p class="mt-4 border-l-4 border-amber-600 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"><strong>Submit documents by:</strong><br>{{ $appointment->documents_due_at->timezone(config('office.timezone'))->format('F j, Y \a\t g:i A') }}</p>@endif
                             @else
@@ -150,7 +150,7 @@
                 <div class="grid gap-7">
                     <section aria-labelledby="summary-heading" class="border border-navy/15 bg-ivory p-6 sm:p-9">
                         <p class="section-label text-muted">Appointment Summary</p>
-                        <h2 id="summary-heading" class="mt-4 text-3xl">{{ $appointment->group_baptism_session_id ? 'Group Baptism' : $service['label'] }} appointment</h2>
+                        <h2 id="summary-heading" class="mt-4 text-3xl">{{ $appointment->group_baptism_session_id ? 'Group '.ucfirst($appointment->service_type) : $service['label'] }} appointment</h2>
 
                         <dl class="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2">
                             <div class="sm:col-span-2"><dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">Appointment created</dt><dd class="mt-2 text-sm leading-6">{{ $appointment->created_at->timezone(config('office.timezone'))->format('F j, Y · g:i A') }}</dd></div>
@@ -167,14 +167,14 @@
                         <p class="section-label text-muted">Billing & payments</p>
                         <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h2 id="payment-summary-heading" class="text-3xl">Service fee & balance</h2>
+                                <h2 id="payment-summary-heading" class="text-3xl">{{ $appointment->service_type === 'others' ? 'Voluntary offering & balance' : 'Service fee & balance' }}</h2>
                                 <p class="mt-3 max-w-2xl text-sm leading-7 text-muted">Payment is separate from document verification and never blocks appointment confirmation.</p>
                             </div>
                             <span class="inline-flex w-fit items-center rounded-full bg-navy px-4 py-2 text-xs font-semibold text-ivory">{{ $appointment->billingStatusLabel() }}</span>
                         </div>
 
                         <dl class="mt-7 grid gap-3 sm:grid-cols-3">
-                            @foreach(['Fee' => $appointment->fee_cents, 'Paid after refunds' => $appointment->netPaidCents(), 'Balance' => $appointment->balanceCents()] as $label => $cents)
+                            @foreach([($appointment->service_type === 'others' ? 'Voluntary offering' : 'Fee') => $appointment->fee_cents, 'Paid after refunds' => $appointment->netPaidCents(), 'Balance' => $appointment->balanceCents()] as $label => $cents)
                                 <div class="rounded-lg border border-navy/10 bg-white p-4">
                                     <dt class="text-xs font-medium tracking-[0.12em] uppercase text-muted">{{ $label }}</dt>
                                     <dd class="mt-2 text-xl font-semibold text-navy">₱{{ number_format($cents / 100, 2) }}</dd>
@@ -183,23 +183,23 @@
                         </dl>
 
                         @if($appointment->payment_option === 'online')
-                            <p class="mt-5 border-l-4 border-sky-700 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950"><strong>Sandbox status: {{ $paymentStatusLabel }}. Test environment only:</strong> Xendit Sandbox may offer GCash, Maya, cards, and other methods enabled for the sandbox account. No live transaction is possible.</p>
+                            <p class="mt-5 border-l-4 border-sky-700 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950"><strong>Payment status: {{ $paymentStatusLabel }} · Test transaction.</strong> Available payment methods are shown at checkout.</p>
                             @if($latestPaymentTransaction?->status === 'paid')
-                                <p class="mt-5 text-sm leading-6 text-muted">Sandbox transaction {{ $latestPaymentTransaction->provider_payment_id }} was confirmed by a verified webhook.</p>
+                                <p class="mt-5 text-sm leading-6 text-muted">Payment confirmed. Reference: {{ $latestPaymentTransaction->provider_payment_id }}.</p>
                             @endif
                             @if($paymentUrl)
                                 <form method="POST" action="{{ $paymentUrl }}" class="mt-5">
                                     @csrf
                                     <button type="submit" class="inline-flex min-h-12 w-full items-center justify-center gap-3 bg-gold px-6 py-3 text-sm font-medium text-navy transition-colors hover:bg-[#c9aa63] sm:w-auto">
-                                        {{ $latestPaymentTransaction?->status === 'pending' ? 'Continue sandbox checkout' : 'Open Xendit Sandbox' }}
+                                        {{ $latestPaymentTransaction?->status === 'pending' ? 'Continue payment' : 'Pay online' }}
                                         <x-parish.icon name="arrow" class="size-4" />
                                     </button>
                                 </form>
                             @elseif($appointment->balanceCents() > 0 && $appointment->payment_status !== 'paid')
-                                <p class="mt-5 text-sm leading-7 text-muted">Online sandbox checkout is currently unavailable. You may pay at the parish office instead.</p>
+                                <p class="mt-5 text-sm leading-7 text-muted">Online payment is currently unavailable. You may pay at the parish office instead.</p>
                             @endif
                         @else
-                            <p class="mt-5 text-sm leading-7 text-muted">Bring your appointment reference when paying at the parish office. Staff will add the receipt to the payment ledger.</p>
+                            <p class="mt-5 text-sm leading-7 text-muted">Bring your appointment reference when paying at the parish office. Staff will record your payment and provide a receipt.</p>
                         @endif
                         @include('client-side.appointments.partials.billing-ledger', ['appointment' => $appointment])
                         <a href="{{ $billingUrl }}" target="_blank" rel="noopener" class="mt-5 inline-flex min-h-11 items-center rounded-lg border border-navy/20 bg-white px-5 py-3 text-sm font-semibold">View / print billing statement</a>

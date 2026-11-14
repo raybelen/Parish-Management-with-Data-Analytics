@@ -33,6 +33,7 @@ class AdminCalendar
         $appointments = collect();
         if ($user->can('appointments.view')) {
             $appointments = $this->range(OfficeAccess::appointments($user), $from, $to)
+                ->where(fn (Builder $query) => $query->where('service_type', '!=', 'others')->orWhereIn('status', ['confirmed', 'completed']))
                 ->whereIn('status', ['pending', 'confirmed', 'completed', 'cancelled'])->whereNotNull('ends_at')->with('personnel')->get()
                 ->map(fn (Appointment $appointment): array => [
                     'id' => 'appointment-'.$appointment->id, 'title' => ucfirst($appointment->service_type).' · '.$appointment->reference_number,

@@ -71,7 +71,7 @@ class AdminAppointmentController extends Controller
         Gate::authorize('appointments.manage');
         $appointment = $create->handle($request->validated());
 
-        return redirect()->route('admin.appointments.show', $appointment)->with('status', 'Appointment reserved for three days while its physical documents are verified. The service fee can be paid separately and does not block confirmation.');
+        return redirect()->route('admin.appointments.show', $appointment)->with('status', $appointment->requiresOfficeApproval() ? 'Request received. Assign a priest and approve it to add it to the calendars.' : 'Appointment reserved for three days while its physical documents are verified. The service fee can be paid separately and does not block confirmation.');
     }
 
     public function show(Request $request, Appointment $appointment): View
@@ -87,7 +87,7 @@ class AdminAppointmentController extends Controller
         return view('admin.appointments.show', [
             'appointment' => $appointment,
             'service' => ServiceType::query()->where('slug', $appointment->service_type)->firstOrFail(),
-            'personnel' => Personnel::query()->where('active', true)->whereNotNull('rotation_position')->orderBy('rotation_position')->get(),
+            'personnel' => Personnel::query()->where('active', true)->when(! $appointment->requiresOfficeApproval(), fn ($query) => $query->whereNotNull('rotation_position'))->orderBy('rotation_position')->get(),
             'churches' => OfficeSettings::activeVenues(),
             'history' => AuditLog::query()->with('actor')->where('entity_type', Appointment::class)->where('entity_id', $appointment->id)
                 ->when(! $request->user()->can('finance.view'), fn ($query) => $query->where('action', '!=', 'appointment.fee_changed'))->latest('id')->limit(50)->get(),

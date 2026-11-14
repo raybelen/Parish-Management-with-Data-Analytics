@@ -334,7 +334,7 @@ class AdminConfigurationTest extends TestCase
 
         $this->get('/admin')->assertOk()->assertDontSee('Parish historical statistics')->assertDontSee('Service Analytics');
         $this->get('/admin/settings')->assertOk()->assertDontSee('Advanced SARIMA parameters')->assertDontSee('Forecasts Manage');
-        $this->get('/admin/reports')->assertOk()->assertDontSee('Monthly completed-service statistics')->assertDontSee('Forecast results and configuration');
+        $this->get('/admin/reports')->assertOk()->assertDontSee('Monthly completed-service statistics')->assertDontSee('Forecast results and settings');
         $this->get('/admin/forecasts')->assertNotFound();
         $this->post('/admin/forecasts')->assertNotFound();
         $this->get('/admin/statistics')->assertNotFound();

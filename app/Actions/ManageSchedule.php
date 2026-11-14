@@ -143,16 +143,16 @@ class ManageSchedule
         if (($data['priest_required'] ?? false) && ! $end->equalTo($start->addHour())) {
             throw ValidationException::withMessages(['ends_at' => 'Activities requiring a priest must last exactly one hour.']);
         }
-        if (($data['category'] ?? '') === 'Group Baptism') {
+        if (in_array($data['category'] ?? '', ['Group Baptism', 'Group Wedding', 'Group Confirmation'], true)) {
             if (! $end->equalTo($start->addHour())) {
-                throw ValidationException::withMessages(['ends_at' => 'Group baptism sessions must last exactly one hour.']);
+                throw ValidationException::withMessages(['ends_at' => 'Group sessions must last exactly one hour.']);
             }
             if (! OfficeSettings::venueIsActive($data['location'] ?? '')) {
-                throw ValidationException::withMessages(['location' => 'Choose an active church or chapel for group baptism.']);
+                throw ValidationException::withMessages(['location' => 'Choose an active church or chapel for the group session.']);
             }
             if ($data['status'] === 'scheduled') {
                 $candidate = new Appointment([
-                    'service_type' => 'baptism', 'source' => OfficeSettings::source(),
+                    'service_type' => mb_strtolower(substr($data['category'], 6)), 'source' => OfficeSettings::source(),
                     'preferred_date' => $start->toDateString(), 'preferred_time' => $start->format('H:i'), 'preferred_church' => $data['location'],
                 ]);
                 $message = app(ReserveAppointmentSlot::class)->conflictMessage($candidate, exceptSchedule: $except);
@@ -227,8 +227,8 @@ class ManageSchedule
      */
     private function normalizeGroupSession(array $data): array
     {
-        if (mb_strtolower(trim($data['category'] ?? '')) === 'group baptism') {
-            $data['category'] = 'Group Baptism';
+        if (in_array(mb_strtolower(trim($data['category'] ?? '')), ['group baptism', 'group wedding', 'group confirmation'], true)) {
+            $data['category'] = ucwords(mb_strtolower(trim($data['category'])));
             $data['priest_required'] = true;
             $data['group_capacity'] = null;
             $data['group_booking_open'] = $data['status'] === 'scheduled' && (bool) ($data['group_booking_open'] ?? false);

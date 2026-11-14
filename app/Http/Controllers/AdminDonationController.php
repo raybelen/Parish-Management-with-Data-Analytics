@@ -64,7 +64,7 @@ class AdminDonationController extends Controller
         if ($request->filled('export')) {
             Gate::authorize('reports.view');
             $type = $filters['export'];
-            $dataset = OfficeSettings::demo() ? 'DEMO - simulated donations' : 'Recorded donations';
+            $dataset = OfficeSettings::demo() ? 'Test donations' : 'Recorded donations';
             if ($type === 'records') {
                 $columns = ['dataset', 'receipt', 'donor', 'email', 'phone', 'address', 'date', 'category', 'amount_php', 'method', 'reference', 'status', 'version', 'recorded_by', 'notes', 'kind', 'anonymous', 'included_in_collection', 'counted_received_php', 'church', 'mass_time', 'collection_type', 'collection_purpose', 'counted_by', 'verified_by'];
                 $rows = (clone $query)->with(['recordedBy', 'massCollection'])->orderBy('donated_on')->orderBy('id')->lazy()->map(fn (Donation $donation): array => [

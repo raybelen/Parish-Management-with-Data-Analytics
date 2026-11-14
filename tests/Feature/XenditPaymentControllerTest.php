@@ -52,15 +52,15 @@ class XenditPaymentControllerTest extends TestCase
         $return = $this->get(route('appointments.payments.return', $transaction));
         $return->assertRedirect();
         $confirmation = $this->get($return->headers->get('Location'));
-        $confirmation->assertSee('Paid')->assertSee('py-sandbox-payment-123')->assertSee('Demonstration statement:');
+        $confirmation->assertSee('Paid')->assertSee('py-sandbox-payment-123')->assertSee('Includes test transactions.');
         $this->get($confirmation->viewData('billingUrl'))->assertSee('Paid')->assertSee('100.00')->assertSee('py-sandbox-payment-123');
 
         $admin = User::factory()->admin()->withTwoFactor()->create();
         $this->actingAs($admin)->withSession(['admin.mfa_user_id' => $admin->id, 'admin.mfa_fingerprint' => $admin->adminSessionFingerprint()]);
-        $this->get(route('admin.appointments.show', $appointment))->assertSee('Paid')->assertSee('PH_GCASH')->assertSee('ps-sandbox-session-123')->assertSee('py-sandbox-payment-123');
+        $this->get(route('admin.appointments.show', $appointment))->assertSee('Paid')->assertSee('GCash')->assertSee('ps-sandbox-session-123')->assertSee('py-sandbox-payment-123');
         $this->get(route('admin.revenue.index'))->assertViewHas('totals', ['received' => 10000, 'refunded' => 0, 'net' => 10000])
             ->assertViewHas('sandboxTotals', ['received' => 6000, 'refunded' => 0, 'net' => 6000])->assertViewHas('outstandingTotal', 0)
-            ->assertSee('PH_GCASH')->assertSee('py-sandbox-payment-123')->assertSee('Test payments included');
+            ->assertSee('GCash')->assertSee('py-sandbox-payment-123')->assertSee('Test payments included');
     }
 
     public function test_expiring_an_older_checkout_does_not_unpay_a_settled_appointment(): void
@@ -191,7 +191,7 @@ class XenditPaymentControllerTest extends TestCase
 
         $this->post($url)
             ->assertServiceUnavailable()
-            ->assertSee('Xendit Sandbox checkout could not be started');
+            ->assertSee('Online payment could not be started');
 
         $this->assertDatabaseHas('payment_transactions', ['appointment_id' => $appointment->id, 'status' => 'failed']);
         $this->assertSame('failed', $appointment->refresh()->payment_status);
@@ -377,11 +377,11 @@ class XenditPaymentControllerTest extends TestCase
 
         $response
             ->assertRedirectContains(route('appointments.show', $appointment))
-            ->assertSessionHas('appointment_message', 'Sandbox payment confirmed. Test payment status is now Paid; no real money was collected.');
+            ->assertSessionHas('appointment_message', 'Payment confirmed. Status: Paid · Test transaction.');
 
         $this->get($response->headers->get('Location'))
             ->assertOk()
-            ->assertSee('Sandbox payment confirmed. Test payment status is now Paid; no real money was collected.')
+            ->assertSee('Payment confirmed. Status: Paid · Test transaction.')
             ->assertSee('Paid');
     }
 

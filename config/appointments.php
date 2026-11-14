@@ -4,6 +4,90 @@ return [
     'document_disk' => env('APPOINTMENT_DOCUMENT_DISK', 'local'),
 
     'details' => [
+        'others' => [
+            'service_kind' => [
+                'label' => 'Requested service', 'group' => 'Service details', 'type' => 'select', 'required' => true,
+                'options' => ['house_blessing' => 'House Blessing', 'vehicle_blessing' => 'Vehicle Blessing', 'religious_item_blessing' => 'Religious Item Blessing', 'anointing_of_the_sick' => 'Anointing of the Sick', 'celebratory_mass' => 'Celebratory Mass'],
+                'rules' => ['required', 'string', 'in:house_blessing,vehicle_blessing,religious_item_blessing,anointing_of_the_sick,celebratory_mass'],
+            ],
+            'recipient_full_name' => [
+                'label' => 'Recipient full name', 'group' => 'Service details', 'type' => 'text', 'required' => true,
+                'rules' => ['required', 'string', 'max:255'], 'title_case' => true,
+            ],
+            'service_location' => [
+                'label' => 'Service location / complete address', 'group' => 'Service details', 'type' => 'textarea', 'required' => true,
+                'rules' => ['required', 'string', 'max:1000'], 'title_case' => false,
+            ],
+            'request_details' => [
+                'label' => 'Request details or occasion', 'group' => 'Service details', 'type' => 'textarea', 'required' => true,
+                'rules' => ['required', 'string', 'max:1000'], 'title_case' => false,
+            ],
+        ],
+        'confirmation' => [
+            'recipient_full_name' => [
+                'label' => 'Full name',
+                'group' => 'Candidate information',
+                'type' => 'text',
+                'required' => true,
+                'rules' => ['required', 'string', 'max:255'],
+                'title_case' => true,
+            ],
+            'age' => [
+                'label' => 'Age',
+                'group' => 'Candidate information',
+                'type' => 'number',
+                'required' => true,
+                'rules' => ['required', 'integer', 'min:0', 'max:150'],
+            ],
+            'address' => [
+                'label' => 'Address',
+                'group' => 'Candidate information',
+                'type' => 'address',
+                'required' => true,
+                'rules' => ['required', 'string', 'max:1000'],
+                'title_case' => true,
+            ],
+            'place_of_baptism' => [
+                'label' => 'Place of baptism',
+                'group' => 'Candidate information',
+                'type' => 'text',
+                'required' => true,
+                'rules' => ['required', 'string', 'max:255'],
+                'title_case' => true,
+            ],
+            'mother_name' => [
+                'label' => 'Mother\'s full name',
+                'group' => 'Parents',
+                'type' => 'text',
+                'required' => true,
+                'rules' => ['required', 'string', 'max:255'],
+                'title_case' => true,
+            ],
+            'father_name' => [
+                'label' => 'Father\'s full name',
+                'group' => 'Parents',
+                'type' => 'text',
+                'required' => true,
+                'rules' => ['required', 'string', 'max:255'],
+                'title_case' => true,
+            ],
+            'godfather_name' => [
+                'label' => 'Godfather\'s full name',
+                'group' => 'Godparents',
+                'type' => 'text',
+                'required' => true,
+                'rules' => ['required', 'string', 'max:255'],
+                'title_case' => true,
+            ],
+            'godmother_name' => [
+                'label' => 'Godmother\'s full name',
+                'group' => 'Godparents',
+                'type' => 'text',
+                'required' => true,
+                'rules' => ['required', 'string', 'max:255'],
+                'title_case' => true,
+            ],
+        ],
         'baptism' => [
             'child_full_name' => [
                 'label' => 'Full name',
@@ -361,6 +445,14 @@ return [
     ],
 
     'services' => [
+        'others' => ['label' => 'Others', 'fee_cents' => 0, 'documents' => []],
+        'confirmation' => [
+            'label' => 'Confirmation',
+            'fee_cents' => 10000,
+            'documents' => [
+                'baptismal_certificate' => ['label' => 'Baptismal Certificate', 'required' => true, 'multiple' => false],
+            ],
+        ],
         'baptism' => [
             'label' => 'Baptism',
             'fee_cents' => 10000,

@@ -64,7 +64,7 @@ function initializeCalendar(root) {
     let previousStart = '';
     let defaultedGroupTitle = false;
     const categoryValue = () => form.elements.category.value === '__custom__' ? customCategory.value.trim() : form.elements.category.value;
-    const isGroupSession = () => categoryValue().toLowerCase() === 'group baptism';
+    const isGroupSession = () => ['group baptism', 'group wedding', 'group confirmation'].includes(categoryValue().toLowerCase());
 
     function range() {
         if (view === 'year') return [new Date(selected.getFullYear(), 0, 1, 12), new Date(selected.getFullYear() + 1, 0, 1, 12)];
@@ -332,8 +332,8 @@ function initializeCalendar(root) {
             details.append(row);
         });
         if (event.series_id) details.append(element('p', 'text-sm text-muted', `${titleCase(event.recurrence)} series through ${event.recurrence_until}. Actions affect this occurrence only.`));
-        if (event.category === 'Group Baptism') {
-            details.append(element('p', 'text-sm font-semibold', `${event.group_booking_open ? 'Open for bookings' : 'Registration closed'} · No family limit`));
+        if (['Group Baptism', 'Group Wedding', 'Group Confirmation'].includes(event.category)) {
+            details.append(element('p', 'text-sm font-semibold', `${event.group_booking_open ? 'Open for bookings' : 'Registration closed'} · No participant limit`));
         }
         const actions = element('div', 'flex flex-wrap gap-2');
         if (event.edit_url) {
@@ -409,9 +409,9 @@ function initializeCalendar(root) {
         groupWasSelected = isGroup;
         find('[data-priest-required-control]').hidden = isGroup;
         updateLocation();
-        form.elements.title.placeholder = isGroup ? 'e.g. Sunday group baptism' : 'e.g. Parish council meeting';
+        form.elements.title.placeholder = isGroup ? categoryValue() : 'e.g. Parish council meeting';
         if (isGroup && !form.elements.title.value) {
-            form.elements.title.value = 'Group baptism';
+            form.elements.title.value = categoryValue();
             defaultedGroupTitle = true;
         }
         updateDuration(adjustEnd);
@@ -423,7 +423,7 @@ function initializeCalendar(root) {
         const isGroup = isGroupSession();
         locationInput.required = isGroup;
         find('[data-group-location-required]').hidden = !isGroup;
-        find('[data-schedule-location-help]').textContent = isGroup ? 'Choose a listed church or chapel for group baptism. Type to search the list.' : 'Optional. Choose a parish venue or type another location in this field.';
+        find('[data-schedule-location-help]').textContent = isGroup ? 'Choose a listed church or chapel for the group session. Type to search the list.' : 'Optional. Choose a parish venue or type another location in this field.';
         closeLocations();
     }
 
@@ -452,7 +452,7 @@ function initializeCalendar(root) {
         locationOptions.forEach(option => { option.hidden = !option.dataset.value.toLowerCase().includes(query); });
         const empty = find('[data-location-empty]');
         empty.hidden = locationOptions.some(option => !option.hidden);
-        empty.textContent = isGroupSession() ? 'No matching venues. Choose a listed church or chapel for group baptism.' : 'No matching parish venues. You can keep the location you typed.';
+        empty.textContent = isGroupSession() ? 'No matching venues. Choose a listed church or chapel for the group session.' : 'No matching parish venues. You can keep the location you typed.';
         locationPopup.hidden = false;
         locationInput.setAttribute('aria-expanded', 'true');
         locationToggle.setAttribute('aria-expanded', 'true');
@@ -508,7 +508,7 @@ function initializeCalendar(root) {
         if (isGroupSession()) preview.push(form.elements.status.value === 'scheduled' && registration.checked ? 'Registration opens on save' : 'Registration closed');
         if (!currentEvent && form.elements.recurrence.value !== 'none') preview.push(`${titleCase(form.elements.recurrence.value)} repeat`);
         find('[data-schedule-preview]').textContent = preview.join(' · ');
-        if (!busy) saveButton.textContent = currentEvent ? 'Save changes' : isGroupSession() ? 'Create group baptism' : 'Create schedule';
+        if (!busy) saveButton.textContent = currentEvent ? 'Save changes' : isGroupSession() ? 'Create group session' : 'Create schedule';
     }
 
     function clearFormErrors() {
@@ -603,7 +603,7 @@ function initializeCalendar(root) {
     function setBusy(value) {
         busy = value;
         form.setAttribute('aria-busy', String(value));
-        saveButton.textContent = value ? 'Saving…' : currentEvent ? 'Save changes' : isGroupSession() ? 'Create group baptism' : 'Create schedule';
+        saveButton.textContent = value ? 'Saving…' : currentEvent ? 'Save changes' : isGroupSession() ? 'Create group session' : 'Create schedule';
         form.querySelectorAll('button').forEach((node) => { node.disabled = value; });
         deletion.querySelectorAll('button').forEach((node) => { node.disabled = value; });
         dialog.querySelector('[data-dialog-close]').disabled = value;

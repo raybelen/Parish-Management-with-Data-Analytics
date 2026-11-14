@@ -42,12 +42,13 @@ class ReserveAppointmentSlot
                 throw ValidationException::withMessages(['preferred_time' => $conflict]);
             }
             $start = $this->start($locked);
-            $documentsComplete = $locked->status === 'confirmed' || $locked->physicalDocumentsComplete();
+            $documentsComplete = ! $locked->requiresOfficeApproval() && ($locked->status === 'confirmed' || $locked->physicalDocumentsComplete());
             $locked->forceFill([
                 'starts_at' => $start, 'ends_at' => $start->addHour(), 'reserved_until' => $start->addHour(),
                 'confirmed_church' => $locked->preferred_church, 'buffer_minutes' => 0,
                 'status' => $documentsComplete ? 'confirmed' : 'pending',
-                'documents_due_at' => $documentsComplete ? null : now(config('office.timezone'))->addDays(3),
+                'documents_due_at' => $documentsComplete || $locked->requiresOfficeApproval() ? null : now(config('office.timezone'))->addDays(3),
+                ...($locked->requiresOfficeApproval() ? ['personnel_id' => null] : []),
             ])->save();
             $this->priestRotation->warmPeriod($start->startOfDay(), $start->endOfDay());
             $this->priestRotation->assignAppointment($locked);
@@ -74,7 +75,7 @@ class ReserveAppointmentSlot
         if (! $start->isFuture()) {
             return 'This time has passed. Please choose a future date and time.';
         }
-        if (! OfficeSettings::venueIsActive($venue)) {
+        if (! $appointment->requiresOfficeApproval() && ! OfficeSettings::venueIsActive($venue)) {
             return 'This venue is unavailable. Please choose another venue.';
         }
         if (! in_array($start->dayOfWeekIso, $settings['operating_days'], true)
@@ -101,16 +102,16 @@ class ReserveAppointmentSlot
         }
 
         $session = $sessionId ? Schedule::query()->find($sessionId) : null;
-        if ($sessionId && ($type !== 'baptism' || ! $session
-            || $session->category !== 'Group Baptism' || $session->status !== 'scheduled' || $session->source !== $source
+        if ($sessionId && (! in_array($type, ['baptism', 'wedding', 'confirmation'], true) || ! $session
+            || $session->category !== 'Group '.ucfirst($type) || $session->status !== 'scheduled' || $session->source !== $source
             || $session->location !== $venue || ! $session->starts_at->equalTo($start) || ! $session->ends_at->equalTo($end))) {
-            return 'Please select an available group baptism session and use its date, time, and venue.';
+            return 'Please select an available group session and use its date, time, and venue.';
         }
         if ($session && ($requireOpenGroupSession || ! $appointment->exists) && ! $session->group_booking_open) {
-            return 'This group baptism session is not open for bookings. Please choose another session.';
+            return 'This group session is not open for bookings. Please choose another session.';
         }
         if ($session && $personnelId !== null && $personnelId !== $session->personnel_id) {
-            return 'Group baptism families use the priest assigned to their session.';
+            return 'Group session participants use the priest assigned to their session.';
         }
 
         $others = $this->appointmentsForDate($appointment, $source, $start, $memoize);
@@ -123,7 +124,8 @@ class ReserveAppointmentSlot
             if ($message = $this->periodConflict($type, $start, $other->service_type, $otherStart)) {
                 return $message;
             }
-            $sameVenue = ($other->confirmed_church ?? $other->preferred_church) === $venue;
+            $sameVenue = ! $appointment->requiresOfficeApproval() && ! $other->requiresOfficeApproval()
+                && ($other->confirmed_church ?? $other->preferred_church) === $venue;
             if (($sameVenue || ($personnelId && $other->personnel_id === $personnelId)) && $start < $otherEnd && $end > $otherStart) {
                 return 'This time conflicts with an existing booking. Please choose another available time or venue.';
             }
@@ -135,26 +137,26 @@ class ReserveAppointmentSlot
 
         $schedules = $this->schedulesForDate($source, $start, $exceptSchedule, $memoize);
         foreach ($schedules as $schedule) {
-            if ($schedule->category === 'Group Baptism' && $schedule->starts_at->isSameDay($start)
-                && ($message = $this->periodConflict($type, $start, 'baptism', $schedule->starts_at))) {
+            if (in_array($schedule->category, ['Group Baptism', 'Group Wedding', 'Group Confirmation'], true) && $schedule->starts_at->isSameDay($start)
+                && ($message = $this->periodConflict($type, $start, mb_strtolower(substr($schedule->category, 6)), $schedule->starts_at))) {
                 return $message;
             }
             if ($session && $schedule->id === $session->id) {
                 continue;
             }
-            if ((mb_strtolower(trim($schedule->location ?? '')) === mb_strtolower($venue)
+            if ((! $appointment->requiresOfficeApproval() && mb_strtolower(trim($schedule->location ?? '')) === mb_strtolower($venue)
                 || ($personnelId && $schedule->personnel_id === $personnelId)) && $start < $schedule->ends_at && $end > $schedule->starts_at) {
                 return 'This time conflicts with a parish activity. Please choose another available time or venue.';
             }
         }
         $blocked = $this->scheduleBlocksForDate($start, $memoize)->contains(fn (ScheduleBlock $block): bool => $block->starts_at < $end
             && $block->ends_at > $start
-            && ($block->church === $venue || ($personnelId !== null && $block->personnel_id === $personnelId)));
+            && ((! $appointment->requiresOfficeApproval() && $block->church === $venue) || ($personnelId !== null && $block->personnel_id === $personnelId)));
         if ($blocked) {
             return 'This time is blocked. Please choose another available time or venue.';
         }
         foreach (config('parish.regular_schedules', []) as $mass) {
-            if (($mass['church'] ?? config('parish.churches.0')) !== $venue || ! in_array($start->dayOfWeekIso, $mass['days'], true)) {
+            if ($appointment->requiresOfficeApproval() || ($mass['church'] ?? config('parish.churches.0')) !== $venue || ! in_array($start->dayOfWeekIso, $mass['days'], true)) {
                 continue;
             }
             foreach ($mass['times'] as $time) {

@@ -70,7 +70,7 @@ class FinancialDocumentVerificationController extends Controller
             'status' => $status, 'demo' => $demo, 'refunded_cents' => $refundedCents,
             'parish' => $isInvoice ? $document->parish_name : $document->receipt_snapshot['parish_name'],
             'service' => $isInvoice ? $document->service_label : $document->receipt_snapshot['service_label'],
-            'method' => $isInvoice ? null : Str::headline($document->method),
+            'method' => $isInvoice ? null : ($document->method === 'xendit_sandbox' ? 'Online Payment' : Str::headline($document->method)),
         ]);
     }
 

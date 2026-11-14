@@ -40,7 +40,7 @@ class AdminRevenueController extends Controller
         if ($request->filled('export')) {
             Gate::authorize('reports.view');
             $type = $filters['export'];
-            $dataset = OfficeSettings::demo() ? 'DEMO - simulated data' : 'Demonstration collections - includes sandbox payments';
+            $dataset = OfficeSettings::demo() ? 'Test records' : 'Collections - includes test payments';
             if ($type === 'revenue') {
                 $columns = ['dataset', 'month', 'net_service_payments_php', 'individual_donations_php', 'mass_collections_php', 'combined_revenue_php'];
                 $rows = collect($overview['monthly'])->map(fn (array $row): array => [

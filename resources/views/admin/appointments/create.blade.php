@@ -2,7 +2,7 @@
 @section('title', isset($appointment) ? 'Edit appointment details' : 'New walk-in appointment')
 @section('actions')<a class="admin-secondary" href="{{ isset($appointment) ? route('admin.appointments.show', $appointment) : route('admin.appointments.index') }}">Back to appointments</a>@endsection
 @section('content')
-    <p class="text-sm text-muted">Enter the booking details below. New appointments reserve the slot for three days while the office verifies physical documents. The service fee can be paid separately and does not block confirmation.</p>
+    <p class="text-sm text-muted">Enter the booking details below. New appointments reserve the slot for three days while the office verifies physical documents. Others requests require office approval and manual priest assignment. The service fee can be paid separately and does not block confirmation.</p>
     <form class="grid gap-6" method="POST" action="{{ isset($appointment) ? route('admin.appointments.details', $appointment) : route('admin.appointments.store') }}">@csrf
         @isset($appointment)@method('PATCH')<input type="hidden" name="version" value="{{ $appointment->version }}">@endisset
         <section class="admin-card grid gap-4 sm:grid-cols-2"><h2 class="text-2xl sm:col-span-2">Booking contact</h2>
@@ -11,7 +11,7 @@
             <input type="hidden" name="preferred_contact_method" value="phone">
             <x-admin.field label="Service" name="service_type"><select name="service_type" class="admin-input" data-walkin-service required><option value="">Choose a service</option>@foreach($services as $service)<option value="{{ $service->slug }}" @selected(old('service_type', $appointment->service_type ?? '') === $service->slug)>{{ $service->name }}</option>@endforeach</select></x-admin.field>
             @php($selectedChurch = old('preferred_church', $appointment->preferred_church ?? ''))
-            <x-admin.field label="Requested venue" name="preferred_church"><select name="preferred_church" class="admin-input" required><option value="">Choose an available venue</option>@if($selectedChurch && !in_array($selectedChurch, $churches, true))<option value="{{ $selectedChurch }}" selected>{{ $selectedChurch }} (currently unavailable)</option>@endif @foreach($churches as $church)<option value="{{ $church }}" @selected($selectedChurch === $church)>{{ $church }}</option>@endforeach</select></x-admin.field>
+            <x-admin.field label="Requested venue" name="preferred_church"><select name="preferred_church" class="admin-input" data-service-venue required><option value="{{ \App\Models\Appointment::OTHER_SERVICE_LOCATION }}" data-other-service-venue hidden disabled>Use the service address below</option><option value="">Choose an available venue</option>@if($selectedChurch && !in_array($selectedChurch, $churches, true))<option value="{{ $selectedChurch }}" selected>{{ $selectedChurch }} (currently unavailable)</option>@endif @foreach($churches as $church)<option value="{{ $church }}" @selected($selectedChurch === $church)>{{ $church }}</option>@endforeach</select></x-admin.field>
             <x-admin.field label="Requested date" name="preferred_date" type="date" :value="isset($appointment) ? $appointment->preferred_date->toDateString() : ''" required /><x-admin.field label="Requested time" name="preferred_time" type="time" :value="isset($appointment) ? substr($appointment->preferred_time, 0, 5) : ''" required />
             @unless(isset($appointment))
                 <x-parish.group-baptism-fields :sessions="$groupSessions" select-class="admin-input" :selected-service="old('service_type', '')" />
@@ -21,6 +21,10 @@
         @foreach($services as $service)
             <section class="admin-card" data-walkin-fields="{{ $service->slug }}" hidden>
                 <h2 class="mb-5 text-2xl">{{ $service->name }} participants & details</h2>
+                @if($service->slug === 'others' && !isset($appointment))
+                    <label class="mb-5 grid gap-2 text-sm"><span>Voluntary offering (₱)</span><input type="number" name="offering_amount" min="0" max="999999.99" step="0.01" value="{{ old('offering_amount', '0') }}" class="admin-input" data-required="true" disabled><span class="text-muted">Enter the amount chosen by the parishioner, including 0.</span></label>
+                    @error('offering_amount')<p class="mb-5 text-sm text-red-700">{{ $message }}</p>@enderror
+                @endif
                 @if(config('appointments.details.'.$service->slug))
                     <x-appointment-service-fields :service-type="$service->slug" input-class="admin-input" select-class="admin-input" :values="$appointment->service_details ?? []" :preferred-date="isset($appointment) ? $appointment->preferred_date->toDateString() : ''" />
                 @else

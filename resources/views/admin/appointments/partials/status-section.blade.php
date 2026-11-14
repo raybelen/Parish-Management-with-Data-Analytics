@@ -7,9 +7,9 @@
                 <input type="hidden" name="version" value="{{ $appointment->version }}">
                 <x-admin.field label="Change status to" name="status">
                     <select class="admin-input" name="status">
-                        @foreach(($appointment->status === 'pending' ? ['declined', 'cancelled'] : ['completed', 'cancelled', 'no_show']) as $status)
+                        @foreach(($appointment->status === 'pending' ? ($appointment->requiresOfficeApproval() ? ['confirmed', 'declined', 'cancelled'] : ['declined', 'cancelled']) : ['completed', 'cancelled', 'no_show']) as $status)
                             @if(auth()->user()->can('appointments.manage') || $status === 'declined')
-                                <option value="{{ $status }}">{{ ucfirst(str_replace('_', ' ', $status)) }}</option>
+                                <option value="{{ $status }}">{{ $status === 'confirmed' && $appointment->requiresOfficeApproval() ? 'Approve request' : ucfirst(str_replace('_', ' ', $status)) }}</option>
                             @endif
                         @endforeach
                     </select>

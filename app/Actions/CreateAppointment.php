@@ -23,18 +23,21 @@ class CreateAppointment
     public function handle(array $validated): Appointment
     {
         if (($validated['baptism_mode'] ?? 'private') === 'shared' && empty($validated['group_baptism_session_id'])) {
-            throw ValidationException::withMessages(['group_baptism_session_id' => 'Please choose a group baptism session opened by the parish office.']);
+            throw ValidationException::withMessages(['group_baptism_session_id' => 'Please choose a group session opened by the parish office.']);
         }
 
         return DB::transaction(function () use ($validated): Appointment {
             ParishSetting::query()->where('key', 'office')->lockForUpdate()->firstOrFail();
             OfficeSettings::forgetMemoizedValues();
             $session = empty($validated['group_baptism_session_id']) ? null : Schedule::query()->find($validated['group_baptism_session_id']);
-            if (! empty($validated['group_baptism_session_id']) && (! $session || ! $session->group_booking_open || $session->category !== 'Group Baptism' || $session->status !== 'scheduled' || $session->source !== OfficeSettings::source())) {
-                throw ValidationException::withMessages(['group_baptism_session_id' => 'This group baptism session is not open for bookings. Please choose another session.']);
+            if (! empty($validated['group_baptism_session_id']) && (! $session || ! $session->group_booking_open || $session->category !== 'Group '.ucfirst($validated['service_type']) || $session->status !== 'scheduled' || $session->source !== OfficeSettings::source())) {
+                throw ValidationException::withMessages(['group_baptism_session_id' => 'This group session is not open for bookings. Please choose another session.']);
             }
             $serviceType = ServiceType::query()->where('slug', $validated['service_type'])->first(['requirements', 'fee_cents']);
             $feeCents = $session?->group_fee !== null ? (int) round((float) $session->group_fee * 100) : ($serviceType?->fee_cents ?? 0);
+            if ($validated['service_type'] === 'others') {
+                $feeCents = RecordPayment::cents((string) $validated['offering_amount']);
+            }
             $appointment = Appointment::create([
                 ...Arr::only($validated, [
                     'client_full_name',
@@ -61,11 +64,11 @@ class CreateAppointment
 
             AppointmentParticipants::sync($appointment);
             $this->reserveAppointmentSlot->handle($appointment);
-            if ($appointment->payment_option === 'online') {
+            if ($appointment->payment_option === 'online' && $feeCents > 0) {
                 $this->issueInvoice->handle($appointment, $feeCents);
             }
             OfficeAudit::record('appointment.created', $appointment, [], ['reference_number' => $appointment->reference_number, 'service_type' => $appointment->service_type]);
-            OfficeAudit::notify($appointment, 'new', 'New appointment awaiting documents: '.$appointment->reference_number);
+            OfficeAudit::notify($appointment, 'new', ($appointment->requiresOfficeApproval() ? 'New service request awaiting office approval: ' : 'New appointment awaiting documents: ').$appointment->reference_number);
 
             return $appointment->refresh();
         });

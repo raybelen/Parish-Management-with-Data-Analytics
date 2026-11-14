@@ -13,6 +13,10 @@
                 <p class="section-label text-muted">Parish Appointments</p>
                 <h1 class="mt-5 text-4xl leading-tight sm:text-6xl">What would you like to do?</h1>
                 <p class="mt-5 text-base leading-8 text-muted">Start a request for Baptism, Wedding, or Funeral services, or review a request you have already submitted.</p>
+                <a href="{{ route('facilities.index') }}" class="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg border border-navy/20 px-4 py-2 text-sm font-medium text-navy transition-colors hover:border-gold hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-navy">
+                    <x-parish.icon name="calendar" class="size-4" />
+                    Book a facility
+                </a>
             </div>
 
             <div class="mt-10 grid gap-5 md:grid-cols-2">

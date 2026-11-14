@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 
 class ParishStatistics
 {
-    public const SERVICES = ['baptism' => 'Baptisms (people)', 'wedding' => 'Weddings (couples)', 'funeral' => 'Funerals (Masses)', 'confirmation' => 'Confirmations (people)', 'first_communion' => 'First Communicants (people)'];
+    public const SERVICES = ['baptism' => 'Baptisms', 'wedding' => 'Weddings', 'funeral' => 'Funerals', 'confirmation' => 'Confirmations', 'first_communion' => 'First Communicants'];
 
     public const FORECAST_SERVICES = ['baptism', 'wedding', 'funeral'];
 
