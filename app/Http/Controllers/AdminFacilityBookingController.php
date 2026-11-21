@@ -62,13 +62,14 @@ class AdminFacilityBookingController extends Controller
             if ($booking->cancelled_at || $booking->starts_at->isPast()) {
                 throw ValidationException::withMessages(['booking' => 'Only upcoming, uncanceled requests can be approved.']);
             }
-            if ($booking->expires_at?->isPast()) {
+            if ($booking->expires_at !== null && $booking->expires_at->lessThanOrEqualTo(now())) {
                 throw ValidationException::withMessages(['booking' => 'This request has expired and can no longer be approved.']);
             }
             if ($booking->status !== 'pending') {
                 return null;
             }
-            $conflict = $availability->policyConflict($facility, $booking->starts_at, $booking->ends_at, $booking->attendees, $booking->activity);
+            $conflict = $availability->policyConflict($facility, $booking->starts_at, $booking->ends_at, $booking->attendees, $booking->activity)
+                ?? $availability->conflict($facility, $booking->starts_at, $booking->ends_at);
             if ($conflict) {
                 throw ValidationException::withMessages(['booking' => $conflict]);
             }

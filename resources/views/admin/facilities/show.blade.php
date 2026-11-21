@@ -24,7 +24,7 @@
         </div>
         <div class="grid gap-4">
             @forelse($bookings as $booking)
-                @php($statusLabel = match ($booking->status) { 'unverified' => 'Awaiting email verification', 'pending' => 'Pending approval', 'confirmed' => 'Reserved', 'expired' => 'Expired', 'cancelled' => 'Canceled', default => str($booking->status)->headline() })
+                @php($statusLabel = match ($booking->status) { 'pending' => 'Pending approval', 'confirmed' => 'Reserved', 'expired' => 'Expired', 'cancelled' => 'Canceled', default => str($booking->status)->headline() })
                 <article class="grid gap-3 rounded-xl border border-navy/15 p-4">
                     <div class="flex flex-wrap justify-between gap-3"><h3 class="font-sans text-sm font-semibold leading-6 tracking-normal">{{ $booking->title }} <span class="font-normal text-muted">#{{ $booking->id }}</span></h3><span class="text-sm font-semibold">{{ $booking->kind === 'closure' && !$booking->cancelled_at ? 'Closed' : $statusLabel }}</span></div>
                     <p class="text-sm">{{ $booking->starts_at->format('M j, Y g:i A') }} - {{ $booking->ends_at->format('M j, Y g:i A') }}</p>

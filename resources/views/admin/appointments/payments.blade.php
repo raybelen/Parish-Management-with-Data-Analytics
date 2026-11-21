@@ -1,5 +1,5 @@
 <section id="appointment-payments" class="admin-card scroll-mt-28"><h2 class="mb-2 text-2xl">Billing & payments</h2><p class="mb-5 text-sm text-muted">Fees are payable separately and do not block appointment confirmation. Confirmed payments appear in your payment history and update your balance.</p><div class="mb-6 grid gap-3 sm:grid-cols-3">@foreach([($appointment->service_type === 'others' ? 'Voluntary offering' : 'Fee') => $appointment->fee_cents, 'Paid after refunds' => $appointment->netPaidCents(), 'Balance' => $appointment->balanceCents()] as $label => $cents)<p class="rounded-lg bg-slate-50 p-4 text-sm">{{ $label }}<br><strong class="text-xl">₱{{ number_format($cents / 100, 2) }}</strong></p>@endforeach</div>
-    <div class="mb-5 flex flex-wrap items-center gap-3"><span class="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold">{{ $appointment->billingStatusLabel() }}</span><a class="admin-secondary" href="{{ route('admin.appointments.billing', $appointment) }}" target="_blank" rel="noopener">View / print billing statement</a><a class="admin-secondary" href="{{ route('admin.revenue.index') }}">Parish Revenue</a></div>
+    <div class="mb-5 flex flex-wrap items-center gap-3"><span class="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold">{{ $appointment->billingStatusLabel() }}</span><span class="rounded-full border border-navy/10 bg-white px-4 py-2 text-sm text-muted">Payment preference: <span class="text-navy">{{ $appointment->payment_option === 'online' ? 'Online Payment' : 'Walk-in Payment' }}</span></span><a class="admin-secondary" href="{{ route('admin.appointments.billing', $appointment) }}" target="_blank" rel="noopener">View / print billing statement</a><a class="admin-secondary" href="{{ route('admin.revenue.index') }}">Parish Revenue</a></div>
     @if($appointment->netPaidCents() > $appointment->fee_cents)<p class="mb-5 text-sm text-amber-900">Overpayment: ₱{{ number_format(($appointment->netPaidCents() - $appointment->fee_cents) / 100, 2) }}. Review the payment history before recording a refund.</p>@endif
     @can('payments.manage')
         <form class="mb-5 flex flex-wrap items-center gap-3" method="POST" action="{{ route('admin.invoices.store', $appointment) }}">
@@ -23,7 +23,7 @@
     @endcan
     @if($appointment->paymentAdjustments->isNotEmpty())
         <div class="mt-6 grid gap-4 border-t border-navy/10 pt-6">
-            <h3 class="text-lg font-semibold">Refund and fee adjustment requests</h3>
+            <h3 class="font-sans text-lg font-normal">Refund and fee adjustment requests</h3>
             @foreach($appointment->paymentAdjustments as $adjustment)
                 @include('admin.partials.payment-adjustment', ['adjustment' => $adjustment])
             @endforeach
@@ -31,7 +31,7 @@
     @endif
     @if($appointment->paymentTransactions->isNotEmpty())
         <div class="mt-6 border-t border-navy/10 pt-6">
-            <h3 class="text-lg font-semibold">Online payments</h3>
+            <h3 class="font-sans text-lg font-normal">Online payments</h3>
             <p class="mt-1 text-sm text-muted">Payments are recorded automatically once confirmed. Pending, failed, and expired payments are not included in the totals.</p>
             <div class="mt-4 overflow-x-auto">
                 <table class="admin-table">

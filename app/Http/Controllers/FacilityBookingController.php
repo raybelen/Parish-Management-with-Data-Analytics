@@ -4,30 +4,34 @@ namespace App\Http\Controllers;
 
 use App\Actions\NotifyFacilityBookingClient;
 use App\Http\Requests\CancelFacilityBookingRequest;
+use App\Http\Requests\FindFacilityBookingRequest;
 use App\Http\Requests\RecoverFacilityBookingRequest;
 use App\Http\Requests\StoreFacilityBookingRequest;
 use App\Models\Facility;
 use App\Models\FacilityBooking;
+use App\Models\OfficeNotification;
 use App\Support\FacilityAvailability;
+use App\Support\FacilityBookingAccess;
 use App\Support\OfficeAudit;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 
 class FacilityBookingController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(): Response
     {
         $facilities = Facility::query()->where('source', 'operational')->where('active', true)->orderBy('name')->paginate(12);
-        $bookings = FacilityBooking::query()->with('facility')->whereIn('id', $request->session()->get('facility_bookings', []))->latest()->get();
 
-        return response()->view('client-side.facilities', ['facilities' => $facilities, 'bookings' => $bookings, 'pageTitle' => 'Facility booking'])->header('Cache-Control', 'private, no-store');
+        return response()->view('client-side.facilities', ['facilities' => $facilities, 'pageTitle' => 'Facility booking'])->header('Cache-Control', 'private, no-store');
     }
 
     public function store(StoreFacilityBookingRequest $request, Facility $facility, FacilityAvailability $availability, NotifyFacilityBookingClient $notifyClient): RedirectResponse
@@ -36,80 +40,134 @@ class FacilityBookingController extends Controller
         $data = $request->validated();
         $start = CarbonImmutable::parse($data['starts_at'], config('office.timezone'));
         $end = CarbonImmutable::parse($data['ends_at'], config('office.timezone'));
-        $booking = DB::transaction(function () use ($facility, $data, $start, $end, $availability): FacilityBooking {
-            $facility = Facility::query()->lockForUpdate()->findOrFail($facility->id);
-            $conflict = $availability->policyConflict($facility, $start, $end, (int) $data['attendees'], $data['activity'])
-                ?? $availability->conflict($facility, $start, $end);
-            if ($conflict) {
-                throw ValidationException::withMessages(['starts_at' => $conflict]);
-            }
-            $booking = $facility->bookings()->create([
-                ...$data, 'kind' => 'reservation', 'status' => 'unverified', 'reference' => 'FAC-'.Str::upper(Str::random(16)),
-                'starts_at' => $start, 'ends_at' => $end,
-                'expires_at' => now()->addMinutes(config('facilities.verification_minutes')),
+        $rateLimitKey = 'facility-submission:'.hash('sha256', mb_strtolower($data['organizer']).'|'.$data['contact_email']);
+        /** @var FacilityBooking|false $booking */
+        $booking = RateLimiter::attempt(
+            $rateLimitKey,
+            (int) config('facilities.submission_limit'),
+            function () use ($facility, $data, $start, $end, $availability): FacilityBooking {
+                return DB::transaction(function () use ($facility, $data, $start, $end, $availability): FacilityBooking {
+                    $facility = Facility::query()->lockForUpdate()->findOrFail($facility->id);
+                    $conflict = $availability->policyConflict($facility, $start, $end, (int) $data['attendees'], $data['activity'])
+                        ?? $availability->conflict($facility, $start, $end);
+                    if ($conflict) {
+                        throw ValidationException::withMessages(['starts_at' => $conflict]);
+                    }
+                    $booking = $facility->bookings()->create([
+                        ...$data, 'kind' => 'reservation', 'status' => 'pending', 'reference' => 'FAC-'.Str::upper(Str::random(16)),
+                        'starts_at' => $start, 'ends_at' => $end,
+                        'expires_at' => $start->subHours((int) config('facilities.approval_cutoff_hours')),
+                    ]);
+                    OfficeAudit::record('facility.reservation.requested', $booking, [], $booking->toArray());
+                    OfficeNotification::create([
+                        'facility_booking_id' => $booking->id,
+                        'event' => 'facility.requested',
+                        'message' => 'Facility request '.$booking->reference.' awaits approval.',
+                        'deduplication_key' => 'facility.requested:'.$booking->id,
+                    ]);
+
+                    return $booking;
+                });
+            },
+            (int) config('facilities.submission_decay_seconds'),
+        );
+        if ($booking === false) {
+            $submissionLimit = (int) config('facilities.submission_limit');
+            throw ValidationException::withMessages([
+                'organizer' => "This organizer and email have reached the limit of {$submissionLimit} facility requests within 24 hours. Please try again later or contact the parish office.",
             ]);
-            OfficeAudit::record('facility.reservation.requested', $booking, [], $booking->toArray());
+        }
+        $notifyClient->handle($booking->load('facility'), 'submitted');
 
-            return $booking;
-        });
-        $request->session()->put('facility_bookings', array_slice([...$request->session()->get('facility_bookings', []), $booking->id], -20));
-        $notifyClient->handle($booking->load('facility'), 'verification');
-
-        return to_route('facilities.index')->with('status', 'Check your email to verify request '.$booking->reference.'. The time is not held until verification.');
-    }
-
-    public function verify(Request $request, FacilityBooking $booking, FacilityAvailability $availability): RedirectResponse
-    {
-        abort_unless($booking->facility?->source === 'operational', 404);
-        $result = DB::transaction(function () use ($booking, $availability): string {
-            $facility = Facility::query()->lockForUpdate()->findOrFail($booking->facility_id);
-            $booking = FacilityBooking::query()->lockForUpdate()->findOrFail($booking->id);
-            if ($booking->status !== 'unverified' || $booking->cancelled_at !== null) {
-                return $booking->status;
-            }
-            if ($booking->expires_at?->isPast()) {
-                $booking->update(['status' => 'expired', 'cancelled_at' => now(), 'cancellation_reason' => 'Email verification link expired.']);
-                OfficeAudit::record('facility.reservation.expired', $booking, ['status' => 'unverified'], $booking->toArray());
-
-                return 'expired';
-            }
-            $conflict = $availability->policyConflict($facility, $booking->starts_at, $booking->ends_at, $booking->attendees, $booking->activity)
-                ?? $availability->conflict($facility, $booking->starts_at, $booking->ends_at);
-            if ($conflict !== null) {
-                throw ValidationException::withMessages(['request' => $conflict]);
-            }
-            $before = $booking->toArray();
-            $booking->update(['status' => 'pending', 'expires_at' => now()->addHours(config('facilities.pending_hours'))]);
-            OfficeAudit::record('facility.reservation.verified', $booking, $before, $booking->toArray());
-
-            return 'pending';
-        });
-        $request->session()->put('facility_bookings', array_slice([...$request->session()->get('facility_bookings', []), $booking->id], -20));
-
-        return redirect($this->accessUrl($booking))->with('status', $result === 'pending' ? 'Email verified. The time is held while parish staff review your request.' : 'This request is '.$result.'.');
-    }
-
-    public function show(FacilityBooking $booking): View
-    {
-        abort_unless($booking->facility?->source === 'operational', 404);
-
-        return view('client-side.facility-request', [
-            'booking' => $booking,
-            'cancelUrl' => URL::temporarySignedRoute('facilities.bookings.destroy', now()->addMinutes(30), ['booking' => $booking->reference]),
-            'pageTitle' => 'Facility request '.$booking->reference,
+        return to_route('facilities.index')->with([
+            'status' => 'Your facility request is pending staff approval. The time is reserved only after approval.',
+            'facility_reference' => $booking->reference,
         ]);
     }
 
-    public function recover(RecoverFacilityBookingRequest $request, NotifyFacilityBookingClient $notifyClient): RedirectResponse
+    public function manage(): View
+    {
+        return view('client-side.facility-manage', ['pageTitle' => 'Manage a Facility Request']);
+    }
+
+    public function lookup(FindFacilityBookingRequest $request, FacilityBookingAccess $access): RedirectResponse
     {
         $data = $request->validated();
-        $booking = FacilityBooking::query()->with('facility')->where('reference', $data['reference'])
-            ->whereRaw('LOWER(contact_email) = ?', [$data['contact_email']])->whereHas('facility', fn ($query) => $query->where('source', 'operational'))->first();
-        if ($booking !== null) {
-            $notifyClient->handle($booking, $booking->status === 'unverified' ? 'verification' : 'access');
+        $booking = FacilityBooking::query()->where('reference', $data['reference'])
+            ->whereRaw('LOWER(contact_email) = ?', [$data['contact_email']])
+            ->whereHas('facility', fn (Builder $query): Builder => $query->where('source', 'operational'))
+            ->first();
+
+        if ($booking === null) {
+            return back()
+                ->withErrors(['reference' => 'We could not find a facility request matching those details.'])
+                ->withInput(['reference' => $data['reference']]);
         }
 
-        return to_route('facilities.index')->with('status', 'If those details match a request, a secure access link has been emailed.');
+        return redirect()->to($access->issue($request, $booking));
+    }
+
+    public function emailAccess(Request $request, FacilityBooking $booking, FacilityBookingAccess $access): RedirectResponse
+    {
+        abort_unless($booking->facility?->source === 'operational', 404);
+
+        return redirect()->to($access->issue($request, $booking));
+    }
+
+    public function show(Request $request, FacilityBooking $booking, FacilityBookingAccess $access): Response|RedirectResponse
+    {
+        abort_unless($booking->facility?->source === 'operational', 404);
+        if (! $access->consume($request, $booking)) {
+            return to_route('facilities.lookup.create')->with('facility_access_notice', 'Please enter the facility reference and contact email again.');
+        }
+
+        return response()->view('client-side.facility-request', [
+            'booking' => $booking,
+            'cancelUrl' => URL::temporarySignedRoute('facilities.bookings.destroy', now()->addMinutes(30), ['booking' => $booking->reference]),
+            'pageTitle' => 'Facility request '.$booking->reference,
+        ])->withHeaders([
+            'Cache-Control' => 'no-store, private, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+
+    public function recover(RecoverFacilityBookingRequest $request, FacilityBookingAccess $access): Response|RedirectResponse
+    {
+        $data = $request->validated();
+        $bookings = FacilityBooking::query()->with('facility')
+            ->whereRaw('LOWER(organizer) = ?', [mb_strtolower($data['organizer'])])
+            ->whereRaw('LOWER(contact_email) = ?', [$data['contact_email']])
+            ->whereHas('facility', fn (Builder $query): Builder => $query->where('source', 'operational'))
+            ->latest('id')->limit(10)->get();
+
+        if ($bookings->isEmpty()) {
+            return back()
+                ->withErrors([
+                    'organizer' => 'We could not find a facility request matching those details.',
+                ], 'recovery')
+                ->withInput($request->safe()->only(['organizer', 'contact_email']));
+        }
+
+        return response()->view('client-side.facility-manage', [
+            'pageTitle' => 'Recover a Facility Reference',
+            'recoveredFacilityBookings' => $bookings->map(fn (FacilityBooking $booking): array => [
+                'facility' => $booking->facility->name,
+                'reference' => $booking->reference,
+                'schedule' => $booking->starts_at->format('M j, Y g:i A').' – '.$booking->ends_at->format('g:i A'),
+                'status' => match ($booking->status) {
+                    'pending' => 'Pending approval',
+                    'confirmed' => 'Approved',
+                    'cancelled' => 'Canceled',
+                    default => Str::headline($booking->status),
+                },
+                'url' => $access->issue($request, $booking),
+            ]),
+        ])->withHeaders([
+            'Cache-Control' => 'no-store, private, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     public function destroy(CancelFacilityBookingRequest $request, FacilityBooking $booking, NotifyFacilityBookingClient $notifyClient): RedirectResponse
@@ -134,11 +192,6 @@ class FacilityBookingController extends Controller
             $notifyClient->handle($cancelled, 'cancelled');
         }
 
-        return to_route('facilities.index')->with('status', 'Facility booking cancelled.');
-    }
-
-    private function accessUrl(FacilityBooking $booking): string
-    {
-        return URL::temporarySignedRoute('facilities.bookings.show', now()->addDays(config('facilities.access_days')), ['booking' => $booking->reference]);
+        return to_route('facilities.lookup.create')->with('status', 'Facility booking cancelled.');
     }
 }

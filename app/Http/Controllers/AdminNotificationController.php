@@ -15,14 +15,14 @@ class AdminNotificationController extends Controller
     {
         Gate::authorize('notifications.manage');
 
-        return view('admin.notifications', ['notifications' => OfficeNotification::query()->with('appointment')
-            ->whereHas('appointment', fn ($q) => $q->where('source', OfficeSettings::source()))->latest('id')->paginate(30)]);
+        return view('admin.notifications', ['notifications' => OfficeNotification::query()->with(['appointment', 'facilityBooking.facility'])
+            ->forSource(OfficeSettings::source())->latest('id')->paginate(30)]);
     }
 
     public function update(OfficeNotification $notification): RedirectResponse
     {
         Gate::authorize('notifications.manage');
-        abort_unless($notification->appointment?->source === OfficeSettings::source(), 404);
+        abort_unless(OfficeNotification::query()->forSource(OfficeSettings::source())->whereKey($notification->id)->exists(), 404);
         $notification->update(['read_at' => now(), 'read_by' => auth()->id()]);
         OfficeAudit::record('notification.acknowledged', $notification);
 

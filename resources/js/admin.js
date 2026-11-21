@@ -3,6 +3,38 @@ import './admin-document-verification';
 import './appointment-details';
 import './group-baptisms';
 
+document.querySelectorAll('[data-register-toggle]').forEach((toggle) => {
+    const details = document.getElementById(toggle.getAttribute('aria-controls'));
+    if (!details) return;
+    toggle.setAttribute('role', 'button');
+    toggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        details.hidden = expanded;
+        toggle.setAttribute('aria-expanded', String(!expanded));
+        toggle.textContent = expanded ? 'View details' : 'Hide details';
+    });
+    toggle.addEventListener('keydown', (event) => {
+        if (event.key === ' ') {
+            event.preventDefault();
+            toggle.click();
+        }
+    });
+});
+
+document.querySelectorAll('[data-service-register-form]').forEach((form) => {
+    const service = form.querySelector('[name="service_type"]');
+    const updateFields = () => {
+        form.querySelectorAll('[data-register-service]').forEach((fieldset) => {
+            const selected = fieldset.dataset.registerService === service.value;
+            fieldset.hidden = !selected;
+            fieldset.disabled = !selected;
+        });
+    };
+    service.addEventListener('change', updateFields);
+    updateFields();
+});
+
 document.querySelectorAll('[data-forecast-form]').forEach((form) => {
     const button = form.querySelector('button');
     const progress = form.querySelector('[data-forecast-progress]');

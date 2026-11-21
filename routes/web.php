@@ -154,11 +154,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
 });
 
 Route::get('/facilities', [FacilityBookingController::class, 'index'])->name('facilities.index');
-Route::post('/facilities/requests/recover', [FacilityBookingController::class, 'recover'])->middleware('throttle:5,60')->name('facilities.bookings.recover');
+Route::get('/facilities/manage', [FacilityBookingController::class, 'manage'])->name('facilities.lookup.create');
+Route::post('/facilities/manage', [FacilityBookingController::class, 'lookup'])->name('facilities.lookup.store');
+Route::post('/facilities/manage/recover', [FacilityBookingController::class, 'recover'])->name('facilities.bookings.recover');
+Route::get('/facilities/requests/{booking:reference}/email-access', [FacilityBookingController::class, 'emailAccess'])->middleware(['signed', 'throttle:10,1'])->name('facilities.bookings.email-access');
 Route::get('/facilities/requests/{booking:reference}', [FacilityBookingController::class, 'show'])->middleware('signed')->name('facilities.bookings.show');
-Route::get('/facilities/requests/{booking:reference}/verify', [FacilityBookingController::class, 'verify'])->middleware(['signed', 'throttle:10,1'])->block()->name('facilities.bookings.verify');
 Route::delete('/facilities/requests/{booking:reference}', [FacilityBookingController::class, 'destroy'])->middleware(['signed', 'throttle:5,1'])->block()->name('facilities.bookings.destroy');
-Route::post('/facilities/{facility}/bookings', [FacilityBookingController::class, 'store'])->middleware('throttle:5,60')->block()->name('facilities.bookings.store');
+Route::post('/facilities/{facility}/bookings', [FacilityBookingController::class, 'store'])->middleware('throttle:facility-submissions')->block()->name('facilities.bookings.store');
 
 Route::get('/', ParishPageController::class)->name('home');
 Route::get('/about', ParishPageController::class)->defaults('page', 'about')->name('about');
@@ -182,7 +184,7 @@ Route::post('/appointments/{appointment}/payments/xendit', [XenditPaymentControl
 Route::get('/appointments/payments/return/{paymentTransaction}', [XenditPaymentController::class, 'show'])
     ->name('appointments.payments.return');
 Route::get('/appointments/manage', [AppointmentLookupController::class, 'create'])->name('appointments.lookup.create');
-Route::post('/appointments/manage', [AppointmentLookupController::class, 'store'])->middleware('throttle:10,1')->name('appointments.lookup.store');
+Route::post('/appointments/manage', [AppointmentLookupController::class, 'store'])->name('appointments.lookup.store');
 Route::post('/appointments/manage/recover', [AppointmentReferenceRecoveryController::class, 'store'])->middleware('throttle:5,1')->name('appointments.reference-recovery.store');
 Route::patch('/appointments/{appointment}/schedule', [AppointmentScheduleController::class, 'update'])
     ->middleware(['signed', 'throttle:5,1'])

@@ -42,6 +42,7 @@ class ParishCalendarController extends Controller
             ->select(['id', 'group_baptism_session_id', 'service_type', 'preferred_date', 'preferred_time', 'preferred_church', 'confirmed_church', 'starts_at', 'personnel_id'])
             ->with('personnel:id,name')
             ->where('source', OfficeSettings::source())
+            ->where('service_type', '!=', 'others')
             ->where('status', 'confirmed')
             ->where(function ($query) use ($startsAt, $endsAt): void {
                 $query->whereBetween('starts_at', [$startsAt, $endsAt])

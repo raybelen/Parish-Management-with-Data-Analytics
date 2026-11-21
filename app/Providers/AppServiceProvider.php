@@ -59,5 +59,10 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perHour(10)->by('appointment-contact-ip:'.$contactIdentifier.'|'.$ipAddress),
             ];
         });
+
+        RateLimiter::for('facility-submissions', fn (Request $request): array => [
+            Limit::perMinute(5)->by('facility-minute-ip:'.$request->ip()),
+            Limit::perHour(30)->by('facility-hour-ip:'.$request->ip()),
+        ]);
     }
 }

@@ -97,6 +97,7 @@
                 <div class="border border-gold/45 bg-ivory/5 p-6 lg:min-w-72">
                     <p class="text-xs font-medium tracking-[0.16em] uppercase text-ivory/60">Reference number</p>
                     <p class="mt-3 font-mono text-xl font-semibold tracking-wide text-gold sm:text-2xl">{{ $appointment->reference_number }}</p>
+                    <div class="mt-4"><x-parish.copy-reference :value="$appointment->reference_number" variant="inverse" /></div>
                     <p class="mt-4 text-xs leading-5 text-ivory/60">Use this with your saved email address or phone number to find the appointment later.</p>
                 </div>
             </div>

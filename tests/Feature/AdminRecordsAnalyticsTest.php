@@ -81,16 +81,63 @@ class AdminRecordsAnalyticsTest extends TestCase
             ->assertDontSee('Baptism Book One');
         $this->get('/admin/records/services/baptism')
             ->assertSee('Book 1')
-            ->assertSee('Unassigned book')
+            ->assertDontSee('Unassigned book')
             ->assertDontSee('Wedding Book One');
         $this->get('/admin/records/services/baptism/book?book=Book%201')
             ->assertSee('Baptism Book One')
             ->assertDontSee('Wedding Book One')
-            ->assertDontSee('Baptism Unassigned');
+            ->assertSee('Baptism Unassigned');
         $this->get('/admin/records/services/baptism/book?unassigned=1')
             ->assertSee('Baptism Unassigned')
             ->assertDontSee('Baptism Book One');
         $this->get('/admin/records/services/baptism/book')->assertNotFound();
+    }
+
+    public function test_register_details_can_be_saved_corrected_and_displayed_without_losing_snapshot_details(): void
+    {
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $record = ServiceRecord::factory()->create(['service_type' => 'baptism', 'register_book' => null, 'details' => ['child_sex' => 'male', 'father_name' => 'Original father']]);
+        $data = $record->only(['record_number', 'service_type', 'participant_names', 'church']);
+        $this->put('/admin/records/'.$record->id, [...$data, 'service_date' => '2020-01-01', 'reason' => 'Verified register', 'version' => 1, 'register_details' => ['father_name' => 'Corrected father', 'child_date_of_birth' => '2019-12-05', 'godmother_address' => '<script>alert(1)</script>']])->assertSessionHasNoErrors();
+
+        $this->assertSame('male', $record->refresh()->details['child_sex']);
+        $this->assertSame('Corrected father', $record->details['father_name']);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'record.corrected', 'entity_id' => $record->id]);
+        $this->get('/admin/records/services/baptism/book?book=Book%201')->assertOk()
+            ->assertSee('Birthday year')->assertSee('2019')->assertSee('12/05')
+            ->assertSee('Corrected father')->assertSee('<script>alert(1)</script>')
+            ->assertDontSee('<script>alert(1)</script>', false);
+        $this->get('/admin/records/'.$record->id)->assertOk()->assertSee('register_details[father_name]', false)->assertSee('Corrected father');
+    }
+
+    public function test_each_register_displays_its_service_specific_information(): void
+    {
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        foreach ([
+            ['wedding', ['groom_full_name' => 'Groom Sample', 'bride_full_name' => 'Bride Sample', 'bride_mother_maiden_name' => 'Mother Maiden'], ['Marriage year', 'Groom Sample', 'Bride Sample', 'Mother Maiden']],
+            ['funeral', ['deceased_full_name' => 'Deceased Sample', 'date_of_death' => '2019-12-31', 'date_of_burial' => '2020-01-03', 'contact_relationship' => 'Daughter'], ['Year of death', '2019', '12/31', '2020-01-03', 'Daughter']],
+            ['confirmation', ['recipient_full_name' => 'Candidate Sample', 'place_of_baptism' => 'Baptism Parish Sample', 'age' => 0], ['Confirmation year', 'Candidate Sample', 'Baptism Parish Sample']],
+        ] as [$service, $details, $expected]) {
+            $record = ServiceRecord::factory()->create(['service_type' => $service, 'register_book' => 'Book 1', 'details' => $details, 'officiant' => 'Fr. Register Sample']);
+            $this->get('/admin/records/services/'.$service.'/book?book=Book%201')->assertOk()->assertSee($expected)->assertSee('Fr. Register Sample');
+            $this->get('/admin/records/'.$record->id)->assertOk();
+        }
+    }
+
+    public function test_historical_register_details_are_validated_and_persisted(): void
+    {
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $data = ['record_number' => 'DEATH-NEW', 'service_type' => 'funeral', 'service_date' => '2020-01-03', 'participant_names' => 'Historical deceased', 'church' => 'Parish church', 'reason' => 'Register transcription'];
+        $this->post('/admin/records', [...$data, 'register_details' => ['date_of_burial' => 'invalid', 'age' => -1]])->assertSessionHasErrors(['register_details.date_of_burial', 'register_details.age']);
+        $this->assertDatabaseEmpty('service_records');
+        $this->post('/admin/records', [...$data, 'register_details' => ['unexpected' => 'value']])->assertSessionHasErrors('register_details');
+        $this->post('/admin/records', [...$data, 'register_details' => ['deceased_full_name' => 'Verified deceased name', 'date_of_burial' => '2020-01-03', 'age' => 80]])->assertSessionHasNoErrors();
+        $record = ServiceRecord::query()->sole();
+        $this->assertSame('2020-01-03', $record->details['date_of_burial']);
+        $this->assertSame('Verified deceased name', $record->participant_names);
+        $this->assertSame('archival', $record->source);
     }
 
     public function test_analytics_excludes_synthetic_archival_and_failed_services_but_tracks_cash_separately(): void

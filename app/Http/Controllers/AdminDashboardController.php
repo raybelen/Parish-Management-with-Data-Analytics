@@ -26,7 +26,7 @@ class AdminDashboardController extends Controller
             'upcoming' => (clone $query)->with('personnel')->where('status', 'confirmed')->where('starts_at', '>=', now())->orderBy('starts_at')->limit(8)->get(),
             'totals' => $request->user()->can('finance.view') ? $analytics->totals(now()->startOfMonth()->toDateString(), now()->toDateString(), $request->user()) : null,
             'annualStatistics' => config('office.analytics_enabled') && $request->user()->can('reports.view') ? $statistics->annual() : [],
-            'notifications' => $request->user()->can('notifications.manage') ? OfficeNotification::query()->whereHas('appointment', fn ($q) => $q->where('source', OfficeSettings::source()))->whereNull('read_at')->latest('id')->limit(8)->get() : collect(),
+            'notifications' => $request->user()->can('notifications.manage') ? OfficeNotification::query()->forSource(OfficeSettings::source())->whereNull('read_at')->latest('id')->limit(8)->get() : collect(),
             'activity' => $request->user()->can('audit.view') ? AuditLog::query()->with('actor')->latest('id')->limit(6)->get() : collect(),
         ]);
     }

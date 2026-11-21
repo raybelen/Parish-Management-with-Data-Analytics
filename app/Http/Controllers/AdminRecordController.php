@@ -30,7 +30,7 @@ class AdminRecordController extends Controller
         $serviceSummaries = $services->mapWithKeys(function (ServiceType $service) use ($groupedRecords): array {
             $groups = $groupedRecords->get($service->slug, collect());
             $bookNames = $groups->map(fn (ServiceRecord $record): string => trim((string) $record->register_book))
-                ->map(fn (string $book): string => $book === '' ? '__unassigned' : $book)
+                ->map(fn (string $book): string => $book === '' ? 'Book 1' : $book)
                 ->unique();
 
             return [$service->slug => [
@@ -65,10 +65,10 @@ class AdminRecordController extends Controller
             ->selectRaw('register_book, COUNT(*) as record_count, MAX(service_date) as latest_service_date')
             ->groupBy('register_book')
             ->get()
-            ->groupBy(fn (ServiceRecord $record): string => trim((string) $record->register_book) ?: '__unassigned')
+            ->groupBy(fn (ServiceRecord $record): string => trim((string) $record->register_book) ?: 'Book 1')
             ->map(function ($records, string $key): array {
                 return [
-                    'name' => $key === '__unassigned' ? null : $key,
+                    'name' => $key,
                     'record_count' => (int) $records->sum('record_count'),
                     'latest_service_date' => $records->max('latest_service_date'),
                 ];
@@ -94,7 +94,12 @@ class AdminRecordController extends Controller
 
         $records = $this->visibleRecords()->where('service_type', $serviceType->slug)
             ->when($isUnassigned, fn ($query) => $query->where(fn ($inner) => $inner->whereNull('register_book')->orWhere('register_book', '')))
-            ->when(! $isUnassigned, fn ($query) => $query->where('register_book', $book))
+            ->when(! $isUnassigned, fn ($query) => $query->where(function ($inner) use ($book): void {
+                $inner->where('register_book', $book);
+                if ($book === 'Book 1') {
+                    $inner->orWhereNull('register_book')->orWhere('register_book', '');
+                }
+            }))
             ->when(! $request->boolean('archived'), fn ($query) => $query->whereNull('archived_at'))
             ->when($filters['q'] ?? null, fn ($query, $term) => $query->where(fn ($inner) => $inner->where('record_number', 'like', '%'.$term.'%')->orWhere('participant_names', 'like', '%'.$term.'%')))
             ->orderByDesc('service_date')->orderByDesc('id')->paginate(25)->withQueryString();
@@ -102,11 +107,13 @@ class AdminRecordController extends Controller
         return view('admin.records.book', ['serviceType' => $serviceType, 'book' => $book, 'isUnassigned' => $isUnassigned, 'records' => $records]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         Gate::authorize('records.manage');
 
-        return view('admin.records.form', ['record' => new ServiceRecord, 'services' => ServiceType::query()->orderBy('name')->get(), 'history' => collect()]);
+        $defaults = $request->validate(['service_type' => ['nullable', 'string', 'exists:service_types,slug'], 'register_book' => ['nullable', 'string', 'max:100']]);
+
+        return view('admin.records.form', ['record' => new ServiceRecord([...$defaults, 'register_book' => $defaults['register_book'] ?? 'Book 1']), 'services' => ServiceType::query()->orderBy('name')->get(), 'history' => collect()]);
     }
 
     public function show(ServiceRecord $record): View
@@ -123,8 +130,8 @@ class AdminRecordController extends Controller
     public function store(StoreServiceRecordRequest $request): RedirectResponse
     {
         $record = DB::transaction(function () use ($request): ServiceRecord {
-            $data = $request->safe()->except(['reason', 'version', 'details_text']);
-            $record = ServiceRecord::create([...$data, 'source' => 'archival', 'recorded_by' => auth()->id(), 'details' => ['transcription' => $request->validated('details_text')]]);
+            $data = $request->safe()->except(['reason', 'version', 'details_text', 'register_details']);
+            $record = ServiceRecord::create([...$data, 'source' => 'archival', 'recorded_by' => auth()->id(), 'details' => [...($request->validated('register_details') ?? []), 'transcription' => $request->validated('details_text')]]);
             OfficeAudit::record('record.created', $record, [], $record->toArray(), $request->validated('reason'));
 
             return $record;
@@ -140,8 +147,8 @@ class AdminRecordController extends Controller
             $locked = ServiceRecord::query()->lockForUpdate()->findOrFail($record->id);
             abort_unless($locked->version === (int) $request->validated('version'), 409, 'This record has changed. Refresh before saving.');
             $before = $locked->toArray();
-            $locked->fill($request->safe()->except(['reason', 'version', 'details_text']));
-            $locked->details = [...($locked->details ?? []), 'transcription' => $request->validated('details_text')];
+            $locked->fill($request->safe()->except(['reason', 'version', 'details_text', 'register_details']));
+            $locked->details = [...($locked->details ?? []), ...($request->validated('register_details') ?? []), 'transcription' => $request->validated('details_text')];
             $locked->version++;
             $locked->save();
             OfficeAudit::record('record.corrected', $locked, $before, $locked->toArray(), $request->validated('reason'));

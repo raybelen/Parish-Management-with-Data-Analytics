@@ -174,7 +174,7 @@ class AdminDocumentController extends Controller
                 'type' => $data['type'],
                 'verified' => (bool) ($appointment->physical_documents[$data['type']]['verified'] ?? false),
             ],
-            'status_badge_html' => view('admin.appointments.partials.status-badge', ['status' => $appointment->status])->render(),
+            'status_badge_html' => view('admin.appointments.partials.status-badge', ['status' => $appointment->status, 'appointment' => $appointment])->render(),
             'status_section_html' => view('admin.appointments.partials.status-section', ['appointment' => $appointment])->render(),
         ]);
     }

@@ -20,15 +20,55 @@ window.addEventListener('afterprint', () => {
 
 const menuToggle = document.getElementById('menu-toggle');
 const mobileNavigation = document.getElementById('mobile-navigation');
-const oneTimeAppointmentAccess = document.querySelector('[data-one-time-appointment-access]');
-if (oneTimeAppointmentAccess) {
-    window.history.replaceState(null, '', oneTimeAppointmentAccess.dataset.manageUrl);
+const oneTimeClientAccess = document.querySelector('[data-one-time-client-access], [data-one-time-appointment-access]');
+if (oneTimeClientAccess) {
+    window.history.replaceState(null, '', oneTimeClientAccess.dataset.manageUrl);
     window.addEventListener('pageshow', (event) => {
         if (event.persisted) {
-            window.location.replace(oneTimeAppointmentAccess.dataset.manageUrl);
+            window.location.replace(oneTimeClientAccess.dataset.manageUrl);
         }
     });
 }
+
+async function copyText(value) {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+
+        return;
+    }
+
+    const input = document.createElement('textarea');
+    input.value = value;
+    input.setAttribute('readonly', '');
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    document.body.appendChild(input);
+    input.select();
+    const copied = document.execCommand('copy');
+    input.remove();
+
+    if (!copied) throw new Error('Copy command was rejected.');
+}
+
+document.querySelectorAll('[data-copy-reference]').forEach((button) => {
+    button.addEventListener('click', async () => {
+        const label = button.querySelector('[data-copy-reference-label]');
+        button.disabled = true;
+
+        try {
+            await copyText(button.dataset.copyReference);
+            label.textContent = 'Copied';
+        } catch {
+            label.textContent = 'Copy failed';
+        }
+
+        window.setTimeout(() => {
+            label.textContent = 'Copy reference';
+            button.disabled = false;
+        }, 1800);
+    });
+});
+
 function closeMenu() {
     mobileNavigation.hidden = true;
     menuToggle.setAttribute('aria-expanded', 'false');
@@ -244,6 +284,44 @@ document.querySelectorAll('[data-email-input]').forEach((field) => {
     field.addEventListener('blur', () => {
         field.value = field.value.trim().toLocaleLowerCase('en-PH');
     });
+});
+
+document.querySelectorAll('[data-facility-booking-form]').forEach((form) => {
+    const attendees = form.querySelector('[data-facility-attendees]');
+    const feedback = form.querySelector('[data-facility-attendees-feedback]');
+    const capacity = Number(attendees?.dataset.capacity ?? 0);
+
+    if (!attendees || !feedback || capacity < 1) return;
+
+    const warningClasses = ['border-l-4', 'border-amber-600', 'bg-amber-50', 'px-3', 'py-2', 'text-amber-950'];
+    const inputWarningClasses = ['border-amber-600', 'ring-3', 'ring-amber-600/15'];
+
+    function updateCapacityWarning({ focus = false } = {}) {
+        const exceedsCapacity = attendees.value !== '' && Number(attendees.value) > capacity;
+
+        feedback.textContent = exceedsCapacity
+            ? `This facility can accommodate up to ${capacity.toLocaleString('en-PH')} people. Reduce the attendee count before submitting.`
+            : feedback.dataset.defaultMessage;
+        feedback.classList.toggle('text-muted', !exceedsCapacity);
+        warningClasses.forEach((className) => feedback.classList.toggle(className, exceedsCapacity));
+        inputWarningClasses.forEach((className) => attendees.classList.toggle(className, exceedsCapacity));
+
+        if (exceedsCapacity) attendees.setAttribute('aria-invalid', 'true');
+        else attendees.removeAttribute('aria-invalid');
+
+        if (focus && exceedsCapacity) {
+            attendees.focus({ preventScroll: true });
+            attendees.scrollIntoView({ behavior: reducedMotion.matches ? 'auto' : 'smooth', block: 'center' });
+        }
+
+        return exceedsCapacity;
+    }
+
+    attendees.addEventListener('input', () => updateCapacityWarning());
+    form.addEventListener('submit', (event) => {
+        if (updateCapacityWarning({ focus: true })) event.preventDefault();
+    });
+    updateCapacityWarning();
 });
 
 const preferredDate = document.querySelector('[data-preferred-date]');

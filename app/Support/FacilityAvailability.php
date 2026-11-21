@@ -4,7 +4,6 @@ namespace App\Support;
 
 use App\Models\Facility;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
 
 class FacilityAvailability
 {
@@ -36,13 +35,7 @@ class FacilityAvailability
     public function conflict(Facility $facility, CarbonImmutable $start, CarbonImmutable $end): ?string
     {
         if ($facility->bookings()->whereNull('cancelled_at')
-            ->where(function (Builder $query): void {
-                $query->where('status', 'confirmed')
-                    ->orWhere(function (Builder $pending): void {
-                        $pending->where('status', 'pending')
-                            ->where(fn (Builder $active): Builder => $active->whereNull('expires_at')->orWhere('expires_at', '>', now()));
-                    });
-            })
+            ->where('status', 'confirmed')
             ->where('starts_at', '<', $end)->where('ends_at', '>', $start)->exists()) {
             return 'This time overlaps an existing reservation or closure. Choose another time.';
         }

@@ -19,8 +19,8 @@ return [
                 'rules' => ['required', 'string', 'max:1000'], 'title_case' => false,
             ],
             'request_details' => [
-                'label' => 'Request details or occasion', 'group' => 'Service details', 'type' => 'textarea', 'required' => true,
-                'rules' => ['required', 'string', 'max:1000'], 'title_case' => false,
+                'label' => 'Purpose of the request / additional details', 'group' => 'Service details', 'type' => 'textarea', 'required' => false,
+                'rules' => ['nullable', 'string', 'max:1000'], 'title_case' => false,
             ],
         ],
         'confirmation' => [

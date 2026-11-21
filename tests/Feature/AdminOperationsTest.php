@@ -49,6 +49,56 @@ class AdminOperationsTest extends TestCase
             ->assertSee(route('admin.appointments.index', ['q' => 'Maria', 'service' => 'baptism', 'month' => '2026-11', 'view' => 'list']));
     }
 
+    public function test_appointment_list_shows_payment_statuses_to_finance_staff(): void
+    {
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $unpaid = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'online']);
+        $partial = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'walk_in']);
+        $paid = Appointment::factory()->create(['fee_cents' => 10000]);
+        Payment::factory()->for($partial)->create(['amount_cents' => 4000]);
+        Payment::factory()->for($paid)->create(['amount_cents' => 10000]);
+
+        $this->get(route('admin.appointments.index'))
+            ->assertOk()
+            ->assertSee('Payment')
+            ->assertSee($unpaid->reference_number)
+            ->assertSee('Unpaid')
+            ->assertSee($partial->reference_number)
+            ->assertSee('Partially paid')
+            ->assertSee('Preference: Online Payment')
+            ->assertSee('Preference: Walk-in Payment')
+            ->assertSee($paid->reference_number)
+            ->assertSee('Paid');
+    }
+
+    public function test_appointment_list_hides_payment_status_without_finance_permission(): void
+    {
+        $this->withoutVite();
+        config(['office.permissions.admin' => ['appointments.view']]);
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $appointment = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'online']);
+        Payment::factory()->for($appointment)->create(['amount_cents' => 4000]);
+
+        $this->get(route('admin.appointments.index'))
+            ->assertOk()
+            ->assertSee($appointment->reference_number)
+            ->assertDontSee('Partially paid')
+            ->assertDontSee('Preference: Online Payment');
+    }
+
+    public function test_appointment_details_show_the_selected_payment_preference_to_finance_staff(): void
+    {
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $appointment = Appointment::factory()->create(['payment_option' => 'online']);
+
+        $this->get(route('admin.appointments.show', $appointment))
+            ->assertOk()
+            ->assertSee('Payment preference:')
+            ->assertSee('Online Payment');
+    }
+
     public function test_pending_appointment_shows_requirements_before_status_without_completion_input(): void
     {
         $this->withoutVite();

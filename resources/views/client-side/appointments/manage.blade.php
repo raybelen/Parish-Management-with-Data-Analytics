@@ -103,6 +103,7 @@
                                         <div>
                                             <p class="text-xs font-medium tracking-[0.14em] uppercase text-muted">{{ $recoveredAppointment['service'] }}</p>
                                             <p class="mt-2 font-mono text-lg font-semibold tracking-wide">{{ $recoveredAppointment['reference_number'] }}</p>
+                                            <div class="mt-3"><x-parish.copy-reference :value="$recoveredAppointment['reference_number']" /></div>
                                         </div>
                                         <span class="bg-gold/20 px-3 py-1 text-xs font-semibold text-[#705824]">{{ $recoveredAppointment['status'] }}</span>
                                     </div>

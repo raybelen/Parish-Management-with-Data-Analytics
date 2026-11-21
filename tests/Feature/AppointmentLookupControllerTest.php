@@ -61,6 +61,20 @@ class AppointmentLookupControllerTest extends TestCase
             ]);
     }
 
+    public function test_status_checking_is_not_rate_limited(): void
+    {
+        $appointment = Appointment::factory()->create([
+            'client_email' => 'maria@example.com',
+        ]);
+
+        for ($attempt = 1; $attempt <= 11; $attempt++) {
+            $this->post(route('appointments.lookup.store'), [
+                'reference_number' => $appointment->reference_number,
+                'contact_information' => $appointment->client_email,
+            ])->assertRedirect();
+        }
+    }
+
     /**
      * @return array<string, array{string}>
      */

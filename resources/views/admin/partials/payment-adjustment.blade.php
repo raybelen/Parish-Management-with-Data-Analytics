@@ -1,6 +1,6 @@
 <article class="rounded-xl border border-navy/10 p-4">
     <div class="flex flex-wrap items-center justify-between gap-2">
-        <h3 class="text-base font-semibold">{{ $adjustment->kind === 'refund' ? 'Refund request' : 'Fee adjustment' }} #{{ $adjustment->id }}</h3>
+        <h3 class="font-sans text-base font-normal">{{ $adjustment->kind === 'refund' ? 'Refund request' : 'Fee adjustment' }} #{{ $adjustment->id }}</h3>
         <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{{ ucfirst($adjustment->status) }}</span>
     </div>
     <dl class="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">

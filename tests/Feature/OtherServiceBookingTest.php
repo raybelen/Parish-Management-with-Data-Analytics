@@ -19,7 +19,7 @@ class OtherServiceBookingTest extends TestCase
     use LazilyRefreshDatabase;
 
     #[DataProvider('services')]
-    public function test_other_service_requires_manual_assignment_and_approval_before_calendar_visibility(string $kind): void
+    public function test_other_service_requires_manual_assignment_and_approval_and_stays_hidden_from_public_calendar(string $kind): void
     {
         $this->travelTo('2026-11-01');
         config(['parish.regular_schedules' => []]);
@@ -38,7 +38,9 @@ class OtherServiceBookingTest extends TestCase
 
         $this->postJson(route('admin.appointments.status', $appointment), ['status' => 'confirmed', 'version' => $appointment->version, 'reason' => 'Reviewed'])->assertUnauthorized();
         $this->admin();
-        $this->get(route('admin.appointments.show', $appointment))->assertSee('Approve request')->assertSee($priest->name);
+        $this->get(route('admin.appointments.show', $appointment))->assertSee('Approve request')->assertSee($priest->name)
+            ->assertSee('Awaiting approval')->assertDontSee('Awaiting documents');
+        $this->get(route('admin.appointments.index'))->assertSee('Awaiting approval')->assertDontSee('Awaiting documents');
         $this->getJson(route('admin.calendar.events', ['from' => '2026-11-01', 'to' => '2026-12-01']))->assertJsonCount(0, 'events');
         $this->postJson(route('admin.appointments.status', $appointment), ['status' => 'confirmed', 'version' => $appointment->version, 'reason' => 'Reviewed'])->assertInvalid('personnel_id');
         $this->put(route('admin.appointments.update', $appointment), ['personnel_id' => $priest->id, 'version' => $appointment->version])->assertRedirect()->assertSessionHasNoErrors();
@@ -47,7 +49,7 @@ class OtherServiceBookingTest extends TestCase
         $this->post(route('admin.appointments.status', $appointment), ['status' => 'confirmed', 'version' => $appointment->version, 'reason' => 'Request reviewed and approved'])->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame('confirmed', $appointment->fresh()->status);
         $this->getJson(route('admin.calendar.events', ['from' => '2026-11-01', 'to' => '2026-12-01']))->assertJsonCount(1, 'events');
-        $this->get(route('calendar'))->assertSee('Others')->assertDontSee('Private Service Address');
+        $this->get(route('calendar'))->assertDontSee('Others')->assertDontSee('Private Service Address');
         $this->assertDatabaseHas('audit_logs', ['action' => 'appointment.confirmed', 'entity_id' => $appointment->id]);
 
         app(PriestRotation::class)->assignAppointment($appointment->refresh());
@@ -64,12 +66,13 @@ class OtherServiceBookingTest extends TestCase
         $this->travelTo('2026-11-01');
         $this->get(route('appointments.create', ['service' => 'others']))->assertSee('name="service[service_kind]"', false)->assertSee('Anointing of the Sick');
         $this->postJson(route('appointments.store'), [...$this->payload('unknown'), 'service' => ['service_kind' => 'unknown']])
-            ->assertInvalid(['service.service_kind', 'service.recipient_full_name', 'service.service_location', 'service.request_details']);
+            ->assertInvalid(['service.service_kind', 'service.recipient_full_name', 'service.service_location']);
         $this->assertDatabaseCount('appointments', 0);
         $this->admin();
         $this->get(route('admin.appointments.create'))->assertSee('name="service[service_kind]"', false);
         $payload = $this->payload('house_blessing');
         unset($payload['payment_option']);
+        unset($payload['service']['request_details']);
         $this->post(route('admin.appointments.store'), $payload)->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseHas('appointments', ['service_type' => 'others', 'status' => 'pending', 'personnel_id' => null]);
     }
@@ -162,6 +165,19 @@ class OtherServiceBookingTest extends TestCase
         $this->assertFalse($appointment->canStartOnlinePayment());
         $this->assertCount(0, $appointment->invoices);
         $this->assertCount(0, $appointment->paymentTransactions);
+    }
+
+    public function test_other_service_can_be_requested_with_blank_additional_details(): void
+    {
+        $this->travelTo('2026-11-01');
+        $payload = $this->payload('house_blessing');
+        $payload['service']['request_details'] = '';
+
+        $this->post(route('appointments.store'), $payload)->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('pending', Appointment::query()->sole()->status);
+        $this->get(route('appointments.create', ['service' => 'others']))
+            ->assertSee('Purpose of the request / additional details');
     }
 
     #[DataProvider('invalidOfferings')]

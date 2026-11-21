@@ -15,7 +15,7 @@
             <a href="{{ route('admin.records.book', ['serviceType' => $serviceType, 'book' => $group['name'], 'unassigned' => $group['name'] === null ? 1 : null, 'archived' => request('archived') ?: null]) }}" class="admin-card group grid min-h-40 content-between gap-6 transition hover:-translate-y-0.5 hover:border-gold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold">
                 <div>
                     <p class="text-xs font-semibold tracking-[0.16em] text-gold uppercase">{{ $serviceType->name }} register</p>
-                    <h2 class="mt-2 text-2xl group-hover:underline group-hover:decoration-gold group-hover:underline-offset-4">{{ $group['name'] ?? 'Unassigned book' }}</h2>
+                    <h2 class="mt-2 text-2xl group-hover:underline group-hover:decoration-gold group-hover:underline-offset-4">{{ $group['name'] ?? 'Book 1' }}</h2>
                 </div>
                 <p class="text-sm text-muted">{{ $group['record_count'] }} {{ Str::plural('record', $group['record_count']) }}@if($group['latest_service_date']) · Latest {{ \Illuminate\Support\Carbon::parse($group['latest_service_date'])->format('M j, Y') }}@endif</p>
             </a>

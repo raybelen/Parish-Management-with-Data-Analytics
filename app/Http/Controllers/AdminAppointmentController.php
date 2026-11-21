@@ -33,6 +33,7 @@ class AdminAppointmentController extends Controller
             'month' => ['nullable', 'date_format:Y-m'],
         ]);
         $query = OfficeAccess::appointments($request->user())->with('personnel')
+            ->when($request->user()->can('finance.view'), fn ($query) => $query->with('payments:id,appointment_id,kind,amount_cents'))
             ->when($filters['q'] ?? null, fn ($q, $term) => $q->where(fn ($inner) => $inner->where('reference_number', 'like', '%'.$term.'%')->orWhere('client_full_name', 'like', '%'.$term.'%')->orWhereHas('participants', fn ($p) => $p->where('full_name', 'like', '%'.$term.'%'))))
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
             ->when($filters['service'] ?? null, fn ($q, $service) => $q->where('service_type', $service))

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SaveFacilityRequest;
 use App\Models\Facility;
+use App\Models\FacilityBooking;
 use App\Support\FacilityAvailability;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
@@ -28,7 +29,13 @@ class AdminFacilityController extends Controller
             ->when($filters['status'] ?? null, fn (Builder $query, string $status): Builder => $query->where('active', $status === 'active'))
             ->orderBy('name')->paginate(12)->withQueryString();
 
-        return view('admin.facilities.index', compact('facilities', 'filters'));
+        $pendingRequests = FacilityBooking::query()->with('facility')->where('status', 'pending')
+            ->whereNull('cancelled_at')->where('starts_at', '>', now())
+            ->where(fn (Builder $query): Builder => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->whereHas('facility', fn (Builder $query): Builder => $query->where('source', OfficeSettings::source()))
+            ->orderBy('expires_at')->orderBy('id')->paginate(15, ['*'], 'requests_page')->withQueryString();
+
+        return view('admin.facilities.index', compact('facilities', 'filters', 'pendingRequests'));
     }
 
     public function create(): View
@@ -65,11 +72,7 @@ class AdminFacilityController extends Controller
             $cursor = $date->setTimeFromTimeString($hours['opens_at'])->max(CarbonImmutable::now(config('office.timezone'))->ceilMinute());
             $closing = $date->setTimeFromTimeString($hours['closes_at']);
             $occupied = $facility->bookings()->whereNull('cancelled_at')
-                ->where(function (Builder $query): void {
-                    $query->where('status', 'confirmed')
-                        ->orWhere(fn (Builder $pending): Builder => $pending->where('status', 'pending')
-                            ->where(fn (Builder $active): Builder => $active->whereNull('expires_at')->orWhere('expires_at', '>', now())));
-                })
+                ->where('status', 'confirmed')
                 ->where('starts_at', '<', $closing)->where('ends_at', '>', $cursor)->orderBy('starts_at')->get();
             foreach ($occupied as $booking) {
                 if ($booking->starts_at->greaterThan($cursor)) {
@@ -101,11 +104,7 @@ class AdminFacilityController extends Controller
             $before = $facility->toArray();
             $facility->fill($request->facilityData());
             foreach ($facility->bookings()->whereNull('cancelled_at')->where('kind', 'reservation')
-                ->where(function (Builder $query): void {
-                    $query->where('status', 'confirmed')
-                        ->orWhere(fn (Builder $pending): Builder => $pending->where('status', 'pending')
-                            ->where(fn (Builder $active): Builder => $active->whereNull('expires_at')->orWhere('expires_at', '>', now())));
-                })
+                ->where('status', 'confirmed')
                 ->where('ends_at', '>', now(config('office.timezone')))->lazyById() as $booking) {
                 $conflict = $availability->policyConflict($facility, $booking->starts_at, $booking->ends_at, $booking->attendees, $booking->activity);
                 if ($conflict) {

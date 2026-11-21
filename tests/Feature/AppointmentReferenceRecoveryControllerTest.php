@@ -53,6 +53,8 @@ class AppointmentReferenceRecoveryControllerTest extends TestCase
             ->assertSee('Your appointment references')
             ->assertSee($firstAppointment->reference_number)
             ->assertSee($secondAppointment->reference_number)
+            ->assertSee('data-copy-reference="'.$firstAppointment->reference_number.'"', false)
+            ->assertSee('data-copy-reference="'.$secondAppointment->reference_number.'"', false)
             ->assertDontSee($differentClient->reference_number)
             ->assertDontSee($differentContact->reference_number);
 

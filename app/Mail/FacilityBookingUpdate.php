@@ -37,11 +37,7 @@ class FacilityBookingUpdate extends Mailable implements ShouldQueue
             'status' => $booking->status,
             'reason' => $booking->cancellation_reason,
         ];
-        $route = $event === 'verification' ? 'facilities.bookings.verify' : 'facilities.bookings.show';
-        $expiresAt = $event === 'verification'
-            ? now()->addMinutes(config('facilities.verification_minutes'))
-            : now()->addDays(config('facilities.access_days'));
-        $this->accessUrl = URL::temporarySignedRoute($route, $expiresAt, ['booking' => $booking->reference]);
+        $this->accessUrl = URL::temporarySignedRoute('facilities.bookings.email-access', now()->addDays(config('facilities.access_days')), ['booking' => $booking->reference]);
         $this->afterCommit();
     }
 
@@ -79,7 +75,7 @@ class FacilityBookingUpdate extends Mailable implements ShouldQueue
     private function heading(): string
     {
         return match ($this->event) {
-            'verification' => 'Verify your facility request',
+            'submitted' => 'Facility request submitted',
             'access' => 'Access your facility request',
             'approved' => 'Facility request approved',
             'cancelled' => 'Facility booking cancelled',

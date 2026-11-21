@@ -9,8 +9,8 @@ Schedule: **{{ $details['schedule'] }}**
 
 Reference: **{{ $details['reference'] }}**
 
-@if($event === 'verification')
-Confirm your email to submit the request for staff review. The selected time is not held until you verify it.
+@if($event === 'submitted')
+Your request is pending parish staff approval. The time is reserved only after approval; other requests may be submitted for the same schedule.
 @elseif($event === 'approved')
 Parish staff approved your facility request.
 @elseif($event === 'cancelled')
@@ -22,7 +22,7 @@ Use the secure link below to review your request.
 @endif
 
 <x-mail::button :url="$accessUrl">
-{{ $event === 'verification' ? 'Verify request' : 'View request' }}
+View request
 </x-mail::button>
 
 If you did not make this request, you can ignore this email.

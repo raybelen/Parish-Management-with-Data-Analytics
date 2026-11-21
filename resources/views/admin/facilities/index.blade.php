@@ -4,6 +4,24 @@
     @can('facilities.manage')<a class="admin-button" href="{{ route('admin.facilities.create') }}">Add facility</a>@endcan
 @endsection
 @section('content')
+    <section class="admin-card grid gap-4">
+        <div><h2 class="text-2xl">Pending facility requests ({{ $pendingRequests->total() }})</h2><p class="mt-2 text-sm text-muted">Review the earliest approval deadlines first. Pending requests do not reserve time. Times are in {{ config('office.timezone') }}.</p></div>
+        @forelse($pendingRequests as $booking)
+            <article class="grid gap-3 border-b border-navy/10 pb-4 font-sans">
+                <div class="grid gap-1">
+                    <h3 class="font-sans text-base font-semibold leading-6 tracking-normal text-navy">{{ $booking->facility->name }} &mdash; {{ $booking->title }}</h3>
+                    <p class="text-sm leading-6 text-muted">{{ $booking->organizer }} <span aria-hidden="true">&middot;</span> <span class="font-medium text-navy">{{ $booking->reference }}</span></p>
+                </div>
+                <p class="text-sm leading-6"><span class="font-medium">Requested schedule:</span> {{ $booking->starts_at->format('M j, Y g:i A') }} &ndash; {{ $booking->ends_at->format('g:i A') }}</p>
+                <p class="text-sm leading-6 text-muted"><span class="font-medium text-navy">Submitted:</span> {{ $booking->created_at->format('M j, Y g:i A') }} <span aria-hidden="true">&middot;</span> <span class="font-medium text-navy">Approval deadline:</span> {{ $booking->expires_at?->format('M j, Y g:i A') ?? 'Not set' }}</p>
+                <div class="flex flex-wrap gap-3">
+                    <a class="admin-secondary" href="{{ route('admin.facilities.show', ['facility' => $booking->facility, 'date' => $booking->starts_at->toDateString()]) }}">Review request</a>
+                    @can('facilities.manage')<form method="POST" action="{{ route('admin.facilities.bookings.update', [$booking->facility, $booking]) }}">@csrf @method('PATCH')<button class="admin-button">Approve request</button></form>@endcan
+                </div>
+            </article>
+        @empty<p class="text-sm text-muted">No requests awaiting approval.</p>@endforelse
+        {{ $pendingRequests->links() }}
+    </section>
     <section class="admin-card grid gap-5">
         <div><h2 class="text-2xl">Parish halls &amp; rooms</h2><p class="mt-2 text-sm text-muted">Manage spaces, opening hours, reservations, and closures.</p></div>
         <form method="GET" class="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
