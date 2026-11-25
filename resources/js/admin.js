@@ -2,6 +2,7 @@ import './admin-calendar';
 import './admin-document-verification';
 import './appointment-details';
 import './group-baptisms';
+import './admin-reports';
 
 document.querySelectorAll('[data-register-toggle]').forEach((toggle) => {
     const details = document.getElementById(toggle.getAttribute('aria-controls'));

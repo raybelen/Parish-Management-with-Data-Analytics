@@ -90,7 +90,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::delete('priests/unavailabilities/{unavailability}', [AdminPriestUnavailabilityController::class, 'destroy'])->name('priests.unavailabilities.destroy');
         Route::resource('schedules', AdminScheduleController::class)->only(['store', 'update', 'destroy'])
             ->middleware('throttle:60,1');
-        Route::resource('appointments', AdminAppointmentController::class)->only(['index', 'create', 'store', 'show', 'update']);
+        Route::resource('appointments', AdminAppointmentController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
+        Route::patch('appointments/{appointment}/details', [AdminAppointmentController::class, 'details'])->name('appointments.details');
         Route::post('appointments/{appointment}/status', [AdminAppointmentStatusController::class, 'store'])->name('appointments.status');
         Route::patch('appointments/{appointment}/documents', [AdminDocumentController::class, 'update'])->name('documents.update');
         Route::post('appointments/{appointment}/documents', [AdminDocumentController::class, 'store'])->name('documents.store');
@@ -104,6 +105,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth:web', 'admin', 'auth.s
         Route::get('records/all', [AdminRecordController::class, 'all'])->name('records.all');
         Route::get('records/services/{serviceType:slug}', [AdminRecordController::class, 'service'])->name('records.service');
         Route::get('records/services/{serviceType:slug}/book', [AdminRecordController::class, 'book'])->name('records.book');
+        Route::get('records/{record}/certificate', [AdminRecordController::class, 'certificate'])->name('records.certificate');
         Route::resource('records', AdminRecordController::class)->parameters(['records' => 'record'])->except('edit');
         Route::get('reports', [AdminReportController::class, 'index'])->name('reports.index');
         Route::get('revenue', [AdminRevenueController::class, 'index'])->name('revenue.index');

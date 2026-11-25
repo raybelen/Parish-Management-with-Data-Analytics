@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\CreateAppointment;
 use App\Actions\ManageAppointment;
 use App\Http\Requests\StoreAppointmentRequest;
+use App\Http\Requests\UpdateAppointmentDetailsRequest;
 use App\Http\Requests\UpdateOfficeAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\AuditLog;
@@ -93,6 +94,26 @@ class AdminAppointmentController extends Controller
             'history' => AuditLog::query()->with('actor')->where('entity_type', Appointment::class)->where('entity_id', $appointment->id)
                 ->when(! $request->user()->can('finance.view'), fn ($query) => $query->where('action', '!=', 'appointment.fee_changed'))->latest('id')->limit(50)->get(),
         ]);
+    }
+
+    public function edit(Request $request, Appointment $appointment): View
+    {
+        Gate::authorize('appointments.manage');
+        OfficeAccess::appointment($request->user(), $appointment);
+        abort_unless(in_array($appointment->status, ['pending', 'confirmed'], true), 403, 'Only pending or confirmed appointments can be corrected.');
+
+        return view('admin.appointments.edit', [
+            'appointment' => $appointment,
+            'service' => ServiceType::query()->where('slug', $appointment->service_type)->firstOrFail(),
+        ]);
+    }
+
+    public function details(UpdateAppointmentDetailsRequest $request, Appointment $appointment, ManageAppointment $manage): RedirectResponse
+    {
+        OfficeAccess::appointment($request->user(), $appointment);
+        $manage->correctDetails($appointment, $request->validated());
+
+        return redirect()->route('admin.appointments.show', $appointment)->with('status', 'Appointment details corrected and saved in the history.');
     }
 
     public function update(UpdateOfficeAppointmentRequest $request, Appointment $appointment, ManageAppointment $manage): RedirectResponse

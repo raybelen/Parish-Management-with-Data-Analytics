@@ -26,7 +26,7 @@ class StoreAppointmentRequest extends FormRequest
      */
     public function rules(): array
     {
-        $serviceType = $this->string('service_type')->toString();
+        $serviceType = $this->serviceType();
         $serviceRules = $this->serviceRules($serviceType);
         $serviceKeys = array_map(
             fn (string $key): string => mb_substr($key, mb_strlen('service.')),
@@ -163,7 +163,7 @@ class StoreAppointmentRequest extends FormRequest
             'service.expected_attendee_count' => 'expected number of attendees',
         ];
 
-        foreach (config('appointments.details.'.$this->string('service_type')->toString(), []) as $key => $definition) {
+        foreach (config('appointments.details.'.$this->serviceType(), []) as $key => $definition) {
             $attributes["service.{$key}"] = mb_strtolower($definition['label']);
         }
 
@@ -198,7 +198,7 @@ class StoreAppointmentRequest extends FormRequest
             }
         }
 
-        if ($this->input('service_type') === 'others') {
+        if ($this->input('service_type') === 'others' && ! $this->routeIs('admin.appointments.details')) {
             $this->merge(['preferred_church' => Appointment::OTHER_SERVICE_LOCATION]);
         }
 
@@ -217,9 +217,14 @@ class StoreAppointmentRequest extends FormRequest
      */
     private function serviceTitleFields(): array
     {
-        $fields = config('appointments.details.'.$this->string('service_type')->toString(), []);
+        $fields = config('appointments.details.'.$this->serviceType(), []);
 
         return array_keys(array_filter($fields, fn (array $field): bool => $field['title_case'] ?? false));
+    }
+
+    protected function serviceType(): string
+    {
+        return $this->string('service_type')->toString();
     }
 
     private function normalizePhone(mixed $value): ?string

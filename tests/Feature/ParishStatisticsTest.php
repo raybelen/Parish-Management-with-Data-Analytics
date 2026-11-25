@@ -214,8 +214,8 @@ class ParishStatisticsTest extends TestCase
             ->assertDontSee('95%');
         $export = $this->get('/admin/reports?type=forecast&from=2026-10-01&to=2026-10-31&export=1');
         $export->assertDownload();
-        $this->assertStringContainsString('data_through', $export->streamedContent());
-        $this->assertStringContainsString('2025-12', $export->streamedContent());
+        $this->assertStringContainsString('Records through', $export->streamedContent());
+        $this->assertStringContainsString('Dec 2025', $export->streamedContent());
         $this->assertStringContainsString('Confirmed monthly parish statistics', $export->streamedContent());
         MonthlyStatistic::query()->where('service_type', 'wedding')->where('month', '2025-12-01')->update(['count' => 99]);
         $this->get('/admin/forecasts?service=wedding')->assertSee('saved estimates are outdated')->assertDontSee('January 2026');

@@ -27,6 +27,13 @@
         <section class="admin-card"><h2 class="mb-4 text-2xl">{{ $service->name }} participants</h2><div class="grid gap-3">@forelse($appointment->participants as $participant)<p class="text-sm"><span class="text-muted">{{ ucfirst($participant->role) }}:</span> {{ $participant->full_name }} @if($participant->date_of_birth)<span class="text-muted">· {{ $participant->date_of_birth->format('M j, Y') }}</span>@endif</p>@empty<p class="text-sm text-muted">Participant information is preserved in the full appointment details.</p>@endforelse</div><button type="button" class="admin-secondary mt-5" data-dialog-target="appointment-service-details">View full appointment details</button></section>
     </div>
     <x-parish.dialog id="appointment-service-details" :title="$service->name.' appointment details'" class="backdrop:bg-navy/60" wide>
+        <x-slot:actions>
+            @can('appointments.manage')
+                @if(in_array($appointment->status, ['pending', 'confirmed']))
+                    <a class="admin-secondary whitespace-nowrap" href="{{ route('admin.appointments.edit', $appointment) }}" data-appointment-edit-link>Edit details</a>
+                @endif
+            @endcan
+        </x-slot:actions>
         @php
             $detailDefinitions = config("appointments.details.{$appointment->service_type}", []);
             $detailGroups = collect($appointment->service_details)
@@ -118,5 +125,32 @@
     <div data-appointment-status-slot>@include('admin.appointments.partials.status-section', ['appointment' => $appointment])</div>
     @if($appointment->serviceRecord)@can('records.view')<p class="admin-card text-sm">Permanent record created: <a class="underline" href="{{ route('admin.records.show', $appointment->serviceRecord) }}">{{ $appointment->serviceRecord->record_number }}</a> · {{ $appointment->completed_at?->format('M j, Y g:i A') }}</p>@endcan
 @endif
-    <details id="appointment-history" class="admin-card scroll-mt-28"><summary class="cursor-pointer text-lg font-semibold">Appointment history</summary><div class="mt-4 grid gap-4">@forelse($history as $entry)<div class="border-b border-navy/10 pb-3 text-sm"><p><strong>{{ \Illuminate\Support\Str::headline($entry->action) }}</strong> · {{ $entry->created_at->format('M j, Y g:i A') }}</p><p class="text-muted">{{ $entry->actor?->name ?? 'Client / system' }} · {{ $entry->reason }}</p></div>@empty<p class="text-sm text-muted">No recorded changes.</p>@endforelse</div></details>
+    <details id="appointment-history" class="admin-card scroll-mt-28">
+        <summary class="cursor-pointer text-lg font-semibold">Appointment history</summary>
+        <div class="mt-4 grid gap-4">
+            @forelse($history as $entry)
+                <div class="border-b border-navy/10 pb-3 text-sm">
+                    <p><strong>{{ \Illuminate\Support\Str::headline($entry->action) }}</strong> · {{ $entry->created_at->timezone(config('office.timezone'))->format('M j, Y g:i A') }}</p>
+                    <p class="text-muted">{{ $entry->actor?->name ?? 'Client / system' }} · {{ $entry->reason }}</p>
+                    @if($entry->action === 'appointment.details_corrected')
+                        <details class="mt-3">
+                            <summary class="cursor-pointer font-medium">View corrections</summary>
+                            <dl class="mt-3 grid gap-4 sm:grid-cols-2">
+                                @foreach($entry->after as $field => $value)
+                                    @php($label = str_starts_with($field, 'service_details.') ? config('appointments.details.'.$appointment->service_type.'.'.substr($field, 16).'.label', \Illuminate\Support\Str::headline(substr($field, 16))) : \Illuminate\Support\Str::headline($field))
+                                    <div class="min-w-0 rounded-lg bg-slate-50 p-3">
+                                        <dt class="font-medium">{{ $label }}</dt>
+                                        <dd class="mt-1 whitespace-pre-line break-words"><span class="text-muted">Previous:</span> {{ $entry->before[$field] ?? 'Not provided' }}</dd>
+                                        <dd class="mt-1 whitespace-pre-line break-words"><span class="text-muted">Corrected:</span> {{ $value ?? 'Not provided' }}</dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </details>
+                    @endif
+                </div>
+            @empty
+                <p class="text-sm text-muted">No recorded changes.</p>
+            @endforelse
+        </div>
+    </details>
 @endsection

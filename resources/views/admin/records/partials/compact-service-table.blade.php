@@ -39,7 +39,7 @@
                     </dl></td>
                 @endforeach
                 <td>{{ $record->officiant ?: '—' }}</td>
-                <td><a data-register-toggle aria-controls="register-details-{{ $record->id }}" aria-expanded="false" class="inline-flex min-h-11 items-center whitespace-nowrap text-sm font-semibold underline decoration-gold underline-offset-4" href="{{ route('admin.records.show', $record) }}">View details</a></td>
+                <td><a data-register-toggle aria-controls="register-details-{{ $record->id }}" aria-expanded="false" class="inline-flex min-h-11 items-center whitespace-nowrap text-sm font-semibold underline decoration-gold underline-offset-4" href="{{ route('admin.records.show', $record) }}">View details</a><div class="mt-2">@include('admin.records.partials.print-link', ['record' => $record])</div></td>
             </tr>
             <tr id="register-details-{{ $record->id }}" hidden>
                 <td colspan="6" class="bg-slate-50">

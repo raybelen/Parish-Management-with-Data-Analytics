@@ -306,19 +306,19 @@ class AdminConfigurationTest extends TestCase
             ->assertDontSee('name="service[bride_contact_number]"', false);
     }
 
-    public function test_staff_cannot_edit_client_or_participant_details_after_creation(): void
+    public function test_staff_correction_page_does_not_expose_schedule_or_finance_fields(): void
     {
         $this->withoutVite();
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $appointment = Appointment::factory()->create();
-        $before = $appointment->refresh()->getAttributes();
 
-        $this->get('/admin/appointments/'.$appointment->reference_number.'/edit')->assertNotFound();
-        $this->patch('/admin/appointments/'.$appointment->reference_number.'/details', [
-            'client_full_name' => 'Changed by staff',
-        ])->assertNotFound();
-
-        $this->assertSame($before, $appointment->refresh()->getAttributes());
+        $this->get(route('admin.appointments.edit', $appointment))
+            ->assertOk()
+            ->assertSee('Edit appointment details')
+            ->assertDontSee('name="preferred_date"', false)
+            ->assertDontSee('name="preferred_time"', false)
+            ->assertDontSee('name="fee_cents"', false)
+            ->assertDontSee('name="status"', false);
     }
 
     public function test_disabled_analytics_are_hidden_without_removing_configuration_or_results(): void
@@ -334,7 +334,7 @@ class AdminConfigurationTest extends TestCase
 
         $this->get('/admin')->assertOk()->assertDontSee('Parish historical statistics')->assertDontSee('Service Analytics');
         $this->get('/admin/settings')->assertOk()->assertDontSee('Advanced SARIMA parameters')->assertDontSee('Forecasts Manage');
-        $this->get('/admin/reports')->assertOk()->assertDontSee('Monthly completed-service statistics')->assertDontSee('Forecast results and settings');
+        $this->get('/admin/reports')->assertOk()->assertDontSee('Monthly completed-service statistics')->assertDontSee('Forecast report');
         $this->get('/admin/forecasts')->assertNotFound();
         $this->post('/admin/forecasts')->assertNotFound();
         $this->get('/admin/statistics')->assertNotFound();

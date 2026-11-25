@@ -42,6 +42,7 @@ class AuditLogPresenter
         'appointment.confirmed' => 'Appointment confirmed',
         'appointment.created' => 'Appointment created',
         'appointment.declined' => 'Appointment declined',
+        'appointment.details_corrected' => 'Appointment details corrected',
         'appointment.expired' => 'Appointment hold expired',
         'appointment.fee_changed' => 'Appointment fee changed',
         'appointment.no_show' => 'Appointment marked as no-show',

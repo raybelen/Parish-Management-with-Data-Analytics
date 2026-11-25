@@ -58,6 +58,8 @@ if (documentSection) {
 
         const statusLink = document.querySelector('[data-appointment-status-link]');
         if (statusLink) statusLink.hidden = payload.status_section_html.trim() === '';
+        const editLink = document.querySelector('[data-appointment-edit-link]');
+        if (editLink) editLink.hidden = payload.status_section_html.trim() === '';
 
         if (!['pending', 'confirmed'].includes(payload.appointment_status)) {
             documentSection.querySelectorAll('[data-document-decision-form]').forEach((form) => form.remove());

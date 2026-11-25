@@ -1,6 +1,6 @@
 @extends('admin.layout')
 @section('title', $record->exists ? $record->record_number : 'Add historical record')
-@section('actions')<a class="admin-secondary" href="{{ route('admin.records.index') }}">Browse records</a><a class="admin-secondary" href="{{ route('admin.records.all') }}">Search all</a>@endsection
+@section('actions')@include('admin.records.partials.print-link', ['record' => $record])<a class="admin-secondary" href="{{ route('admin.records.index') }}">Browse records</a><a class="admin-secondary" href="{{ route('admin.records.all') }}">Search all</a>@endsection
 @section('content')
     <p class="text-sm text-muted">{{ !$record->exists || $record->source === 'archival' ? 'Historical register entry preserved separately from current appointment operations.' : 'Preserved service record. Corrections are audited and the linked appointment remains unchanged.' }}</p>
     <form data-service-register-form class="admin-card grid gap-4 sm:grid-cols-2" method="POST" action="{{ $record->exists ? route('admin.records.update', $record) : route('admin.records.store') }}">@csrf @if($record->exists)@method('PUT')@endif<input type="hidden" name="version" value="{{ $record->version }}">

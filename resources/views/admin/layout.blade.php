@@ -56,6 +56,14 @@
             </a>
             @auth
                 <div class="flex items-center gap-3 text-sm">
+                    @can('notifications.manage')
+                        <a href="{{ route('admin.notifications.index') }}" class="admin-secondary relative size-10 !min-h-10 shrink-0 !p-0" aria-label="Office inbox: {{ $unreadOfficeNotificationCount }} awaiting attention" title="Office inbox">
+                            <x-parish.icon name="bell" class="size-5" />
+                            @if ($unreadOfficeNotificationCount > 0)
+                                <span class="absolute -top-1 -right-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-700 px-1.5 py-0.5 text-xs font-semibold text-white" aria-hidden="true">{{ $unreadOfficeNotificationCount > 99 ? '99+' : $unreadOfficeNotificationCount }}</span>
+                            @endif
+                        </a>
+                    @endcan
                     <div class="hidden text-right sm:block">
                         <span class="block font-semibold leading-tight">{{ auth()->user()->name }}</span>
                         <span class="mt-0.5 block text-xs text-muted">{{ \Illuminate\Support\Str::headline(auth()->user()->role) }}</span>

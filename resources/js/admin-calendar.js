@@ -342,7 +342,7 @@ function initializeCalendar(root) {
             actions.append(button('Delete', 'admin-secondary', () => { find('[data-delete-error]').hidden = true; deletion.showModal(); }));
         }
         if (event.detail_url) {
-            const link = element('a', 'admin-button', event.kind === 'Appointment' ? 'Manage appointment' : 'Manage unavailable time');
+            const link = element('a', 'admin-button', event.kind === 'Appointment' ? 'View appointment' : 'Manage unavailable time');
             link.href = event.detail_url;
             actions.append(link);
         }

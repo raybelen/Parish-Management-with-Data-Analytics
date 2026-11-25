@@ -8,6 +8,7 @@ use App\Models\ServiceRecord;
 use App\Models\ServiceType;
 use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
+use App\Support\ServiceCertificate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -124,6 +125,20 @@ class AdminRecordController extends Controller
         return view('admin.records.form', [
             'record' => $record, 'services' => ServiceType::query()->orderBy('name')->get(),
             'history' => AuditLog::query()->with('actor')->where('entity_type', ServiceRecord::class)->where('entity_id', $record->id)->latest('id')->limit(50)->get(),
+        ]);
+    }
+
+    public function certificate(ServiceRecord $record): View
+    {
+        Gate::authorize('records.view');
+        abort_unless(in_array($record->source, ['archival', OfficeSettings::source()], true), 404);
+        abort_unless(isset(ServiceCertificate::TITLES[$record->service_type]), 404);
+
+        return view('admin.records.certificate', [
+            'record' => $record,
+            'title' => ServiceCertificate::TITLES[$record->service_type],
+            'sections' => ServiceCertificate::sections($record),
+            'parishName' => OfficeSettings::all()['parish_name'],
         ]);
     }
 

@@ -6,7 +6,7 @@ document.querySelectorAll('[data-death-year]').forEach((yearField) => {
 
     const updateDates = () => {
         yearField.value = deathDate?.value.slice(0, 4) ?? '';
-        if (burialDate) burialDate.value = preferredDate?.value ?? '';
+        if (burialDate && preferredDate) burialDate.value = preferredDate.value;
     };
 
     [deathDate, preferredDate].forEach((field) => {

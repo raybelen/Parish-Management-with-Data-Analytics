@@ -12,6 +12,7 @@ use App\Support\OfficeAudit;
 use App\Support\OfficeSettings;
 use App\Support\PriestRotation;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
@@ -19,6 +20,28 @@ use Illuminate\Validation\ValidationException;
 class ManageAppointment
 {
     public function __construct(private ReserveAppointmentSlot $slots, private NotifyAppointmentClient $notifyClient) {}
+
+    /** @param array<string, mixed> $data */
+    public function correctDetails(Appointment $appointment, array $data): void
+    {
+        DB::transaction(function () use ($appointment, $data): void {
+            $locked = Appointment::query()->lockForUpdate()->findOrFail($appointment->id);
+            $this->checkVersion($locked, (int) $data['version']);
+            $this->require(in_array($locked->status, ['pending', 'confirmed'], true), 'status', 'Only pending or confirmed appointments can be corrected.');
+            $fields = ['client_full_name', 'client_contact_number', 'client_email', 'client_address', 'preferred_contact_method', 'additional_notes', 'service_details'];
+            $before = Arr::dot($locked->only($fields));
+            $locked->fill(Arr::only($data, $fields));
+            $locked->client_contact_key = preg_replace('/\D+/', '', $data['client_contact_number']) ?? '';
+            $locked->service_details = array_replace($locked->service_details ?? [], $data['service']);
+            $after = Arr::dot($locked->only($fields));
+            $changes = array_keys(array_filter($after, fn (mixed $value, string $key): bool => $value !== ($before[$key] ?? null), ARRAY_FILTER_USE_BOTH));
+            $this->require($changes !== [], 'change_reason', 'Change at least one detail before saving a correction.');
+            $locked->version++;
+            $locked->save();
+            AppointmentParticipants::sync($locked);
+            OfficeAudit::record('appointment.details_corrected', $locked, Arr::only($before, $changes), Arr::only($after, $changes), $data['change_reason']);
+        });
+    }
 
     /** @param array<string, mixed> $data */
     public function assignPersonnel(Appointment $appointment, array $data): void

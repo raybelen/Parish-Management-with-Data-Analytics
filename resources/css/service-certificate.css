@@ -1,0 +1,51 @@
+@page service-certificate {
+    size: A4 portrait;
+    margin: 14mm;
+}
+
+.service-certificate {
+    width: 100%;
+    max-width: 182mm;
+    min-height: 269mm;
+    padding: 12mm;
+    border: 3px double #333;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 11pt;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.certificate-heading { margin-bottom: 8mm; }
+.certificate-section { margin-bottom: 6mm; }
+.certificate-field { display: flex; align-items: baseline; gap: 3mm; margin-bottom: 2.5mm; break-inside: avoid; }
+.certificate-field dt { flex: 0 0 37mm; font-size: 10pt; }
+.certificate-field dd { flex: 1; min-width: 0; min-height: 6mm; border-bottom: 1px solid #777; }
+.certificate-marriage { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 7mm; }
+.certificate-marriage .certificate-field dt { flex-basis: 19mm; font-size: 9pt; }
+.certificate-witnesses { grid-column: 1 / -1; }
+.certificate-witnesses dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 7mm; }
+.certificate-reference dd { min-height: 6mm; border-bottom: 1px solid #777; }
+.certificate-footer { break-inside: avoid; }
+.certificate-signing { padding-top: 20mm; }
+
+@media screen and (max-width: 600px) {
+    .service-certificate { padding: 6mm; }
+    .certificate-marriage { grid-template-columns: 1fr; }
+    .certificate-field { display: block; }
+}
+
+@media print {
+    .certificate-page { page: service-certificate; margin: 0; padding: 0; }
+    .service-certificate { max-width: none; min-height: 0; padding: 7mm; font-size: 10pt; line-height: 1.3; }
+    .certificate-heading { margin-bottom: 4mm; }
+    .certificate-heading h1 { margin-top: 4mm; font-size: 26pt; }
+    .certificate-heading p:last-child { margin-top: 3mm; }
+    .certificate-section { margin-bottom: 4mm; }
+    .certificate-section h2 { margin-bottom: 2mm; }
+    .certificate-section > p { margin-bottom: 3mm; }
+    .certificate-field { margin-bottom: 1.5mm; }
+    .certificate-field dd, .certificate-reference dd { min-height: 5mm; }
+    .certificate-footer > p:first-child { margin-bottom: 3mm; }
+    .certificate-footer > dl { margin-top: 3mm; }
+    .certificate-signing { padding-top: 12mm; }
+    .certificate-footer > p:last-child { margin-top: 4mm; }
+}

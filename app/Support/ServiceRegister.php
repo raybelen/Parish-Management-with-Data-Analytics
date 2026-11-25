@@ -14,9 +14,12 @@ class ServiceRegister
             return [];
         }
         $fields = config('appointments.details.'.$service, []);
-        unset($fields['child_sex'], $fields['anointing_of_sick']);
+        unset($fields['anointing_of_sick']);
         if ($service === 'funeral') {
             $fields['date_of_burial'] = ['label' => 'Date of burial', 'type' => 'date', 'rules' => ['nullable', 'date_format:Y-m-d']];
+            foreach (['family_relationship' => 'Child of / married to / widow(er) of', 'place_of_death' => 'Place of death', 'sacraments_received' => 'Sacraments received'] as $key => $label) {
+                $fields[$key] = ['label' => $label, 'group' => 'Burial certificate details', 'type' => 'text', 'rules' => ['nullable', 'string', 'max:1000']];
+            }
         }
 
         return $fields;

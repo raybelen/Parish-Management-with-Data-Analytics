@@ -55,7 +55,7 @@ class AdminOperationsTest extends TestCase
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
         $unpaid = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'online']);
         $partial = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'walk_in']);
-        $paid = Appointment::factory()->create(['fee_cents' => 10000]);
+        $paid = Appointment::factory()->create(['fee_cents' => 10000, 'status' => 'expired']);
         Payment::factory()->for($partial)->create(['amount_cents' => 4000]);
         Payment::factory()->for($paid)->create(['amount_cents' => 10000]);
 
@@ -69,7 +69,8 @@ class AdminOperationsTest extends TestCase
             ->assertSee('Preference: Online Payment')
             ->assertSee('Preference: Walk-in Payment')
             ->assertSee($paid->reference_number)
-            ->assertSee('Paid');
+            ->assertSee('Paid')
+            ->assertSee('Refund review required');
     }
 
     public function test_appointment_list_hides_payment_status_without_finance_permission(): void
@@ -77,26 +78,59 @@ class AdminOperationsTest extends TestCase
         $this->withoutVite();
         config(['office.permissions.admin' => ['appointments.view']]);
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
-        $appointment = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'online']);
+        $appointment = Appointment::factory()->create(['fee_cents' => 10000, 'payment_option' => 'online', 'status' => 'expired']);
         Payment::factory()->for($appointment)->create(['amount_cents' => 4000]);
 
         $this->get(route('admin.appointments.index'))
             ->assertOk()
             ->assertSee($appointment->reference_number)
             ->assertDontSee('Partially paid')
-            ->assertDontSee('Preference: Online Payment');
+            ->assertDontSee('Preference: Online Payment')
+            ->assertDontSee('Refund review required');
     }
 
     public function test_appointment_details_show_the_selected_payment_preference_to_finance_staff(): void
     {
         $this->withoutVite();
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
-        $appointment = Appointment::factory()->create(['payment_option' => 'online']);
+        $appointment = Appointment::factory()->create(['payment_option' => 'online', 'status' => 'confirmed', 'fee_cents' => 10000]);
+        Payment::factory()->for($appointment)->create(['amount_cents' => 10000]);
 
         $this->get(route('admin.appointments.show', $appointment))
             ->assertOk()
             ->assertSee('Payment preference:')
-            ->assertSee('Online Payment');
+            ->assertSee('Online Payment')
+            ->assertDontSee('Paid appointment expired—refund review required.');
+    }
+
+    public function test_expired_appointment_with_a_recorded_payment_requires_refund_review(): void
+    {
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $appointment = Appointment::factory()->create(['status' => 'expired', 'fee_cents' => 10000]);
+        Payment::factory()->for($appointment)->create(['amount_cents' => 10000]);
+
+        $this->get(route('admin.appointments.show', $appointment))
+            ->assertOk()
+            ->assertSee('Paid appointment expired—refund review required.')
+            ->assertSee('No refund has been issued automatically.');
+    }
+
+    public function test_fully_refunded_expired_appointment_does_not_require_refund_review(): void
+    {
+        $this->withoutVite();
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $appointment = Appointment::factory()->create(['status' => 'expired', 'fee_cents' => 10000]);
+        $payment = Payment::factory()->for($appointment)->create(['amount_cents' => 10000]);
+        Payment::factory()->for($appointment)->create([
+            'kind' => 'refund',
+            'original_payment_id' => $payment->id,
+            'amount_cents' => 10000,
+        ]);
+
+        $this->get(route('admin.appointments.show', $appointment))
+            ->assertOk()
+            ->assertDontSee('Paid appointment expired—refund review required.');
     }
 
     public function test_pending_appointment_shows_requirements_before_status_without_completion_input(): void
@@ -280,7 +314,7 @@ class AdminOperationsTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'appointment.personnel_assigned', 'entity_id' => $appointment->id]);
     }
 
-    public function test_admin_screen_keeps_client_details_and_confirmed_schedule_read_only(): void
+    public function test_admin_screen_allows_detail_corrections_without_editing_the_confirmed_schedule(): void
     {
         $this->withoutVite();
         $this->travelTo('2026-10-01');
@@ -305,10 +339,12 @@ class AdminOperationsTest extends TestCase
             ->assertDontSee('name="starts_at"', false)
             ->assertDontSee('name="confirmed_church"', false)
             ->assertDontSee('Reason for this schedule')
-            ->assertDontSee('Edit contact &amp; participant details', false);
+            ->assertSee('Edit details');
 
-        $this->get('/admin/appointments/'.$appointment->reference_number.'/edit')->assertNotFound();
-        $this->patch('/admin/appointments/'.$appointment->reference_number.'/details', [])->assertNotFound();
+        $this->get('/admin/appointments/'.$appointment->reference_number.'/edit')
+            ->assertOk()
+            ->assertDontSee('name="preferred_date"', false)
+            ->assertDontSee('name="confirmed_church"', false);
     }
 
     public function test_document_buttons_confirm_after_final_verification_or_release_a_declined_hold(): void

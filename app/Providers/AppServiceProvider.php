@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\OfficeNotification;
+use App\Support\OfficeSettings;
 use App\Support\WebsiteContent;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Middleware\TrustProxies;
@@ -41,6 +43,13 @@ class AppServiceProvider extends ServiceProvider
 
         TrustProxies::at(config('security.trusted_proxies', []));
         View::share('navigation', config('parish.navigation'));
+        View::composer('admin.layout', function (IlluminateView $view): void {
+            $unreadOfficeNotificationCount = request()->user()?->can('notifications.manage')
+                ? OfficeNotification::query()->forSource(OfficeSettings::source())->whereNull('read_at')->count()
+                : 0;
+
+            $view->with('unreadOfficeNotificationCount', $unreadOfficeNotificationCount);
+        });
         View::composer('client-side.layouts.parish', function (IlluminateView $view): void {
             $view->with('websiteContent', WebsiteContent::values());
         });

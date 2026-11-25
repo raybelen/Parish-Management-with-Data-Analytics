@@ -1,6 +1,6 @@
-@props(['serviceType', 'active' => false, 'inputClass', 'selectClass', 'values' => [], 'preferredDate' => ''])
+@props(['serviceType', 'active' => false, 'inputClass', 'selectClass', 'values' => [], 'preferredDate' => '', 'exclude' => [], 'addressPicker' => true])
 
-@foreach (collect(config("appointments.details.{$serviceType}", []))->groupBy('group', preserveKeys: true) as $group => $fields)
+@foreach (collect(config("appointments.details.{$serviceType}", []))->except($exclude)->groupBy('group', preserveKeys: true) as $group => $fields)
     <div class="mt-7">
         <h3 class="mb-4 text-xl">{{ $group }}</h3>
         <div class="grid items-start gap-6 sm:grid-cols-2">
@@ -26,9 +26,9 @@
                                 <option value="{{ $option }}" @selected($value === $option)>{{ $label }}</option>
                             @endforeach
                         </select>
-                    @elseif ($field['type'] === 'address')
+                    @elseif ($field['type'] === 'address' && $addressPicker)
                         <x-parish.address-field :id="$fieldId" :name="'service['.$key.']'" :label="$field['label']" :value="$value" :required="$field['required']" :active="$active" :input-class="$inputClass" :select-class="$selectClass" />
-                    @elseif ($field['type'] === 'textarea')
+                    @elseif (in_array($field['type'], ['textarea', 'address'], true))
                         <textarea id="{{ $fieldId }}" name="service[{{ $key }}]" rows="3" maxlength="1000" class="{{ $inputClass }}" data-required="{{ $field['required'] ? 'true' : 'false' }}" @required($active && $field['required']) @disabled(! $active) @if($field['title_case'] ?? false) data-title-case autocapitalize="words" @endif>{{ $value }}</textarea>
                     @else
                         <input id="{{ $fieldId }}" name="service[{{ $key }}]" type="{{ $field['type'] }}" value="{{ $value }}" class="{{ $inputClass }}" data-required="{{ $field['required'] ? 'true' : 'false' }}" @required($active && $field['required']) @disabled(! $active)

@@ -192,6 +192,11 @@ class Appointment extends Model
         };
     }
 
+    public function requiresRefundReview(): bool
+    {
+        return $this->status === 'expired' && $this->netPaidCents() > 0;
+    }
+
     public function canStartOnlinePayment(): bool
     {
         return $this->payment_option === 'online'

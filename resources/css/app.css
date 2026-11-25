@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './service-certificate.css';
 
 @media print {
     body[data-printing-document] > [data-billing-document]:not([data-print-selected]) { display: none !important; }
