@@ -78,7 +78,7 @@
                     <span><span class="block font-semibold">Open for bookings</span><span id="schedule-registration-help" class="mt-1 block text-xs leading-5 text-muted" data-registration-help>Leave off to keep registration closed. Turn on to let parishioners book as soon as you save.</span></span>
                 </label>
                 <p class="text-xs leading-5 text-muted">Closing registration keeps existing bookings. Families use the same appointment form and document requirements.</p>
-                <label class="grid gap-2 text-sm"><span class="font-medium">Fee per family or couple <span class="font-normal text-muted">(optional)</span></span><input class="admin-input" type="number" name="group_fee" min="0" step="0.01" max="99999999.99" placeholder="Use the standard service fee"><span class="text-xs text-muted">Amount in PHP. Leave blank for the standard fee; enter 0 for no fee.</span></label>
+                <label class="grid gap-2 text-sm"><span class="font-medium">Fee per family or couple <span class="font-normal text-muted">(optional)</span></span><input class="admin-input" type="number" name="group_fee" min="0" step="0.01" max="99999999.99" placeholder="Use the standard group fee"><span class="text-xs text-muted">Amount in PHP. Leave blank for Baptism: 250, Wedding: 500, or Confirmation: free. Enter 0 for no fee.</span></label>
             </fieldset>
 
             <fieldset data-recurrence-fields class="min-w-0">

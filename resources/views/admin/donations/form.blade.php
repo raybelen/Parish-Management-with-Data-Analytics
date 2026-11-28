@@ -17,12 +17,10 @@
         @if($donation->isMassCollection())
             <section class="admin-card">
                 <h2 class="text-2xl">Mass and collection</h2>
-                <p class="mt-2 text-sm leading-6 text-muted">Enter the total collected at this Mass, including donations with individual receipts. Record cash and other payment methods separately. Individual donor names are not needed.</p>
+                <p class="mt-2 text-sm leading-6 text-muted">Enter the cash collected during Mass, including donations with individual receipts. Record special collections separately under Donations. Individual donor names are not needed.</p>
                 <div class="mt-5 grid gap-4 sm:grid-cols-2">
                     <x-admin.field label="Church / chapel" name="church" required><select class="admin-input" name="church" required><option value="">Choose a church</option>@foreach(config('parish.churches') as $church)<option value="{{ $church }}" @selected(old('church', $donation->church) === $church)>{{ $church }}</option>@endforeach</select></x-admin.field>
                     <x-admin.field label="Mass time" name="mass_time" type="time" :value="$donation->mass_time" required />
-                    <x-admin.field label="Collection type" name="collection_type" required><select class="admin-input" name="collection_type" required>@foreach(\App\Models\Donation::COLLECTION_TYPES as $key => $label)<option value="{{ $key }}" @selected(old('collection_type', $donation->collection_type ?? 'regular') === $key)>{{ $label }}</option>@endforeach</select></x-admin.field>
-                    <x-admin.field label="Special collection purpose" name="collection_purpose" :value="$donation->collection_purpose" maxlength="255" help="Required for a special collection, such as disaster relief." />
                     <x-admin.field label="Counted by" name="counted_by" :value="$donation->counted_by" maxlength="255" required />
                     <x-admin.field label="Checked by" name="verified_by" :value="$donation->verified_by" maxlength="255" help="Name of a different person who checked the count." required />
                 </div>
@@ -49,13 +47,23 @@
                 @else
                     <x-admin.field label="Category" name="category" required><select name="category" class="admin-input" required>@foreach(\App\Models\Donation::CATEGORIES as $key => $label)<option value="{{ $key }}" @selected(old('category', $donation->category ?? 'general') === $key)>{{ $label }}</option>@endforeach</select></x-admin.field>
                 @endif
-                @if($collection)
+                @if($donation->isMassCollection())
+                    <p>Payment method: {{ $donation->exists ? \App\Models\Donation::METHODS[$donation->method] : 'Cash' }}</p>
+                    @if($donation->exists)
+                        <p>Collection: {{ \App\Models\Donation::COLLECTION_TYPES[$donation->collection_type] }}@if($donation->collection_purpose) - {{ $donation->collection_purpose }}@endif</p>
+                        @if($donation->reference)<p>Payment reference: {{ $donation->reference }}</p>@endif
+                    @endif
+                @elseif($collection)
                     <input type="hidden" name="method" value="{{ $collection->method }}"><p class="self-center text-sm">Payment method: {{ \App\Models\Donation::METHODS[$collection->method] }}</p>
                 @else
                     <x-admin.field label="Payment method" name="method" required><select name="method" class="admin-input" required>@foreach(\App\Models\Donation::METHODS as $key => $label)<option value="{{ $key }}" @selected(old('method', $donation->method ?? 'cash') === $key)>{{ $label }}</option>@endforeach</select></x-admin.field>
                 @endif
+                @unless($donation->isMassCollection())
                 <x-admin.field label="Payment reference / check number" name="reference" :value="$donation->reference" maxlength="255" help="Required for payment methods other than cash." />
-                <x-admin.field label="Office notes" name="notes" help="These notes will not appear on the receipt."><textarea class="admin-input" name="notes" rows="3" maxlength="2000">{{ old('notes', $donation->notes) }}</textarea></x-admin.field>
+                @endunless
+                <div @class(['sm:col-start-1' => $donation->isMassCollection()])>
+                    <x-admin.field label="Office notes" name="notes" help="These notes will not appear on the receipt."><textarea class="admin-input" name="notes" rows="3" maxlength="2000">{{ old('notes', $donation->notes) }}</textarea></x-admin.field>
+                </div>
                 @if($donation->exists)<x-admin.field label="Reason for correction" name="reason" required><textarea class="admin-input" name="reason" rows="3" maxlength="1000" required>{{ old('reason') }}</textarea></x-admin.field>@endif
             </div>
         </section>

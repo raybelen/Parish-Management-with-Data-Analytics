@@ -64,6 +64,10 @@ class ParishPageController extends Controller
             'ministries' => 'Ministries & Organizations',
             'gallery' => 'Gallery',
             'contact' => 'Contact',
+            'terms' => 'Terms and Conditions',
+            'privacy' => 'Privacy Policy',
+            'booking-policy' => 'Booking, Cancellation and Refunds',
+            'cookies' => 'Cookies and Website Use',
         };
 
         return view('client-side.'.$page, compact(

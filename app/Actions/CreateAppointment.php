@@ -34,7 +34,7 @@ class CreateAppointment
                 throw ValidationException::withMessages(['group_baptism_session_id' => 'This group session is not open for bookings. Please choose another session.']);
             }
             $serviceType = ServiceType::query()->where('slug', $validated['service_type'])->first(['requirements', 'fee_cents']);
-            $feeCents = $session?->group_fee !== null ? (int) round((float) $session->group_fee * 100) : ($serviceType?->fee_cents ?? 0);
+            $feeCents = $session ? $session->groupFeeCents() : ($serviceType?->fee_cents ?? 0);
             if ($validated['service_type'] === 'others') {
                 $feeCents = RecordPayment::cents((string) $validated['offering_amount']);
             }

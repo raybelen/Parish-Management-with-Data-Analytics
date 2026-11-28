@@ -13,7 +13,7 @@
             <select id="group_baptism_session_id" name="group_baptism_session_id" class="{{ $selectClass }}" @disabled(! in_array($selectedService, ['baptism', 'wedding', 'confirmation'], true) || old('baptism_mode') !== 'shared') @required(in_array($selectedService, ['baptism', 'wedding', 'confirmation'], true) && old('baptism_mode') === 'shared')>
                 <option value="">Choose an open session</option>
                 @foreach($sessions as $session)
-                    <option value="{{ $session->id }}" data-service="{{ mb_strtolower(substr($session->category, 6)) }}" data-date="{{ $session->starts_at->toDateString() }}" data-time="{{ $session->starts_at->format('H:i') }}" data-venue="{{ $session->location }}" data-fee-cents="{{ $session->group_fee !== null ? (int) round((float) $session->group_fee * 100) : '' }}" @selected((string) old('group_baptism_session_id') === (string) $session->id)>{{ $session->starts_at->format('l, F j, Y · g:i A') }} — {{ $session->location }}</option>
+                    <option value="{{ $session->id }}" data-service="{{ mb_strtolower(substr($session->category, 6)) }}" data-date="{{ $session->starts_at->toDateString() }}" data-time="{{ $session->starts_at->format('H:i') }}" data-venue="{{ $session->location }}" data-fee-cents="{{ $session->groupFeeCents() }}" @selected((string) old('group_baptism_session_id') === (string) $session->id)>{{ $session->starts_at->format('l, F j, Y · g:i A') }} — {{ $session->location }}</option>
                 @endforeach
             </select>
             <span class="text-xs text-muted">The session sets your date, time, and venue. Complete the same service details and physical document requirements below.</span>

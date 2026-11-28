@@ -224,7 +224,7 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame('2026-10-27 '.($serviceType === 'wedding' ? '11:00' : '10:30'), $appointment->ends_at?->format('Y-m-d H:i'));
         $this->assertSame('St. John Nepomucene Parish', $appointment->confirmed_church);
         $this->assertSame('walk_in', $appointment->payment_option);
-        $this->assertSame(10000, $appointment->fee_cents);
+        $this->assertSame(['baptism' => 150000, 'wedding' => 690000, 'funeral' => 1670000][$serviceType], $appointment->fee_cents);
         $this->assertSame('unpaid', $appointment->payment_status);
         $this->assertSame([], $appointment->documents);
         $this->assertMatchesRegularExpression('/^APT-260927-[A-Z0-9]{6}$/', $appointment->reference_number);
@@ -316,10 +316,10 @@ class AppointmentControllerTest extends TestCase
         $this->assertSame('pending', $appointment->payment_status);
         $transaction = PaymentTransaction::query()->sole();
         $this->assertSame($appointment->id, $transaction->appointment_id);
-        $this->assertSame(10000, $transaction->amount_cents);
+        $this->assertSame(150000, $transaction->amount_cents);
         $invoice = AppointmentInvoice::query()->sole();
         $this->assertSame($appointment->id, $invoice->appointment_id);
-        $this->assertSame(10000, $invoice->amount_cents);
+        $this->assertSame(150000, $invoice->amount_cents);
         $this->assertNull($invoice->issued_by);
         Mail::assertQueued(AppointmentReserved::class, fn (AppointmentReserved $mail): bool => $mail->invoice?->is($invoice)
             && $mail->hasTo('maria@example.com') && $mail->afterCommit === true);
@@ -336,7 +336,7 @@ class AppointmentControllerTest extends TestCase
             ->assertRedirect()->assertSessionHas('payment_error');
 
         $invoice = AppointmentInvoice::query()->sole();
-        $this->assertSame(10000, $invoice->amount_cents);
+        $this->assertSame(150000, $invoice->amount_cents);
         Mail::assertQueued(AppointmentReserved::class, fn (AppointmentReserved $mail): bool => $mail->invoice?->is($invoice));
     }
 

@@ -10,7 +10,7 @@
     }
     $recordedCoordinates = array_slice($coordinates, 0, count($observations));
     $expectedCoordinates = array_slice($coordinates, count($observations) - 1);
-    $boundary = 48 + (count($observations) - 1) * 620 / $total;
+    $boundary = 48 + (count($observations) - 0.5) * 620 / $total;
     $lastActual = \Carbon\CarbonImmutable::parse(end($observations)['month'].'-01');
     $chartPoints = collect($coordinates)->map(function (string $coordinate, int $index) use ($observations, $predictions, $lastActual): array {
         [$x, $y] = explode(',', $coordinate);

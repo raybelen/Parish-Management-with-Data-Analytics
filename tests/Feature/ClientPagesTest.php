@@ -11,6 +11,31 @@ class ClientPagesTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    public function test_policy_pages_are_public_and_linked_from_the_footer(): void
+    {
+        $this->withoutVite();
+
+        $pages = [
+            'terms' => 'Terms and Conditions',
+            'privacy' => 'Privacy Policy',
+            'booking-policy' => 'Booking, Cancellation and Refunds',
+            'cookies' => 'Cookies and Website Use',
+        ];
+
+        $home = $this->get('/')->assertOk();
+
+        foreach ($pages as $route => $heading) {
+            $home->assertSee('href="'.route($route).'"', false);
+            $this->get(route($route))
+                ->assertOk()
+                ->assertSee($heading)
+                ->assertSee('Last updated: November 27, 2026')
+                ->assertDontSee('Draft for parish review')
+                ->assertDontSee('These policies are proposed wording')
+                ->assertSee('href="'.route('contact').'"', false);
+        }
+    }
+
     public function test_client_pages_render_their_content_and_current_navigation(): void
     {
         $this->withoutVite();

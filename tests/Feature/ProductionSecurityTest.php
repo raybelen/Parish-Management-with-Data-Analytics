@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Route;
@@ -61,6 +62,27 @@ class ProductionSecurityTest extends TestCase
         $this->app->instance('env', 'production');
 
         $this->get('/')->assertBadRequest();
+    }
+
+    public function test_only_admin_appointment_creation_allows_the_address_directory(): void
+    {
+        $this->withoutVite();
+        $user = User::factory()->admin()->withTwoFactor()->create();
+        $this->app->instance('env', 'production');
+        $this->actingAs($user)->withSession([
+            'admin.mfa_user_id' => $user->id,
+            'admin.mfa_fingerprint' => $user->adminSessionFingerprint(),
+        ]);
+
+        $response = $this->get('https://localhost/admin/appointments/create');
+
+        $response->assertOk()->assertSee('data-psgc-region', false);
+        $this->assertStringContainsString("connect-src 'self' https://psgc.cloud;", $response->headers->get('Content-Security-Policy'));
+
+        $response = $this->get('https://localhost/admin/appointments');
+
+        $response->assertOk();
+        $this->assertStringContainsString("connect-src 'self';", $response->headers->get('Content-Security-Policy'));
     }
 
     public function test_untrusted_forwarded_headers_cannot_bypass_https(): void

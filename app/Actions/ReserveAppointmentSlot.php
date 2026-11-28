@@ -121,11 +121,11 @@ class ReserveAppointmentSlot
             }
             $otherStart = $other->starts_at ?? $this->start($other);
             $otherEnd = $other->ends_at ?? $otherStart->addHour();
-            if ($message = $this->periodConflict($type, $start, $other->service_type, $otherStart)) {
-                return $message;
-            }
             $sameVenue = ! $appointment->requiresOfficeApproval() && ! $other->requiresOfficeApproval()
                 && ($other->confirmed_church ?? $other->preferred_church) === $venue;
+            if ($sameVenue && ($message = $this->periodConflict($type, $start, $other->service_type, $otherStart))) {
+                return $message;
+            }
             if (($sameVenue || ($personnelId && $other->personnel_id === $personnelId)) && $start < $otherEnd && $end > $otherStart) {
                 return 'This time conflicts with an existing booking. Please choose another available time or venue.';
             }
@@ -137,14 +137,15 @@ class ReserveAppointmentSlot
 
         $schedules = $this->schedulesForDate($source, $start, $exceptSchedule, $memoize);
         foreach ($schedules as $schedule) {
-            if (in_array($schedule->category, ['Group Baptism', 'Group Wedding', 'Group Confirmation'], true) && $schedule->starts_at->isSameDay($start)
+            $sameVenue = ! $appointment->requiresOfficeApproval() && mb_strtolower(trim($schedule->location ?? '')) === mb_strtolower($venue);
+            if ($sameVenue && in_array($schedule->category, ['Group Baptism', 'Group Wedding', 'Group Confirmation'], true) && $schedule->starts_at->isSameDay($start)
                 && ($message = $this->periodConflict($type, $start, mb_strtolower(substr($schedule->category, 6)), $schedule->starts_at))) {
                 return $message;
             }
             if ($session && $schedule->id === $session->id) {
                 continue;
             }
-            if ((! $appointment->requiresOfficeApproval() && mb_strtolower(trim($schedule->location ?? '')) === mb_strtolower($venue)
+            if (($sameVenue
                 || ($personnelId && $schedule->personnel_id === $personnelId)) && $start < $schedule->ends_at && $end > $schedule->starts_at) {
                 return 'This time conflicts with a parish activity. Please choose another available time or venue.';
             }
@@ -229,11 +230,13 @@ class ReserveAppointmentSlot
         $morning = $start->hour < 12;
         $otherMorning = $otherStart->hour < 12;
         if ((($type === 'wedding' && $otherType === 'funeral') || ($type === 'funeral' && $otherType === 'wedding')) && $morning === $otherMorning) {
-            return 'Weddings and funerals need different morning or afternoon periods, even at different venues. Please choose the opposite period or another date.';
+            return 'Weddings and funerals at the same venue need different morning or afternoon periods. Please choose another venue, the opposite period, or another date.';
         }
-        if (($type === 'funeral' && $morning && $otherType === 'baptism' && $otherMorning)
-            || ($type === 'baptism' && $morning && $otherType === 'funeral' && $otherMorning)) {
-            return 'Baptisms and funerals cannot both be in the morning, even at different venues. Please choose an afternoon time or another date.';
+        if (($type === 'funeral' && $morning && in_array($otherType, ['baptism', 'confirmation'], true) && $otherMorning)
+            || (in_array($type, ['baptism', 'confirmation'], true) && $morning && $otherType === 'funeral' && $otherMorning)) {
+            $serviceLabel = in_array('confirmation', [$type, $otherType], true) ? 'Confirmations' : 'Baptisms';
+
+            return $serviceLabel.' and funerals at the same venue cannot both be in the morning. Please choose another venue, an afternoon time, or another date.';
         }
 
         return null;

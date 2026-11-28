@@ -448,14 +448,16 @@ return [
         'others' => ['label' => 'Others', 'fee_cents' => 0, 'documents' => []],
         'confirmation' => [
             'label' => 'Confirmation',
-            'fee_cents' => 10000,
+            'fee_cents' => 50000,
+            'group_fee_cents' => 0,
             'documents' => [
                 'baptismal_certificate' => ['label' => 'Baptismal Certificate', 'required' => true, 'multiple' => false],
             ],
         ],
         'baptism' => [
             'label' => 'Baptism',
-            'fee_cents' => 10000,
+            'fee_cents' => 150000,
+            'group_fee_cents' => 25000,
             'documents' => [
                 'birth_certificate' => ['label' => 'Photocopy of Birth Certificate with registry number (PSA or Local Civil Registry)', 'required' => true, 'multiple' => false],
                 'parents_marriage_contract' => ['label' => 'Marriage Contract, if parents are married', 'required' => false, 'multiple' => false],
@@ -463,7 +465,8 @@ return [
         ],
         'wedding' => [
             'label' => 'Wedding',
-            'fee_cents' => 10000,
+            'fee_cents' => 690000,
+            'group_fee_cents' => 50000,
             'documents' => [
                 'psa_birth_certificate' => ['label' => 'PSA Birth Certificate', 'required' => true, 'multiple' => true],
                 'updated_baptismal_confirmation_certificate' => ['label' => 'Updated Baptismal & Confirmation Certificate (Purpose: For Marriage)', 'required' => true, 'multiple' => true],
@@ -473,7 +476,7 @@ return [
         ],
         'funeral' => [
             'label' => 'Funeral',
-            'fee_cents' => 10000,
+            'fee_cents' => 1670000,
             'documents' => [
                 'death_certificate' => ['label' => 'Photocopy of Death Certificate', 'required' => true, 'multiple' => false],
             ],

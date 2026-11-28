@@ -197,6 +197,9 @@ function updateServiceFields() {
         label.textContent = selectedService === 'others' ? 'Voluntary offering' : 'Service fee';
     });
     const groupSession = document.querySelector('[name="group_baptism_session_id"]');
+    document.querySelectorAll('[data-service-inclusions]').forEach((note) => {
+        note.hidden = note.dataset.serviceInclusions !== selectedService;
+    });
     const groupFee = groupSession && !groupSession.disabled ? groupSession.selectedOptions[0]?.dataset.feeCents : '';
     if (feeLabel) {
         feeLabel.textContent = selectedService

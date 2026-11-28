@@ -52,6 +52,9 @@
             <div><h2 class="font-sans text-xs tracking-[0.15em] uppercase text-[#d4ba80]">{{ $websiteContent['office_hours_label'] }}</h2><div class="mt-5 flex flex-col gap-2 text-sm text-ivory/65"><p>{{ $websiteContent['office_open_days'] }}</p><p>{{ $websiteContent['office_morning_hours'] }}</p><p>{{ $websiteContent['office_afternoon_hours'] }}</p><p class="mt-2">{{ $websiteContent['office_closed_day'] }} — {{ $websiteContent['office_closed_message'] }}</p></div><a href="{{ route('appointments.index') }}" class="text-link mt-5 text-[#d4ba80]">Set an Appointment <x-parish.icon name="arrow" class="size-4" /></a></div>
         </div>
         <div class="section-wrap flex flex-col justify-between gap-3 border-t border-ivory/10 py-6 text-[11px] text-ivory/65 sm:flex-row"><p>© {{ date('Y') }} St. John Nepomucene Parish. All rights reserved.</p><p>With faith, hope, and love.</p></div>
+        <nav aria-label="Policies" class="section-wrap flex flex-wrap gap-x-6 gap-y-2 border-t border-ivory/10 py-5 text-xs text-ivory/80">
+            @include('client-side.partials.policy-links')
+        </nav>
     </footer>
     @stack('dialogs')
 </body>

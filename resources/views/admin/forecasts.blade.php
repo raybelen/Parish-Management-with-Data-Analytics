@@ -97,6 +97,22 @@
             $averageEstimate = collect($points)->average('estimate');
         @endphp
 
+        <section class="admin-card" aria-labelledby="staff-planning-heading">
+            <h2 id="staff-planning-heading" class="text-2xl">What should staff do?</h2>
+            @if($historical)
+                <p class="mt-3 text-sm leading-6 text-muted">Verify recent monthly totals, then refresh analytics before arranging current services. These estimates begin after {{ $cutoffDate->format('F Y') }} and may describe months that have already passed.</p>
+            @else
+                <p class="mt-3 text-sm leading-6 text-muted"><strong class="text-navy">{{ $firstMonth->addMonths($peakIndex)->format('F Y') }}</strong> has the highest estimated activity: about <strong class="text-navy">{{ number_format(round($points[$peakIndex]['estimate'])) }} {{ $unit }}</strong>, with a possible range of {{ number_format(floor($points[$peakIndex]['lower'])) }} to {{ number_format(ceil($points[$peakIndex]['upper'])) }}.</p>
+                <p class="mt-3 text-sm leading-6 text-muted">{{ match($service) {
+                    'baptism' => 'Review baptism sessions, participant lists, and document-processing support before this period.',
+                    'wedding' => 'Review wedding schedules, preparation appointments, and document requirements before this period.',
+                    default => 'Review priest availability, Funeral Mass schedules, and office support before this period.',
+                } }} Confirm arrangements against actual bookings and available staff; the estimate does not determine how many staff or sessions are needed.</p>
+                @if($run->status === 'unreliable')<p class="mt-3 text-sm font-medium text-amber-900">Past estimates were less dependable than a simple comparison. Keep arrangements flexible and review the reliability details below.</p>@endif
+            @endif
+            <p class="mt-4 text-xs text-muted">Verified records through {{ $cutoffDate->format('F Y') }}. Estimates prepared {{ $run->created_at->format('M j, Y') }}. Possible ranges are planning guides, not guarantees.</p>
+        </section>
+
         <section aria-labelledby="outlook-summary-heading">
             <div class="flex flex-wrap items-end justify-between gap-3">
                 <div><p class="text-xs font-semibold tracking-[0.16em] text-gold uppercase">At a glance</p><h2 id="outlook-summary-heading" class="mt-1 text-2xl sm:text-3xl">What to expect</h2></div>
@@ -147,6 +163,34 @@
             </div>
         </details>
     @endif
+
+    <section class="admin-card min-w-0" aria-labelledby="forecast-review-heading">
+        <h2 id="forecast-review-heading" class="text-2xl">Past forecast versus actual results</h2>
+        <p class="mt-2 text-sm leading-6 text-muted">Completed months within the last 12 months, using the latest eligible estimate saved before each month began and the current verified register total. Each month appears once.</p>
+        @if($forecastReview === [])
+            <p class="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-muted">No eligible comparisons yet. Prepare estimates before the months they predict, then verify the actual monthly totals after those months finish. Estimates generated during or after a month are excluded.</p>
+        @else
+            <div class="mt-4 overflow-x-auto" role="region" aria-label="Past forecast comparisons" tabindex="0">
+                <table class="admin-table">
+                    <caption class="sr-only">{{ $serviceName }}: saved estimates compared with verified actual totals, measured in {{ $unit }}</caption>
+                    <thead><tr><th>Month</th><th>Saved estimate</th><th>Actual</th><th>Difference</th><th>Possible range</th><th>Result</th></tr></thead>
+                    <tbody>
+                        @foreach($forecastReview as $row)
+                            <tr>
+                                <td><span class="font-semibold">{{ $row['month'] }}</span><span class="mt-1 block text-xs text-muted">Prepared {{ $row['generated'] }} · {{ $row['horizon'] }} {{ \Illuminate\Support\Str::plural('month', $row['horizon']) }} ahead</span>@if($row['caution'])<span class="mt-1 block text-xs text-amber-900">Issued with extra caution</span>@endif</td>
+                                <td class="tabular-nums">{{ number_format($row['estimate']) }}</td>
+                                <td class="tabular-nums">{{ number_format($row['actual']) }}</td>
+                                <td class="tabular-nums">{{ $row['difference'] > 0 ? '+' : '' }}{{ number_format($row['difference']) }}</td>
+                                <td class="tabular-nums">{{ number_format($row['lower']) }}–{{ number_format($row['upper']) }}</td>
+                                <td>{{ $row['covered'] ? 'Within range' : 'Outside range' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-4 text-xs leading-5 text-muted">Counts are {{ $unit }}. Difference means actual minus the rounded estimate: positive means more activity than estimated. Range checks use the displayed range, rounded outward to whole counts. Corrections to verified totals update this comparison; saved estimates remain unchanged. Forecasts may have different lead times, so this is a record of past results, not a controlled model comparison.</p>
+        @endif
+    </section>
 
     <details class="admin-card group">
         <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold marker:hidden"><span>Previous updates</span><x-parish.icon name="chevron-down" class="size-5 shrink-0 transition-transform group-open:rotate-180" /></summary>

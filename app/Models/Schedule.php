@@ -31,6 +31,15 @@ class Schedule extends Model
             ->get(['id', 'category', 'starts_at', 'ends_at', 'location', 'group_capacity', 'group_fee']);
     }
 
+    public function groupFeeCents(): int
+    {
+        $service = mb_strtolower(substr($this->category, 6));
+
+        return $this->group_fee !== null
+            ? (int) round((float) $this->group_fee * 100)
+            : (int) config('appointments.services.'.$service.'.group_fee_cents', 0);
+    }
+
     public function personnel(): BelongsTo
     {
         return $this->belongsTo(Personnel::class);

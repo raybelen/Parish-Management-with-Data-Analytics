@@ -40,7 +40,7 @@ class ConfirmationBookingTest extends TestCase
         config(['parish.regular_schedules' => []]);
         Personnel::factory()->create();
         $this->get(route('appointments.create', ['service' => 'confirmation']))
-            ->assertSee('value="confirmation" data-fee-cents="10000" selected', false)
+            ->assertSee('value="confirmation" data-fee-cents="50000" selected', false)
             ->assertSee('name="service[place_of_baptism]"', false)
             ->assertSee('name="service[godfather_name]"', false)
             ->assertSee('name="service[godmother_name]"', false);
@@ -49,7 +49,7 @@ class ConfirmationBookingTest extends TestCase
 
         $appointment = Appointment::query()->sole();
         $this->assertSame('confirmation', $appointment->service_type);
-        $this->assertSame(10000, $appointment->fee_cents);
+        $this->assertSame(50000, $appointment->fee_cents);
         $this->assertSame($this->payload()['service'], $appointment->service_details);
         $this->assertSame(['baptismal_certificate' => ['label' => 'Baptismal Certificate', 'required' => true, 'multiple' => false]], $appointment->requirements);
         $this->assertFalse($appointment->physicalDocumentsComplete());
@@ -95,6 +95,26 @@ class ConfirmationBookingTest extends TestCase
         $session->update(['category' => 'Group Confirmation', 'group_booking_open' => false]);
         $this->postJson(route('appointments.store'), $payload)->assertInvalid('group_baptism_session_id');
         $this->assertDatabaseCount('appointments', 2);
+    }
+
+    public function test_group_confirmation_without_a_session_override_is_free(): void
+    {
+        $this->travelTo('2026-10-01');
+        config(['parish.regular_schedules' => []]);
+        $priest = Personnel::factory()->create();
+        $session = Schedule::factory()->create([
+            'category' => 'Group Confirmation', 'location' => 'St. John Nepomucene Parish',
+            'starts_at' => '2026-11-08 09:00', 'ends_at' => '2026-11-08 10:00',
+            'group_booking_open' => true, 'group_fee' => null, 'personnel_id' => $priest->id,
+        ]);
+
+        $this->post(route('appointments.store'), [...$this->payload(), 'baptism_mode' => 'shared', 'group_baptism_session_id' => $session->id])
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $appointment = Appointment::query()->sole();
+        $this->assertSame(0, $appointment->fee_cents);
+        $this->assertSame('not_required', $appointment->payment_status);
+        $this->assertDatabaseEmpty('appointment_invoices');
     }
 
     /** @return array<string, mixed> */

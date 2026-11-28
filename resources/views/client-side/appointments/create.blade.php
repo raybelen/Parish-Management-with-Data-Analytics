@@ -211,6 +211,9 @@
                     </div>
                     <p class="mt-5 rounded-lg bg-ivory p-4 text-sm" aria-live="polite"><span data-service-fee-label>{{ $selectedService === 'others' ? 'Voluntary offering' : 'Service fee' }}</span>: <strong data-service-fee>{{ $selectedService === 'others' ? '₱'.number_format((float) old('offering_amount', 0), 2) : (isset($services[$selectedService]) ? '₱'.number_format(($services[$selectedService]['fee_cents'] ?? 0) / 100, 2) : 'Select a service to see the fee.') }}</strong></p>
 
+                    <p class="mt-3 text-sm text-muted" data-service-inclusions="wedding" @if($selectedService !== 'wedding') hidden @endif>Solo and group weddings include decoration, choir, and stipend.</p>
+                    <p class="mt-3 text-sm text-muted" data-service-inclusions="funeral" @if($selectedService !== 'funeral') hidden @endif>The base funeral package includes 5 years of space rental, maintenance, labor and materials, gravestone, and stipend.</p>
+
                     <fieldset class="mt-7 grid gap-4 sm:grid-cols-2">
                         <legend class="sr-only">Payment option</legend>
                         <label class="flex min-h-36 cursor-pointer gap-4 rounded-xl border border-navy/15 bg-ivory p-5 transition-colors has-checked:border-gold has-checked:bg-gold/10">

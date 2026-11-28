@@ -172,6 +172,12 @@ class ManageDonation
         if ($details['kind'] !== 'mass_collection') {
             return null;
         }
+        if ($details['method'] !== ($donation?->method ?? 'cash')) {
+            throw ValidationException::withMessages(['method' => 'Mass collections are cash only. Existing records must keep their original payment method.']);
+        }
+        if ($details['collection_type'] !== ($donation?->collection_type ?? 'regular')) {
+            throw ValidationException::withMessages(['collection_type' => 'Record special collections under Donations. Existing records must keep their original collection type.']);
+        }
         if ($donation && $donation->itemizedDonations()->where('status', 'recorded')->exists()) {
             if ($details['amount_cents'] < $donation->itemizedDonations()->where('status', 'recorded')->sum('amount_cents')) {
                 throw ValidationException::withMessages(['amount' => 'The collection total cannot be lower than its individual receipts.']);

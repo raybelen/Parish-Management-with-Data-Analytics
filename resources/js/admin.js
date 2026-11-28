@@ -1,6 +1,7 @@
 import './admin-calendar';
 import './admin-document-verification';
 import './appointment-details';
+import './psgc-address';
 import './group-baptisms';
 import './admin-reports';
 
@@ -235,9 +236,12 @@ document.querySelectorAll('[data-walkin-service]').forEach((select) => {
         document.querySelectorAll('[data-walkin-fields]').forEach((section) => {
             const active = section.dataset.walkinFields === select.value;
             section.hidden = !active;
-            section.querySelectorAll('input, select, textarea').forEach((input) => {
+            section.querySelectorAll('input[name], select[name], textarea[name]').forEach((input) => {
                 input.disabled = !active;
                 if (input.dataset.required !== undefined) input.required = active && input.dataset.required === 'true';
+            });
+            section.querySelectorAll('[data-psgc-address-controls]').forEach((fieldset) => {
+                fieldset.disabled = !active;
             });
         });
     };

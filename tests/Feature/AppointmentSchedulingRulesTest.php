@@ -62,15 +62,30 @@ class AppointmentSchedulingRulesTest extends TestCase
     public static function bookingPairs(): array
     {
         return [
-            ['wedding', '08:00', 'funeral', '10:00', false, false],
-            ['funeral', '10:00', 'wedding', '08:00', false, false],
-            ['wedding', '15:00', 'funeral', '13:00', false, false],
-            ['funeral', '13:00', 'wedding', '15:00', false, false],
+            ['wedding', '08:00', 'funeral', '10:00', false, true],
+            ['wedding', '08:00', 'funeral', '10:00', true, false],
+            ['funeral', '10:00', 'wedding', '08:00', false, true],
+            ['funeral', '10:00', 'wedding', '08:00', true, false],
+            ['wedding', '15:00', 'funeral', '13:00', false, true],
+            ['wedding', '15:00', 'funeral', '13:00', true, false],
+            ['funeral', '13:00', 'wedding', '15:00', false, true],
+            ['funeral', '13:00', 'wedding', '15:00', true, false],
             ['wedding', '08:00', 'funeral', '13:00', true, true],
             ['wedding', '13:00', 'funeral', '08:00', false, true],
-            ['baptism', '08:00', 'funeral', '10:00', false, false],
-            ['funeral', '08:00', 'baptism', '10:00', false, false],
+            ['baptism', '08:00', 'funeral', '10:00', false, true],
+            ['baptism', '08:00', 'funeral', '10:00', true, false],
+            ['funeral', '08:00', 'baptism', '10:00', false, true],
+            ['funeral', '08:00', 'baptism', '10:00', true, false],
             ['baptism', '13:00', 'funeral', '08:00', true, true],
+            ['confirmation', '08:00', 'funeral', '10:00', true, false],
+            ['funeral', '08:00', 'confirmation', '10:00', true, false],
+            ['confirmation', '08:00', 'funeral', '10:00', false, true],
+            ['funeral', '08:00', 'confirmation', '10:00', false, true],
+            ['confirmation', '08:00', 'funeral', '13:00', true, true],
+            ['funeral', '08:00', 'confirmation', '13:00', true, true],
+            ['confirmation', '13:00', 'funeral', '14:00', true, true],
+            ['funeral', '13:00', 'confirmation', '14:00', true, true],
+            ['confirmation', '09:00', 'confirmation', '10:00', true, true],
             ['wedding', '08:00', 'baptism', '09:00', true, true],
             ['baptism', '09:00', 'wedding', '10:00', true, true],
             ['wedding', '08:00', 'wedding', '08:00', false, true],
@@ -152,13 +167,13 @@ class AppointmentSchedulingRulesTest extends TestCase
         $this->assertSame('scheduled', $session->refresh()->status);
     }
 
-    public function test_admin_confirmation_rechecks_cross_venue_period_rules(): void
+    public function test_admin_confirmation_rechecks_same_venue_period_rules(): void
     {
         $this->travelTo('2026-10-01');
         config(['parish.regular_schedules' => []]);
         $person = Personnel::factory()->create();
         $funeral = Appointment::factory()->create(['service_type' => 'funeral', 'requirements' => [], 'fee_cents' => 0, 'starts_at' => '2026-11-02 10:00', 'ends_at' => '2026-11-02 11:00', 'reserved_until' => '2026-11-02 11:00', 'personnel_id' => $person->id, 'confirmed_church' => 'St. John Nepomucene Parish']);
-        Appointment::factory()->create(['service_type' => 'wedding', 'starts_at' => '2026-11-02 08:00', 'ends_at' => '2026-11-02 09:00', 'confirmed_church' => 'San Isidro Labrador Chapel']);
+        Appointment::factory()->create(['service_type' => 'wedding', 'starts_at' => '2026-11-02 08:00', 'ends_at' => '2026-11-02 09:00', 'confirmed_church' => 'St. John Nepomucene Parish']);
 
         try {
             app(ManageAppointment::class)->status($funeral, 'confirmed', $funeral->refresh()->version, 'Checked requirements');
@@ -167,6 +182,56 @@ class AppointmentSchedulingRulesTest extends TestCase
             $this->assertStringContainsString('different morning or afternoon', $exception->errors()['starts_at'][0]);
         }
         $this->assertSame('pending', $funeral->refresh()->status);
+        Appointment::query()->where('service_type', 'wedding')->update(['confirmed_church' => 'San Isidro Labrador Chapel']);
+        app(ManageAppointment::class)->status($funeral, 'confirmed', $funeral->version, 'Checked requirements');
+        $this->assertSame('confirmed', $funeral->refresh()->status);
+    }
+
+    #[DataProvider('groupPeriodVenues')]
+    public function test_group_service_period_restrictions_apply_only_at_the_same_venue(string $category, string $venue, bool $available): void
+    {
+        $this->travelTo('2026-10-01');
+        config(['parish.regular_schedules' => []]);
+        Schedule::factory()->create([
+            'category' => $category, 'location' => 'St. John Nepomucene Parish',
+            'starts_at' => '2026-11-02 08:00', 'ends_at' => '2026-11-02 09:00',
+        ]);
+
+        $this->postJson(route('appointments.availability'), [
+            'service_type' => 'funeral', 'preferred_date' => '2026-11-02',
+            'preferred_time' => '10:00', 'preferred_church' => $venue,
+        ])->assertJsonPath('available', $available);
+    }
+
+    public static function groupPeriodVenues(): array
+    {
+        return [
+            ['Group Baptism', 'St. John Nepomucene Parish', false],
+            ['Group Baptism', 'San Isidro Labrador Chapel', true],
+            ['Group Confirmation', 'St. John Nepomucene Parish', false],
+            ['Group Confirmation', 'San Isidro Labrador Chapel', true],
+            ['Group Wedding', 'St. John Nepomucene Parish', false],
+            ['Group Wedding', 'San Isidro Labrador Chapel', true],
+        ];
+    }
+
+    public function test_different_venues_still_reject_overlapping_assignments_for_the_same_priest(): void
+    {
+        $this->travelTo('2026-10-01');
+        config(['parish.regular_schedules' => []]);
+        $priest = Personnel::factory()->create();
+        Appointment::factory()->create([
+            'service_type' => 'baptism', 'personnel_id' => $priest->id,
+            'starts_at' => '2026-11-02 09:00', 'ends_at' => '2026-11-02 10:00',
+            'confirmed_church' => 'St. John Nepomucene Parish',
+        ]);
+        $candidate = Appointment::factory()->make([
+            'service_type' => 'funeral', 'preferred_date' => '2026-11-02',
+            'preferred_time' => '09:00', 'preferred_church' => 'San Isidro Labrador Chapel',
+        ]);
+
+        $this->assertNull(app(ReserveAppointmentSlot::class)->conflictMessage($candidate));
+        $this->assertNotNull(app(ReserveAppointmentSlot::class)->conflictMessage($candidate, $priest->id));
     }
 
     public function test_live_warnings_include_available_alternatives_when_requested(): void

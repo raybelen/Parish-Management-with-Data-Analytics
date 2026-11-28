@@ -132,9 +132,11 @@ class GroupBaptismBookingTest extends TestCase
 
         $this->postJson(route('admin.schedules.store'), [...$payload, 'ends_at' => '2026-11-08T11:00'])->assertInvalid('ends_at');
         $this->postJson(route('admin.schedules.store'), [...$payload, 'starts_at' => '2026-11-08T12:00', 'ends_at' => '2026-11-08T13:00'])->assertInvalid('starts_at');
-        Appointment::factory()->create(['service_type' => 'funeral', 'starts_at' => '2026-11-08 10:00', 'ends_at' => '2026-11-08 11:00', 'preferred_church' => 'San Isidro Labrador Chapel', 'confirmed_church' => 'San Isidro Labrador Chapel']);
+        $funeral = Appointment::factory()->create(['service_type' => 'funeral', 'starts_at' => '2026-11-08 10:00', 'ends_at' => '2026-11-08 11:00', 'preferred_church' => $payload['location'], 'confirmed_church' => $payload['location']]);
         $this->postJson(route('admin.schedules.store'), $payload)->assertInvalid('starts_at');
         $this->assertDatabaseEmpty('schedules');
+        $funeral->update(['preferred_church' => 'San Isidro Labrador Chapel', 'confirmed_church' => 'San Isidro Labrador Chapel']);
+        $this->postJson(route('admin.schedules.store'), $payload)->assertCreated();
     }
 
     public function test_group_bookings_still_require_baptism_details_and_cannot_be_used_for_other_services(): void
@@ -251,11 +253,23 @@ class GroupBaptismBookingTest extends TestCase
         foreach (range(1, 3) as $couple) {
             $this->post(route('appointments.store'), $payload)->assertRedirect()->assertSessionHasNoErrors();
         }
-        $this->assertSame(3, Appointment::query()->where('group_baptism_session_id', $session->id)->where('personnel_id', $session->personnel_id)->count());
+        $this->assertSame(3, Appointment::query()->where('group_baptism_session_id', $session->id)->where('personnel_id', $session->personnel_id)->where('fee_cents', 50000)->count());
         $this->postJson(route('appointments.availability'), $payload)->assertJsonPath('available', true);
         $this->postJson(route('appointments.store'), $this->payload($session))->assertInvalid('group_baptism_session_id');
         $session->update(['group_booking_open' => false]);
         $this->postJson(route('appointments.store'), $payload)->assertInvalid('group_baptism_session_id');
+    }
+
+    public function test_group_baptism_without_a_session_override_uses_the_group_price(): void
+    {
+        $this->travelTo('2026-10-01');
+        config(['parish.regular_schedules' => []]);
+        $priest = Personnel::factory()->create();
+        $session = $this->groupSession(['group_fee' => null, 'personnel_id' => $priest->id]);
+
+        $this->post(route('appointments.store'), $this->payload($session))->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(25000, Appointment::query()->sole()->fee_cents);
     }
 
     private function groupSession(array $attributes = []): Schedule

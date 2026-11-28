@@ -26,7 +26,10 @@ class SecurityHeaders
             $response->headers->set('Cache-Control', 'no-store, private');
             $response->headers->set('Referrer-Policy', 'no-referrer');
             if (app()->isProduction()) {
-                $response->headers->set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");
+                $connectSources = $request->routeIs('admin.appointments.create')
+                    ? "'self' https://psgc.cloud"
+                    : "'self'";
+                $response->headers->set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src {$connectSources}; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");
             }
         }
 

@@ -97,18 +97,70 @@ class MassCollectionTest extends TestCase
             'future Mass' => ['mass_time', '23:00'], 'unknown type' => ['collection_type', 'unknown'],
             'missing counter' => ['counted_by', ''], 'same verifier' => ['verified_by', 'COUNTER ONE'],
             'missing verifier' => ['verified_by', ''],
+            'special collection' => ['collection_type', 'special'],
+            'non cash collection' => ['method', 'gcash'],
         ];
     }
 
-    public function test_special_collection_requires_a_purpose_and_different_collections_or_methods_are_allowed(): void
+    public function test_mass_form_defaults_to_regular_cash_and_special_gifts_use_donations(): void
     {
         $this->verified(User::factory()->admin()->withTwoFactor()->create());
-        $this->post('/admin/donations', [...$this->mass(), 'collection_type' => 'special'])->assertSessionHasErrors('collection_purpose');
-        $this->post('/admin/donations', $this->mass())->assertSessionHasNoErrors();
-        $this->post('/admin/donations', [...$this->mass(), 'collection_type' => 'special', 'collection_purpose' => 'Disaster relief'])->assertSessionHasNoErrors();
-        $this->post('/admin/donations', [...$this->mass(), 'method' => 'gcash', 'reference' => 'GCASH-BATCH-123'])->assertSessionHasNoErrors();
-        $this->assertDatabaseCount('donations', 3);
-        $this->get('/admin/donations?collection_type=special')->assertViewHas('donations', fn ($rows): bool => $rows->total() === 1);
+        $this->get('/admin/donations/create?kind=mass_collection')->assertOk()
+            ->assertSee('Payment method: Cash')->assertDontSee('name="method"', false)
+            ->assertDontSee('name="collection_type"', false)->assertDontSee('name="collection_purpose"', false)
+            ->assertDontSee('name="reference"', false);
+        $payload = $this->mass();
+        unset($payload['method'], $payload['collection_type']);
+        $this->post('/admin/donations', $payload)->assertSessionHasNoErrors();
+        $mass = Donation::query()->sole();
+        $this->assertSame('cash', $mass->method);
+        $this->assertSame('regular', $mass->collection_type);
+        $this->assertNull($mass->collection_purpose);
+        $this->assertNull($mass->reference);
+        $this->post('/admin/donations', [...$this->individual(), 'category' => 'charity', 'notes' => 'Special collection for disaster relief'])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('donations', ['kind' => 'individual', 'category' => 'charity', 'notes' => 'Special collection for disaster relief']);
+    }
+
+    public function test_existing_special_non_cash_collection_keeps_its_details_after_amount_correction(): void
+    {
+        $this->verified(User::factory()->admin()->withTwoFactor()->create());
+        $mass = Donation::factory()->create([
+            'kind' => 'mass_collection', 'category' => 'mass_offering',
+            'church' => config('parish.churches')[0], 'mass_time' => '07:00',
+            'counted_by' => 'Counter One', 'verified_by' => 'Verifier Two',
+            'collection_type' => 'special', 'collection_purpose' => 'Disaster relief',
+            'method' => 'gcash', 'reference' => 'OLD-REF',
+        ]);
+        $this->get(route('admin.donations.edit', $mass))->assertOk()->assertSee('Disaster relief')->assertSee('OLD-REF');
+        $payload = [...$this->mass(), 'amount' => '12000', 'version' => 1, 'reason' => 'Correct counted amount'];
+        unset($payload['method'], $payload['collection_type']);
+        $this->put(route('admin.donations.update', $mass), $payload)->assertSessionHasNoErrors();
+        $this->approve(DonationAdjustment::query()->sole());
+        $mass->refresh();
+        $this->assertSame(1200000, $mass->amount_cents);
+        $this->assertSame('special', $mass->collection_type);
+        $this->assertSame('Disaster relief', $mass->collection_purpose);
+        $this->assertSame('gcash', $mass->method);
+        $this->assertSame('OLD-REF', $mass->reference);
+    }
+
+    public function test_old_pending_change_to_special_or_non_cash_collection_cannot_be_approved(): void
+    {
+        $mass = Donation::factory()->create([
+            'kind' => 'mass_collection', 'category' => 'mass_offering', 'collection_type' => 'regular',
+            'church' => config('parish.churches')[0], 'mass_time' => '07:00',
+            'counted_by' => 'Counter One', 'verified_by' => 'Verifier Two',
+        ]);
+        $adjustment = DonationAdjustment::factory()->for($mass)->create([
+            'kind' => 'correction', 'payload' => [...$mass->details(), 'method' => 'gcash', 'reference' => 'REF'],
+        ]);
+        $this->verified(User::factory()->superAdmin()->withTwoFactor()->create());
+        $this->patch(route('admin.donation-adjustments.update', $adjustment), ['decision' => 'approved', 'review_reason' => 'Review change'])->assertSessionHasErrors('method');
+        $adjustment->update(['payload' => [...$mass->details(), 'collection_type' => 'special', 'collection_purpose' => 'Relief']]);
+        $this->patch(route('admin.donation-adjustments.update', $adjustment), ['decision' => 'approved', 'review_reason' => 'Review change'])->assertSessionHasErrors('collection_type');
+        $this->assertSame('cash', $mass->refresh()->method);
+        $this->assertSame('regular', $mass->collection_type);
+        $this->assertSame('pending', $adjustment->refresh()->status);
     }
 
     public function test_duplicate_mass_collection_with_a_new_submission_key_is_rejected(): void

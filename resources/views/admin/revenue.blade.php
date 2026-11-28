@@ -1,7 +1,6 @@
 @extends('admin.layout')
 @section('title', 'Parish Revenue')
 @section('content')
-    <p class="admin-alert border-sky-200 bg-sky-50 text-sm text-sky-950"><strong>Test payments</strong> Test payments are included in balances and reports. They demonstrate the payment process without using real money.</p>
     <p class="max-w-3xl text-sm leading-6 text-muted">Monitor service payments, individual donations, Mass collections, refunds, and unpaid fees.@can('donations.view') <a class="underline" href="{{ route('admin.donations.index') }}">View donations</a>.@endcan</p>
     <form method="GET" class="admin-card grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <x-admin.field label="From" name="from" type="date" :value="$filters['from']" required />

@@ -171,6 +171,10 @@ Route::get('/announcements', ParishPageController::class)->defaults('page', 'ann
 Route::get('/ministries-and-organizations', ParishPageController::class)->defaults('page', 'ministries')->name('ministries');
 Route::get('/gallery', ParishPageController::class)->defaults('page', 'gallery')->name('gallery');
 Route::get('/contact', ParishPageController::class)->defaults('page', 'contact')->name('contact');
+Route::get('/terms-and-conditions', ParishPageController::class)->defaults('page', 'terms')->name('terms');
+Route::get('/privacy-policy', ParishPageController::class)->defaults('page', 'privacy')->name('privacy');
+Route::get('/booking-policy', ParishPageController::class)->defaults('page', 'booking-policy')->name('booking-policy');
+Route::get('/cookies', ParishPageController::class)->defaults('page', 'cookies')->name('cookies');
 Route::get('/calendar', ParishCalendarController::class)->name('calendar');
 
 Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');

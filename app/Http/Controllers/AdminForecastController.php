@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\GenerateForecast;
 use App\Models\ForecastRun;
+use App\Support\ForecastReview;
 use App\Support\OfficeSettings;
 use App\Support\ParishStatistics;
 use Illuminate\Contracts\View\View;
@@ -14,7 +15,7 @@ use Illuminate\Validation\Rule;
 
 class AdminForecastController extends Controller
 {
-    public function index(Request $request, ParishStatistics $statistics): View
+    public function index(Request $request, ParishStatistics $statistics, ForecastReview $review): View
     {
         abort_unless(config('office.analytics_enabled'), 404);
         Gate::authorize('forecasts.manage');
@@ -28,6 +29,7 @@ class AdminForecastController extends Controller
             || ($run->configuration['model_version'] ?? '') !== config('forecast.version'));
 
         return view('admin.forecasts', [
+            'forecastReview' => $review->forService($service, $history),
             'history' => $history, 'run' => $run, 'runs' => $runs, 'stale' => $stale, 'service' => $service,
             'services' => array_intersect_key(ParishStatistics::SERVICES, array_flip(ParishStatistics::FORECAST_SERVICES)),
             'cutoff' => collect($history)->last()['month'] ?? null,

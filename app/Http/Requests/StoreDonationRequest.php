@@ -19,6 +19,12 @@ class StoreDonationRequest extends FormRequest
             $this->merge(['mass_collection_id' => $donation->mass_collection_id]);
         }
         if ($kind === 'mass_collection') {
+            $this->merge([
+                'method' => $this->input('method', $donation instanceof Donation ? $donation->method : 'cash'),
+                'collection_type' => $this->input('collection_type', $donation instanceof Donation ? $donation->collection_type : 'regular'),
+                'collection_purpose' => $this->input('collection_purpose', $donation instanceof Donation ? $donation->collection_purpose : null),
+                'reference' => $this->input('reference', $donation instanceof Donation ? $donation->reference : null),
+            ]);
             $identity = [
                 'donor_name' => 'Mass congregation',
                 'donor_email' => null, 'donor_phone' => null, 'donor_address' => null,
@@ -40,6 +46,9 @@ class StoreDonationRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $donation = $this->route('donation');
+        $isMass = $this->input('kind') === 'mass_collection';
+
         return [
             'kind' => ['required', Rule::in(['individual', 'mass_collection'])],
             'is_anonymous' => ['sometimes', 'boolean', Rule::in([false, 0, '0'])],
@@ -52,14 +61,14 @@ class StoreDonationRequest extends FormRequest
             'amount' => ['required', 'numeric', 'gt:0', 'max:9999999.99', 'regex:/^\d+(\.\d{1,2})?$/'],
             'donated_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now(config('office.timezone'))->toDateString()],
             'category' => ['required', Rule::in(array_keys(Donation::CATEGORIES))],
-            'method' => ['required', Rule::in(array_keys(Donation::METHODS))],
+            'method' => ['required', Rule::in($isMass ? [$donation instanceof Donation ? $donation->method : 'cash'] : array_keys(Donation::METHODS))],
             'reference' => ['nullable', 'required_unless:method,cash', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'version' => [$this->routeIs('admin.donations.update') ? 'required' : 'sometimes', 'integer', 'min:1'],
             'reason' => [$this->routeIs('admin.donations.update') ? 'required' : 'sometimes', 'string', 'max:1000'],
             'church' => ['exclude_unless:kind,mass_collection', 'required', 'string', Rule::in(config('parish.churches'))],
             'mass_time' => ['exclude_unless:kind,mass_collection', 'required', 'date_format:H:i'],
-            'collection_type' => ['exclude_unless:kind,mass_collection', 'required', Rule::in(array_keys(Donation::COLLECTION_TYPES))],
+            'collection_type' => ['exclude_unless:kind,mass_collection', 'required', Rule::in([$donation instanceof Donation ? $donation->collection_type : 'regular'])],
             'collection_purpose' => ['exclude_unless:kind,mass_collection', 'nullable', 'required_if:collection_type,special', 'string', 'max:255'],
             'counted_by' => ['exclude_unless:kind,mass_collection', 'required', 'string', 'max:255'],
             'verified_by' => ['exclude_unless:kind,mass_collection', 'required', 'string', 'max:255'],

@@ -20,7 +20,7 @@ class AdminConfigurationTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_builtin_services_have_an_example_fee_for_sandbox_payment_testing(): void
+    public function test_builtin_services_have_the_current_service_prices(): void
     {
         $fees = ServiceType::query()
             ->whereIn('slug', ['baptism', 'wedding', 'funeral'])
@@ -28,9 +28,9 @@ class AdminConfigurationTest extends TestCase
             ->all();
 
         $this->assertSame([
-            'baptism' => 10000,
-            'funeral' => 10000,
-            'wedding' => 10000,
+            'baptism' => 150000,
+            'funeral' => 1670000,
+            'wedding' => 690000,
         ], $fees);
     }
 
